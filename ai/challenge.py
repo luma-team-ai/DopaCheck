@@ -32,13 +32,18 @@ def recommend(history: dict) -> dict:
         }
     """
     avg_delivery = history.get("avg_delivery_per_week", 0)
-    top_app = history.get("top_app", "")
+    top_app = history.get("top_app")
     top_app_hours = history.get("top_app_hours", 0)
 
+    app_line = (
+        f"- 가장 많이 쓰는 앱: {top_app} ({top_app_hours:.1f}시간/주)\n"
+        if top_app
+        else ""
+    )
     prompt = (
         f"사용자의 최근 습관:\n"
         f"- 주간 평균 배달 횟수: {avg_delivery:.1f}회\n"
-        f"- 가장 많이 쓰는 앱: {top_app} ({top_app_hours:.1f}시간/주)\n\n"
+        f"{app_line}"
         "이 사용자에게 맞춤 챌린지 3개를 한국어로 추천해주세요. "
         "각 챌린지는 현실적으로 달성 가능하고 구체적이어야 합니다.\n\n"
         "JSON 배열 형식으로만 응답하세요 (다른 텍스트 없이):\n"

@@ -27,7 +27,10 @@ def challenge_page():
     # 기본 챌린지 목록 (FR-32)
     try:
         with db() as cursor:
-            cursor.execute("SELECT * FROM challenges")
+            cursor.execute(
+                "SELECT id, title, description, target_type, target_value"
+                " FROM challenges"
+            )
             challenges = cursor.fetchall() or []
     except Exception as e:
         logger.warning("챌린지 목록 조회 실패: %s", e)
@@ -37,7 +40,8 @@ def challenge_page():
     try:
         with db() as cursor:
             cursor.execute(
-                "SELECT * FROM user_challenges WHERE user_id = %s AND is_completed = 0",
+                "SELECT challenge_id, progress"
+                " FROM user_challenges WHERE user_id = %s AND is_completed = 0",
                 (user_id,),
             )
             user_challenges = cursor.fetchall() or []
@@ -89,14 +93,14 @@ def challenge_page():
                 app_totals["tiktok"] += t.get("tiktok_min", 0) or 0
                 app_totals["game"] += t.get("game_min", 0) or 0
 
-            top_app = max(app_totals, key=app_totals.get)
-            top_app_hours = app_totals[top_app] / 60
+            history: dict = {"avg_delivery_per_week": avg_delivery}
+            total_app_min = sum(app_totals.values())
+            if total_app_min > 0:
+                top_app = max(app_totals, key=app_totals.get)
+                history["top_app"] = top_app
+                history["top_app_hours"] = app_totals[top_app] / 60
 
-            result = ai_challenge.recommend({
-                "avg_delivery_per_week": avg_delivery,
-                "top_app": top_app,
-                "top_app_hours": top_app_hours,
-            })
+            result = ai_challenge.recommend(history)
             ai_recommendations = result.get("recommendations", [])
     except Exception as e:
         logger.warning("AI 챌린지 추천 실패: %s", e)
