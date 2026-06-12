@@ -19,7 +19,7 @@ def _valid_uuid(value: str) -> bool:
     except (ValueError, AttributeError, TypeError):
         return False
 
-from db.client import get_supabase
+from db.client import db
 from routes.auth import login_required
 
 history_bp = Blueprint("history", __name__, url_prefix="/history")
@@ -88,7 +88,7 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
 @login_required
 def history_list():
     """날짜별 분석 기록 목록. (FR-21, FR-24, FR-25)"""
-    user_id = session["user"]["id"]
+    user_id = session.get("user_id")
     period = request.args.get("period", "all")
     type_filter = request.args.get("type_filter", "all")
 
@@ -99,32 +99,34 @@ def history_list():
     if type_filter != "all" and type_filter not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    supabase = get_supabase()
-
-    delivery_q = supabase.table("delivery_records").select(
-        "id, total_price, total_calories, ai_comment, created_at"
-    ).eq("user_id", user_id)
-
-    time_q = supabase.table("time_records").select(
-        "id, youtube_min, instagram_min, tiktok_min, game_min, ai_comment, created_at"
-    ).eq("user_id", user_id)
-
+    # 기간 필터 조건 SQL 구성
+    period_sql = ""
     if period == "week":
-        cutoff = _week_start()
-        delivery_q = delivery_q.gte("created_at", cutoff)
-        time_q = time_q.gte("created_at", cutoff)
+        period_sql = f" AND created_at >= '{_week_start()}'"
     elif period == "month":
-        cutoff = _month_start()
-        delivery_q = delivery_q.gte("created_at", cutoff)
-        time_q = time_q.gte("created_at", cutoff)
+        period_sql = f" AND created_at >= '{_month_start()}'"
 
     try:
-        delivery_records = _enrich(
-            delivery_q.order("created_at", desc=True).execute().data or [], "delivery"
-        )
-        time_records = _enrich(
-            time_q.order("created_at", desc=True).execute().data or [], "time"
-        )
+        with db() as cursor:
+            if type_filter != "time":
+                cursor.execute(
+                    f"SELECT id, total_price, total_calories, ai_comment, created_at"
+                    f" FROM delivery_records WHERE user_id = %s{period_sql} ORDER BY created_at DESC",
+                    (user_id,)
+                )
+                delivery_records = _enrich(cursor.fetchall() or [], "delivery")
+            else:
+                delivery_records = []
+
+            if type_filter != "delivery":
+                cursor.execute(
+                    f"SELECT id, youtube_min, instagram_min, tiktok_min, game_min, ai_comment, created_at"
+                    f" FROM time_records WHERE user_id = %s{period_sql} ORDER BY created_at DESC",
+                    (user_id,)
+                )
+                time_records = _enrich(cursor.fetchall() or [], "time")
+            else:
+                time_records = []
     except Exception as e:
         logger.warning("히스토리 목록 조회 실패: %s", e)
         abort(503)
@@ -159,7 +161,7 @@ def history_list():
 @login_required
 def history_detail(record_id: str):
     """특정 기록 상세 조회. (FR-22)"""
-    user_id = session["user"]["id"]
+    user_id = session.get("user_id")
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
@@ -167,22 +169,18 @@ def history_detail(record_id: str):
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    supabase = get_supabase()
     table = "delivery_records" if record_type == "delivery" else "time_records"
 
     try:
-        result = (
-            supabase.table(table)
-            .select("*")
-            .eq("id", record_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
+        with db() as cursor:
+            cursor.execute(
+                f"SELECT * FROM {table} WHERE id = %s AND user_id = %s",
+                (record_id, user_id)
+            )
+            row = cursor.fetchone()
     except Exception as e:
         logger.warning("히스토리 상세 조회 실패: %s", e)
         abort(503)
-
-    row = result.data[0] if result.data else None
 
     if not row:
         return render_template("history/detail.html", record=None, record_type=record_type), 404
@@ -195,7 +193,7 @@ def history_detail(record_id: str):
 @login_required
 def history_delete(record_id: str):
     """기록 삭제. (FR-23)"""
-    user_id = session["user"]["id"]
+    user_id = session.get("user_id")
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
@@ -205,26 +203,19 @@ def history_delete(record_id: str):
 
     table = "delivery_records" if record_type == "delivery" else "time_records"
 
-    supabase = get_supabase()
     try:
-        existing = (
-            supabase.table(table)
-            .select("id")
-            .eq("id", record_id)
-            .eq("user_id", user_id)
-            .execute()
-            .data
-        )
-    except Exception as e:
-        logger.warning("히스토리 삭제 전 조회 실패: %s", e)
-        abort(503)
-
-    if not existing:
-        return jsonify({"error": "기록을 찾을 수 없거나 삭제 권한이 없습니다."}), 404
-
-    try:
-        # IDOR 방어: 삭제 쿼리에도 user_id 필터를 명시 (사전 조회와 이중 방어)
-        supabase.table(table).delete().eq("id", record_id).eq("user_id", user_id).execute()
+        with db() as cursor:
+            # IDOR 방어: 삭제 전 본인 소유 확인 (user_id 이중 검증)
+            cursor.execute(
+                f"SELECT id FROM {table} WHERE id = %s AND user_id = %s",
+                (record_id, user_id)
+            )
+            if not cursor.fetchone():
+                return jsonify({"error": "기록을 찾을 수 없거나 삭제 권한이 없습니다."}), 404
+            cursor.execute(
+                f"DELETE FROM {table} WHERE id = %s AND user_id = %s",
+                (record_id, user_id)
+            )
     except Exception as e:
         logger.warning("히스토리 삭제 실패: %s", e)
         abort(503)

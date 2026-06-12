@@ -1,27 +1,68 @@
-"""Supabase 클라이언트 팩토리 (담당: 김승현).
-
-DB 접근은 반드시 이 모듈의 get_supabase()를 통해서만 한다.
-(라우트마다 create_client 직접 호출 금지 — 키 관리 단일화)
-"""
-from __future__ import annotations
-
+# db/client.py
+import pymysql
 import os
-
-from supabase import Client, create_client
-
-_client: Client | None = None
+from contextlib import contextmanager
 
 
-def get_supabase() -> Client:
-    """anon key 기반 Supabase 클라이언트 싱글톤을 반환한다."""
-    global _client
-    if _client is None:
-        _client = create_client(
-            os.environ["SUPABASE_URL"],
-            os.environ["SUPABASE_KEY"],
+def get_connection():
+    """MariaDB 커넥션 반환"""
+    return pymysql.connect(
+        host=os.environ["DB_HOST"],
+        port=int(os.environ.get("DB_PORT", 3306)),
+        user=os.environ["DB_USER"],
+        password=os.environ["DB_PASSWORD"],
+        db=os.environ["DB_NAME"],
+        charset="utf8mb4",
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False
+    )
+
+
+@contextmanager
+def db():
+    """
+    커넥션 컨텍스트 매니저 — 자동 commit/rollback
+    사용법:
+        with db() as cursor:
+            cursor.execute("SELECT ...")
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cursor:
+            yield cursor
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def upsert_user_profile(email: str, nickname: str, provider: str, provider_id: str) -> int:
+    """
+    소셜 로그인 시 users 테이블에 프로필 생성/조회
+    - 최초 로그인: INSERT
+    - 재로그인: 기존 레코드 조회 후 반환
+    반환값: user_id (BIGINT)
+    """
+    with db() as cursor:
+        # 이미 존재하면 조회
+        cursor.execute(
+            "SELECT id FROM users WHERE provider = %s AND provider_id = %s",
+            (provider, provider_id)
         )
-    return _client
+        row = cursor.fetchone()
+        if row:
+            return row["id"]
 
-
-# TODO(김승현): RLS 적용 시 사용자 토큰 기반 클라이언트 발급 함수 추가 검토
-#   def get_supabase_for_user(access_token: str) -> Client: ...
+        # 없으면 INSERT
+        cursor.execute(
+            """
+            INSERT INTO users (email, nickname, provider, provider_id)
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE nickname = VALUES(nickname)
+            """,
+            (email, nickname, provider, provider_id)
+        )
+        cursor.execute("SELECT LAST_INSERT_ID() AS id")
+        return cursor.fetchone()["id"]

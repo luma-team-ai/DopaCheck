@@ -1,6 +1,8 @@
 flask>=3.1
 python-dotenv>=1.0
-supabase>=2.0
+authlib>=1.7
+PyMySQL>=1.2
+requests>=2.34
 anthropic>=0.40
 gunicorn>=23.0
 pytest>=8.0
