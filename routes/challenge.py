@@ -2,7 +2,7 @@
 import logging
 import uuid
 
-from flask import Blueprint, abort, jsonify, render_template, session
+from flask import Blueprint, jsonify, render_template, session
 
 import ai.challenge as ai_challenge
 from db.client import db
@@ -23,8 +23,6 @@ def challenge_page():
     3. 참여 중 챌린지 달성률 프로그레스 바 (FR-36)
     """
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
 
     # 기본 챌린지 목록 (FR-32)
     try:
@@ -120,8 +118,6 @@ def join(challenge_id: str):
     동일 챌린지 활성 상태 중복 참여 차단 (FR-35 — 앱 레벨 검증, MariaDB partial index 미지원)
     """
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
 
     try:
         uuid.UUID(challenge_id)
