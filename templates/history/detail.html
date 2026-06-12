@@ -2,7 +2,7 @@
 {% block title %}기록 상세{% endblock %}
 
 {% block header_left %}
-<a href="{{ url_for('history.history_list') }}" class="text-primary hover:opacity-80 transition-opacity active:scale-95">
+<a href="{{ url_for('history.history_list') }}" class="text-primary hover:opacity-80 active:scale-95">
   <span class="material-symbols-outlined">arrow_back</span>
 </a>
 {% endblock %}
@@ -13,19 +13,14 @@
 
 {% block header_right %}
 {% if record %}
-<button onclick="deleteAndBack('{{ record.id }}', '{{ record_type }}')"
-        class="text-outline-variant hover:text-error transition-colors active:scale-95">
+<button id="btn-delete" data-id="{{ record.id }}" data-type="{{ record_type }}" class="text-outline-variant hover:text-error transition-colors active:scale-95">
   <span class="material-symbols-outlined">delete</span>
 </button>
-{% else %}
-<span></span>
-{% endif %}
+{% else %}<span></span>{% endif %}
 {% endblock %}
 
 {% block content %}
-
 {% if not record %}
-<!-- 404 상태 -->
 <div class="flex flex-col items-center justify-center pt-24 text-center">
   <span class="material-symbols-outlined text-6xl text-outline mb-4">search_off</span>
   <p class="text-xl font-bold text-on-surface mb-2">기록을 찾을 수 없어요</p>
@@ -130,6 +125,7 @@
 
 {% else %}
 <!-- ─── 시간 상세 ─── -->
+{% set total = (record.youtube_min|default(0)|int) + (record.instagram_min|default(0)|int) + (record.tiktok_min|default(0)|int) + (record.game_min|default(0)|int) %}
 <div class="space-y-4">
 
   <!-- 헤더 카드 -->
@@ -143,7 +139,6 @@
         <p class="text-xs text-on-surface-variant">{{ record.date_label }} · {{ record.time_label }}</p>
       </div>
     </div>
-    {% set total = (record.youtube_min|default(0)|int) + (record.instagram_min|default(0)|int) + (record.tiktok_min|default(0)|int) + (record.game_min|default(0)|int) %}
     <p class="text-2xl font-extrabold text-on-surface mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">
       {{ total // 60 }}시간 {{ total % 60 }}분
     </p>
@@ -154,10 +149,10 @@
   <div class="glass-card rounded-xl p-5">
     <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider mb-4">앱별 사용 시간</h2>
     {% set apps = [
-      ('유튜브',    record.youtube_min|default(0)|int,    'tertiary',  'smart_display'),
-      ('인스타그램', record.instagram_min|default(0)|int, 'secondary', 'photo_camera'),
-      ('틱톡',     record.tiktok_min|default(0)|int,     'primary',   'music_note'),
-      ('게임',     record.game_min|default(0)|int,       'on-secondary-container', 'sports_esports'),
+      ('유튜브',    record.youtube_min|default(0)|int,    'tertiary',             'smart_display'),
+      ('인스타그램', record.instagram_min|default(0)|int, 'secondary',            'photo_camera'),
+      ('틱톡',     record.tiktok_min|default(0)|int,     'primary',              'music_note'),
+      ('게임',     record.game_min|default(0)|int,       'on-secondary-container','sports_esports'),
     ] %}
     <div class="space-y-3">
       {% for name, mins, color, icon in apps %}
@@ -191,7 +186,7 @@
       </div>
       <div class="bg-surface-container rounded-lg p-3 text-center">
         <p class="text-2xl font-extrabold text-secondary" style="font-family:'Plus Jakarta Sans',sans-serif;">
-          {{ "{:,}".format((total // 60 * hourly)) }}
+          {{ "{:,}".format(total // 60 * hourly) }}
         </p>
         <p class="text-[11px] text-on-surface-variant mt-1">원짜리 취미</p>
       </div>
@@ -214,20 +209,16 @@
   {% endif %}
 </div>
 {% endif %}
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-async function deleteAndBack(id, type) {
+document.getElementById('btn-delete')?.addEventListener('click', async function () {
   if (!confirm('이 기록을 삭제하시겠습니까?')) return;
+  const { id, type } = this.dataset;
   const res = await fetch(`/history/${id}?type=${type}`, { method: 'DELETE' });
-  if (res.ok) {
-    window.location.href = '{{ url_for("history.history_list") }}';
-  } else {
-    const body = await res.json().catch(() => ({}));
-    alert(body.error || '삭제에 실패했습니다.');
-  }
-}
+  if (res.ok) { window.location.href = '{{ url_for("history.history_list") }}'; }
+  else { const b = await res.json().catch(() => ({})); alert(b.error || '삭제에 실패했습니다.'); }
+});
 </script>
 {% endblock %}

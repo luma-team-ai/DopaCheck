@@ -1,7 +1,12 @@
 """분석 히스토리 (담당: 허남 — FR-21~25)."""
+import logging
 from datetime import date, datetime, timedelta, timezone
 
-from flask import Blueprint, jsonify, render_template, request, session
+from flask import Blueprint, abort, jsonify, render_template, request, session
+
+logger = logging.getLogger(__name__)
+
+_VALID_TYPES = frozenset({"delivery", "time"})
 
 from db.client import get_supabase
 from routes.auth import login_required
@@ -35,7 +40,8 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
         r["type"] = record_type
         try:
             dt = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")).astimezone(_KST)
-        except Exception:
+        except Exception as e:
+            logger.warning("created_at 파싱 실패: %s", e)
             dt = datetime.now(_KST)
         r["date"] = dt.strftime("%Y-%m-%d")
         r["date_label"] = _date_label(dt.date())
@@ -90,12 +96,16 @@ def history_list():
         delivery_q = delivery_q.gte("created_at", cutoff)
         time_q = time_q.gte("created_at", cutoff)
 
-    delivery_records = _enrich(
-        delivery_q.order("created_at", desc=True).execute().data or [], "delivery"
-    )
-    time_records = _enrich(
-        time_q.order("created_at", desc=True).execute().data or [], "time"
-    )
+    try:
+        delivery_records = _enrich(
+            delivery_q.order("created_at", desc=True).execute().data or [], "delivery"
+        )
+        time_records = _enrich(
+            time_q.order("created_at", desc=True).execute().data or [], "time"
+        )
+    except Exception as e:
+        logger.warning("히스토리 목록 조회 실패: %s", e)
+        abort(503)
 
     if type_filter == "delivery":
         all_records = delivery_records
@@ -108,7 +118,6 @@ def history_list():
             reverse=True,
         )
 
-    # date 기준 그룹화
     groups: dict[str, dict] = {}
     for r in all_records:
         key = r["date"]
@@ -116,11 +125,9 @@ def history_list():
             groups[key] = {"label": r["date_label"], "records": []}
         groups[key]["records"].append(r)
 
-    grouped = list(groups.values())
-
     return render_template(
         "history/index.html",
-        grouped=grouped,
+        grouped=list(groups.values()),
         period=period,
         type_filter=type_filter,
     )
@@ -133,16 +140,24 @@ def history_detail(record_id: str):
     user_id = session["user"]["id"]
     record_type = request.args.get("type", "delivery")
 
+    if record_type not in _VALID_TYPES:
+        return jsonify({"error": "잘못된 타입"}), 400
+
     supabase = get_supabase()
     table = "delivery_records" if record_type == "delivery" else "time_records"
 
-    result = (
-        supabase.table(table)
-        .select("*")
-        .eq("id", record_id)
-        .eq("user_id", user_id)
-        .execute()
-    )
+    try:
+        result = (
+            supabase.table(table)
+            .select("*")
+            .eq("id", record_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+    except Exception as e:
+        logger.warning("히스토리 상세 조회 실패: %s", e)
+        abort(503)
+
     row = result.data[0] if result.data else None
 
     if not row:
@@ -158,20 +173,33 @@ def history_delete(record_id: str):
     """기록 삭제. (FR-23)"""
     user_id = session["user"]["id"]
     record_type = request.args.get("type", "delivery")
+
+    if record_type not in _VALID_TYPES:
+        return jsonify({"error": "잘못된 타입"}), 400
+
     table = "delivery_records" if record_type == "delivery" else "time_records"
 
     supabase = get_supabase()
-    existing = (
-        supabase.table(table)
-        .select("id")
-        .eq("id", record_id)
-        .eq("user_id", user_id)
-        .execute()
-        .data
-    )
+    try:
+        existing = (
+            supabase.table(table)
+            .select("id")
+            .eq("id", record_id)
+            .eq("user_id", user_id)
+            .execute()
+            .data
+        )
+    except Exception as e:
+        logger.warning("히스토리 삭제 전 조회 실패: %s", e)
+        abort(503)
 
     if not existing:
         return jsonify({"error": "기록을 찾을 수 없거나 삭제 권한이 없습니다."}), 404
 
-    supabase.table(table).delete().eq("id", record_id).execute()
-    return jsonify({"success": True}), 200
+    try:
+        supabase.table(table).delete().eq("id", record_id).execute()
+    except Exception as e:
+        logger.warning("히스토리 삭제 실패: %s", e)
+        abort(503)
+
+    return "", 204

@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, timedelta, timezone
 
-from flask import Blueprint, render_template, session
+from flask import Blueprint, abort, render_template, session
 
 from ai import comment
 from db.client import get_supabase
@@ -101,7 +101,11 @@ def _kst_bounds(week_start: str, week_end: str) -> tuple[str, str]:
 
 
 def _fetch_delivery(user_id: str, week_start: str, week_end: str) -> list[dict]:
-    """해당 주의 delivery_records를 조회한다. 실패 시 빈 리스트 반환."""
+    """해당 주의 delivery_records를 조회한다.
+
+    DB 오류 시 빈 리스트를 반환한다(의도적 폴백 설계).
+    UI에서 '기록 없음'과 구분이 필요하면 report_page의 db_error 컨텍스트를 활용하라.
+    """
     try:
         gte_at, lt_at = _kst_bounds(week_start, week_end)
         supabase = get_supabase()
@@ -120,7 +124,10 @@ def _fetch_delivery(user_id: str, week_start: str, week_end: str) -> list[dict]:
 
 
 def _fetch_time(user_id: str, week_start: str, week_end: str) -> list[dict]:
-    """해당 주의 time_records를 조회한다. 실패 시 빈 리스트 반환."""
+    """해당 주의 time_records를 조회한다.
+
+    DB 오류 시 빈 리스트를 반환한다(의도적 폴백 설계).
+    """
     try:
         gte_at, lt_at = _kst_bounds(week_start, week_end)
         supabase = get_supabase()
@@ -160,6 +167,10 @@ def _fetch_score(user_id: str, week_start: str) -> dict:
         if result.data:
             row = result.data[0]
             row["score"] = clamp_score(row.get("score"))
+            # CSS width(%)로 직접 사용되므로 0~100 클램핑 필수
+            row["delivery_contribution"] = clamp_score(row.get("delivery_contribution"))
+            row["time_contribution"] = clamp_score(row.get("time_contribution"))
+            row["challenge_bonus"] = clamp_score(row.get("challenge_bonus"))
             return row
         return empty
     except Exception as exc:
@@ -180,7 +191,11 @@ def report_page():
     4. 저번 주 vs 이번 주 비교 차트 데이터 (FR-20)
     5. 공유 카드 영역 → html2canvas로 이미지 저장/SNS 공유 (FR-19, 클라이언트 측)
     """
-    user_id: str = session["user"]["id"]
+    # login_required가 session["user"] 존재를 보장하지만, id 키 누락 시 401 처리
+    user = session.get("user") or {}
+    user_id: str | None = user.get("id")
+    if not user_id:
+        abort(401)
 
     # ── 주차 범위 계산 ────────────────────────────────────────
     this_week_range, last_week_range = get_week_ranges()
@@ -188,6 +203,8 @@ def report_page():
     last_start, last_end = last_week_range
 
     # ── 이번 주 데이터 집계 ───────────────────────────────────
+    # fetch 함수는 DB 오류 시 빈값을 반환(의도적 폴백 설계 — 각 함수 docstring 참조).
+    # '데이터 없음'과 'DB 오류'는 logger.warning으로 구분하며, 운영 중 로그를 모니터링할 것.
     this_delivery = aggregate_delivery(_fetch_delivery(user_id, this_start, this_end))
     this_time = aggregate_time(_fetch_time(user_id, this_start, this_end))
     this_score = _fetch_score(user_id, this_start)
