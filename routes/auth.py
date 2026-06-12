@@ -31,7 +31,7 @@ def init_oauth(app):
         authorize_url="https://kauth.kakao.com/oauth/authorize",
         access_token_url="https://kauth.kakao.com/oauth/token",
         api_base_url="https://kapi.kakao.com/v2/",
-        client_kwargs={"scope": "profile_nickname account_email"}
+        client_kwargs={"scope": "profile_nickname"}  # account_email 제거 — 이메일 동의 불필요
     )
 
 
@@ -94,9 +94,15 @@ def kakao_callback():
     resp = oauth.kakao.get("user/me")
     profile = resp.json()
 
-    kakao_account = profile.get("kakao_account", {})
-    email    = kakao_account.get("email", f"kakao_{profile['id']}@kakao.com")
-    nickname = kakao_account.get("profile", {}).get("nickname") or email.split("@")[0]
+    # account_email 스코프를 요청하지 않으므로 고유 식별자를 email 컬럼에 저장
+    # users.email은 UNIQUE — 닉네임은 중복 가능하므로 kakao_{id} 형태로 고유값 사용
+    kakao_id = str(profile["id"])
+    nickname = (
+        profile.get("kakao_account", {}).get("profile", {}).get("nickname")
+        or profile.get("properties", {}).get("nickname")
+        or f"카카오유저{kakao_id[-4:]}"  # 닉네임도 없는 경우 fallback
+    )
+    email = f"kakao_{kakao_id}"  # UNIQUE 보장 + 이메일 동의 불필요
 
     user_id = upsert_user_profile(
         email       = email,
