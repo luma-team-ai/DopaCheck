@@ -48,6 +48,10 @@ def get_connection() -> pymysql.connections.Connection:
         charset="utf8mb4",
         cursorclass=DictCursor,
         autocommit=False,
+        # #11 KST 정책: 세션 타임존을 +09:00으로 고정한다.
+        # CURRENT_TIMESTAMP(created_at 기본값)와 경계 비교를 모두 KST-naive로 일원화 —
+        # 서버 컨테이너 TZ(UTC 등)와 무관하게 주차 경계가 KST 기준으로 동작한다.
+        init_command="SET time_zone = '+09:00'",
     )
 
 
