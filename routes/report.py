@@ -6,7 +6,7 @@ import logging
 from flask import Blueprint, abort, render_template, session
 
 from ai import comment
-from db.client import get_supabase
+from db.client import db
 from routes.auth import login_required
 from utils.week import get_week_ranges, kst_bounds
 
@@ -71,53 +71,52 @@ def clamp_score(value) -> int:
 
 # ── DB 조회 헬퍼 ──────────────────────────────────────────────────────────────
 
-def _fetch_delivery(user_id: str, week_start: str, week_end: str) -> list[dict]:
+def _fetch_delivery(user_id, week_start: str, week_end: str) -> list[dict]:
     """해당 주의 delivery_records를 조회한다.
 
     DB 오류 시 빈 리스트를 반환한다(의도적 폴백 설계).
     UI에서 '기록 없음'과 구분이 필요하면 report_page의 db_error 컨텍스트를 활용하라.
+    RLS 대체: WHERE user_id = %s 앱 필터 + %s 파라미터 바인딩.
     """
     try:
         gte_at, lt_at = kst_bounds(week_start, week_end)
-        supabase = get_supabase()
-        result = (
-            supabase.table("delivery_records")
-            .select("total_price, total_calories")
-            .eq("user_id", user_id)
-            .gte("created_at", gte_at)
-            .lt("created_at", lt_at)
-            .execute()
-        )
-        return result.data or []
+        with db() as cursor:
+            cursor.execute(
+                "SELECT total_price, total_calories FROM delivery_records "
+                "WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+                (user_id, gte_at, lt_at),
+            )
+            return cursor.fetchall() or []
     except Exception as exc:
         logger.warning("delivery_records 조회 실패: %s", exc)
         return []
 
 
-def _fetch_time(user_id: str, week_start: str, week_end: str) -> list[dict]:
+def _fetch_time(user_id, week_start: str, week_end: str) -> list[dict]:
     """해당 주의 time_records를 조회한다.
 
     DB 오류 시 빈 리스트를 반환한다(의도적 폴백 설계).
+    RLS 대체: WHERE user_id = %s 앱 필터 + %s 파라미터 바인딩.
     """
     try:
         gte_at, lt_at = kst_bounds(week_start, week_end)
-        supabase = get_supabase()
-        result = (
-            supabase.table("time_records")
-            .select("youtube_min, instagram_min, tiktok_min, game_min")
-            .eq("user_id", user_id)
-            .gte("created_at", gte_at)
-            .lt("created_at", lt_at)
-            .execute()
-        )
-        return result.data or []
+        with db() as cursor:
+            cursor.execute(
+                "SELECT youtube_min, instagram_min, tiktok_min, game_min FROM time_records "
+                "WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+                (user_id, gte_at, lt_at),
+            )
+            return cursor.fetchall() or []
     except Exception as exc:
         logger.warning("time_records 조회 실패: %s", exc)
         return []
 
 
-def _fetch_score(user_id: str, week_start: str) -> dict:
-    """해당 주의 dopamine_scores를 조회한다. 없거나 실패 시 0 dict 반환."""
+def _fetch_score(user_id, week_start: str) -> dict:
+    """해당 주의 dopamine_scores를 조회한다. 없거나 실패 시 0 dict 반환.
+
+    RLS 대체: WHERE user_id = %s 앱 필터 + %s 파라미터 바인딩.
+    """
     empty = {
         "score": 0,
         "delivery_contribution": 0,
@@ -125,18 +124,15 @@ def _fetch_score(user_id: str, week_start: str) -> dict:
         "challenge_bonus": 0,
     }
     try:
-        supabase = get_supabase()
-        result = (
-            supabase.table("dopamine_scores")
-            .select("score, delivery_contribution, time_contribution, challenge_bonus")
-            .eq("user_id", user_id)
-            .eq("week_start", week_start)
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        if result.data:
-            row = result.data[0]
+        with db() as cursor:
+            cursor.execute(
+                "SELECT score, delivery_contribution, time_contribution, challenge_bonus "
+                "FROM dopamine_scores WHERE user_id = %s AND week_start = %s "
+                "ORDER BY created_at DESC LIMIT 1",
+                (user_id, week_start),
+            )
+            row = cursor.fetchone()
+        if row:
             row["score"] = clamp_score(row.get("score"))
             # CSS width(%)로 직접 사용되므로 0~100 클램핑 필수
             row["delivery_contribution"] = clamp_score(row.get("delivery_contribution"))
@@ -162,12 +158,9 @@ def report_page():
     4. 저번 주 vs 이번 주 비교 차트 데이터 (FR-20)
     5. 공유 카드 영역 → html2canvas로 이미지 저장/SNS 공유 (FR-19, 클라이언트 측)
     """
-    # login_required(routes/auth.py)는 session.get("user") 존재만 검증하고
-    # "id" 키 존재까지는 보장하지 않는다(OAuth 콜백 구현에 따라 누락 가능).
-    # 따라서 이 방어 코드는 dead code가 아니라 id 누락 시 500을 401로 바꾸는 안전장치다.
-    # auth.py는 타 담당(김승현) 공유 파일이라 단독 강화 대신 여기서 방어한다.
-    user = session.get("user") or {}
-    user_id: str | None = user.get("id")
+    # login_required(routes/auth.py)는 session.get("user_id") 존재만 검증한다.
+    # 평면 세션 패턴(#21)으로 통일 — 방어 코드는 user_id 누락 시 500을 401로 바꾸는 안전장치.
+    user_id = session.get("user_id")
     if not user_id:
         abort(401)
 
@@ -205,8 +198,8 @@ def report_page():
         last_week_start=last_start,
         # AI 인사이트
         ai_comment=ai_comment,
-        # 유저 닉네임 (위에서 검증한 user dict 재사용)
-        nickname=user.get("nickname", ""),
+        # 유저 닉네임 — 평면 세션에서 직접 조회(없으면 빈 문자열)
+        nickname=session.get("nickname", ""),
     )
 
 

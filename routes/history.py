@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 
 _VALID_TYPES = frozenset({"delivery", "time"})
 _VALID_PERIODS = frozenset({"week", "month", "all"})
+# 동적 테이블명은 반드시 이 매핑으로만 해석한다 — 화이트리스트 우회를 구조적으로 차단(SQLi 방지).
+TABLE_MAP = {"delivery": "delivery_records", "time": "time_records"}
 
 
 def _valid_uuid(value: str) -> bool:
@@ -19,7 +21,7 @@ def _valid_uuid(value: str) -> bool:
     except (ValueError, AttributeError, TypeError):
         return False
 
-from db.client import get_supabase
+from db.client import db
 from routes.auth import login_required
 
 history_bp = Blueprint("history", __name__, url_prefix="/history")
@@ -54,7 +56,12 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
     for r in records:
         r["type"] = record_type
         try:
-            dt = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")).astimezone(_KST)
+            raw = r["created_at"]
+            if isinstance(raw, datetime):
+                # MariaDB DATETIME(naive) → KST로 간주. tz 정보가 없으면 KST 부여.
+                dt = (raw if raw.tzinfo else raw.replace(tzinfo=_KST)).astimezone(_KST)
+            else:
+                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(_KST)
         except Exception as e:
             logger.warning("created_at 파싱 실패: %s", e)
             dt = datetime.now(_KST)
@@ -88,7 +95,9 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
 @login_required
 def history_list():
     """날짜별 분석 기록 목록. (FR-21, FR-24, FR-25)"""
-    user_id = session["user"]["id"]
+    user_id = session.get("user_id")
+    if not user_id:
+        abort(401)
     period = request.args.get("period", "all")
     type_filter = request.args.get("type_filter", "all")
 
@@ -99,35 +108,44 @@ def history_list():
     if type_filter != "all" and type_filter not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    supabase = get_supabase()
-
-    delivery_q = supabase.table("delivery_records").select(
-        "id, total_price, total_calories, ai_comment, created_at"
-    ).eq("user_id", user_id)
-
-    time_q = supabase.table("time_records").select(
-        "id, youtube_min, instagram_min, tiktok_min, game_min, ai_comment, created_at"
-    ).eq("user_id", user_id)
-
+    # 기간 cutoff (created_at >= cutoff). 화이트리스트(_VALID_PERIODS)로만 분기되므로 안전.
+    cutoff: str | None = None
     if period == "week":
         cutoff = _week_start()
-        delivery_q = delivery_q.gte("created_at", cutoff)
-        time_q = time_q.gte("created_at", cutoff)
     elif period == "month":
         cutoff = _month_start()
-        delivery_q = delivery_q.gte("created_at", cutoff)
-        time_q = time_q.gte("created_at", cutoff)
+
+    # RLS 대체: 모든 쿼리에 WHERE user_id = %s 앱 필터 + %s 파라미터 바인딩.
+    delivery_sql = (
+        "SELECT id, total_price, total_calories, ai_comment, created_at "
+        "FROM delivery_records WHERE user_id = %s"
+    )
+    time_sql = (
+        "SELECT id, youtube_min, instagram_min, tiktok_min, game_min, ai_comment, created_at "
+        "FROM time_records WHERE user_id = %s"
+    )
+    delivery_params: list = [user_id]
+    time_params: list = [user_id]
+    if cutoff is not None:
+        delivery_sql += " AND created_at >= %s"
+        time_sql += " AND created_at >= %s"
+        delivery_params.append(cutoff)
+        time_params.append(cutoff)
+    delivery_sql += " ORDER BY created_at DESC"
+    time_sql += " ORDER BY created_at DESC"
 
     try:
-        delivery_records = _enrich(
-            delivery_q.order("created_at", desc=True).execute().data or [], "delivery"
-        )
-        time_records = _enrich(
-            time_q.order("created_at", desc=True).execute().data or [], "time"
-        )
+        with db() as cursor:
+            cursor.execute(delivery_sql, tuple(delivery_params))
+            delivery_rows = cursor.fetchall() or []
+            cursor.execute(time_sql, tuple(time_params))
+            time_rows = cursor.fetchall() or []
     except Exception as e:
         logger.warning("히스토리 목록 조회 실패: %s", e)
         abort(503)
+
+    delivery_records = _enrich(delivery_rows, "delivery")
+    time_records = _enrich(time_rows, "time")
 
     if type_filter == "delivery":
         all_records = delivery_records
@@ -159,7 +177,9 @@ def history_list():
 @login_required
 def history_detail(record_id: str):
     """특정 기록 상세 조회. (FR-22)"""
-    user_id = session["user"]["id"]
+    user_id = session.get("user_id")
+    if not user_id:
+        abort(401)
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
@@ -167,22 +187,19 @@ def history_detail(record_id: str):
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    supabase = get_supabase()
-    table = "delivery_records" if record_type == "delivery" else "time_records"
+    # 동적 테이블명은 TABLE_MAP으로만 해석 — 사용자 입력 직접 삽입 불가.
+    table = TABLE_MAP[record_type]
 
     try:
-        result = (
-            supabase.table(table)
-            .select("*")
-            .eq("id", record_id)
-            .eq("user_id", user_id)
-            .execute()
-        )
+        with db() as cursor:
+            cursor.execute(
+                f"SELECT * FROM {table} WHERE id = %s AND user_id = %s",
+                (record_id, user_id),
+            )
+            row = cursor.fetchone()
     except Exception as e:
         logger.warning("히스토리 상세 조회 실패: %s", e)
         abort(503)
-
-    row = result.data[0] if result.data else None
 
     if not row:
         return render_template("history/detail.html", record=None, record_type=record_type), 404
@@ -195,7 +212,9 @@ def history_detail(record_id: str):
 @login_required
 def history_delete(record_id: str):
     """기록 삭제. (FR-23)"""
-    user_id = session["user"]["id"]
+    user_id = session.get("user_id")
+    if not user_id:
+        abort(401)
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
@@ -203,30 +222,30 @@ def history_delete(record_id: str):
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    table = "delivery_records" if record_type == "delivery" else "time_records"
+    # 동적 테이블명은 TABLE_MAP으로만 해석 — 사용자 입력 직접 삽입 불가.
+    table = TABLE_MAP[record_type]
 
-    supabase = get_supabase()
+    # 404 분기를 with 블록 밖으로 빼 트랜잭션 경계를 명확히 한다
+    # (조기 return이 yield~commit 사이에 끼지 않도록 — 향후 쓰기 추가 시 의도치 않은 commit 방지).
+    existing = None
     try:
-        existing = (
-            supabase.table(table)
-            .select("id")
-            .eq("id", record_id)
-            .eq("user_id", user_id)
-            .execute()
-            .data
-        )
-    except Exception as e:
-        logger.warning("히스토리 삭제 전 조회 실패: %s", e)
-        abort(503)
-
-    if not existing:
-        return jsonify({"error": "기록을 찾을 수 없거나 삭제 권한이 없습니다."}), 404
-
-    try:
-        # IDOR 방어: 삭제 쿼리에도 user_id 필터를 명시 (사전 조회와 이중 방어)
-        supabase.table(table).delete().eq("id", record_id).eq("user_id", user_id).execute()
+        with db() as cursor:
+            # 사전 조회 — 타인 기록/없는 기록 구분 (404 vs 204)
+            cursor.execute(
+                f"SELECT id FROM {table} WHERE id = %s AND user_id = %s",
+                (record_id, user_id),
+            )
+            existing = cursor.fetchone()
+            if existing:
+                # IDOR 방어: 삭제 쿼리에도 user_id 필터를 명시 (사전 조회와 이중 방어)
+                cursor.execute(
+                    f"DELETE FROM {table} WHERE id = %s AND user_id = %s",
+                    (record_id, user_id),
+                )
     except Exception as e:
         logger.warning("히스토리 삭제 실패: %s", e)
         abort(503)
 
+    if not existing:
+        return jsonify({"error": "기록을 찾을 수 없거나 삭제 권한이 없습니다."}), 404
     return "", 204

@@ -219,9 +219,16 @@ def test_clamp_score_None_및_비정상_입력():
 from utils.week import kst_bounds
 
 
-def test_kst_bounds_타임존_명시():
-    """경계 문자열에 KST(+09:00) 오프셋이 명시되어야 한다."""
+def test_kst_bounds_MariaDB_DATETIME_포맷():
+    """경계 문자열은 MariaDB DATETIME 호환(KST-naive, 공백 구분, 오프셋 없음)이어야 한다.
+
+    'T' 구분자나 +09:00 오프셋이 들어가면 MariaDB DATETIME 비교가 실패해
+    해당 주 레코드가 조용히 0건으로 누락된다(#21 회귀 차단). DB 세션 TZ는 +09:00 고정.
+    """
     gte_at, lt_at = kst_bounds("2026-06-08", "2026-06-14")
-    assert gte_at == "2026-06-08T00:00:00+09:00"
+    assert gte_at == "2026-06-08 00:00:00"
     # 종료 경계는 일요일 익일(월요일) 00:00 미만 — 일요일 23:59:59.x 누락 방지
-    assert lt_at == "2026-06-15T00:00:00+09:00"
+    assert lt_at == "2026-06-15 00:00:00"
+    # MariaDB DATETIME 리터럴과 어긋나는 토큰이 없어야 한다.
+    assert "T" not in gte_at and "+09:00" not in gte_at
+    assert "T" not in lt_at and "+09:00" not in lt_at
