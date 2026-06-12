@@ -123,26 +123,26 @@ def test_aggregate_time_큰_값():
 # ── get_week_ranges 주차 계산 테스트 ────────────────────────────────────────
 
 from datetime import date
-from routes.report import get_week_ranges, _week_bounds
+from utils.week import get_week_ranges, week_bounds
 
 
 def test_week_bounds_월요일():
     monday = date(2026, 6, 8)  # 월요일
-    start, end = _week_bounds(monday)
+    start, end = week_bounds(monday)
     assert start == "2026-06-08"
     assert end == "2026-06-14"
 
 
 def test_week_bounds_일요일():
     sunday = date(2026, 6, 14)  # 일요일
-    start, end = _week_bounds(sunday)
+    start, end = week_bounds(sunday)
     assert start == "2026-06-08"
     assert end == "2026-06-14"
 
 
 def test_week_bounds_수요일():
     wednesday = date(2026, 6, 10)
-    start, end = _week_bounds(wednesday)
+    start, end = week_bounds(wednesday)
     assert start == "2026-06-08"
     assert end == "2026-06-14"
 
@@ -214,14 +214,14 @@ def test_clamp_score_None_및_비정상_입력():
     assert clamp_score("bad") == 0
 
 
-# ── _kst_bounds 타임존·경계 테스트 (created_at 누락 방지) ───────────────────
+# ── kst_bounds 타임존·경계 테스트 (created_at 누락 방지) ────────────────────
 
-from routes.report import _kst_bounds
+from utils.week import kst_bounds
 
 
 def test_kst_bounds_타임존_명시():
     """경계 문자열에 KST(+09:00) 오프셋이 명시되어야 한다."""
-    gte_at, lt_at = _kst_bounds("2026-06-08", "2026-06-14")
+    gte_at, lt_at = kst_bounds("2026-06-08", "2026-06-14")
     assert gte_at == "2026-06-08T00:00:00+09:00"
     # 종료 경계는 일요일 익일(월요일) 00:00 미만 — 일요일 23:59:59.x 누락 방지
     assert lt_at == "2026-06-15T00:00:00+09:00"
