@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, jsonify, render_template, request, session
 
-from utils.week import KST, kst_today, week_bounds
+from utils.week import KST, kst_bounds, kst_today, week_bounds
 
 logger = logging.getLogger(__name__)
 
@@ -27,15 +27,6 @@ from db.client import db
 from routes.auth import login_required
 
 history_bp = Blueprint("history", __name__, url_prefix="/history")
-
-
-def _week_start() -> str:
-    # KST 기준 이번 주 월요일 (utils.week 공통 유틸로 전역 통일 — #11)
-    return week_bounds(kst_today())[0]
-
-
-def _month_start() -> str:
-    return kst_today().replace(day=1).isoformat()
 
 
 def _date_label(d: date) -> str:
@@ -108,12 +99,15 @@ def history_list():
     if type_filter != "all" and type_filter not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    # 기간 cutoff (created_at >= cutoff). 화이트리스트(_VALID_PERIODS)로만 분기되므로 안전.
-    cutoff: str | None = None
+    # 기간 경계 [시작, 익기간) — report.py(kst_bounds)와 동일한 exclusive 상한 패턴.
+    # 상한 없이 >= 만 쓰면 미래 기록까지 포함되므로 created_at < 상한을 함께 바인딩한다.
+    bounds: tuple[str, str] | None = None
     if period == "week":
-        cutoff = _week_start()
+        bounds = kst_bounds(*week_bounds(kst_today()))
     elif period == "month":
-        cutoff = _month_start()
+        first = kst_today().replace(day=1)
+        next_first = (first + timedelta(days=32)).replace(day=1)
+        bounds = (f"{first.isoformat()} 00:00:00", f"{next_first.isoformat()} 00:00:00")
 
     # RLS 대체: 모든 쿼리에 WHERE user_id = %s 앱 필터 + %s 파라미터 바인딩.
     delivery_sql = (
@@ -126,11 +120,11 @@ def history_list():
     )
     delivery_params: list = [user_id]
     time_params: list = [user_id]
-    if cutoff is not None:
-        delivery_sql += " AND created_at >= %s"
-        time_sql += " AND created_at >= %s"
-        delivery_params.append(cutoff)
-        time_params.append(cutoff)
+    if bounds is not None:
+        delivery_sql += " AND created_at >= %s AND created_at < %s"
+        time_sql += " AND created_at >= %s AND created_at < %s"
+        delivery_params.extend(bounds)
+        time_params.extend(bounds)
     delivery_sql += " ORDER BY created_at DESC"
     time_sql += " ORDER BY created_at DESC"
 

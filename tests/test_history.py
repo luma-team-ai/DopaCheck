@@ -46,18 +46,19 @@ def test_히스토리_목록_렌더링(logged_in_client):
 
 
 def test_기간_필터_week(logged_in_client):
-    """FR-24: ?period=week — created_at >= cutoff 파라미터가 바인딩된다."""
+    """FR-24: ?period=week — [시작, 익일) 경계 파라미터 2개가 바인딩된다."""
     cursor = _make_cursor(fetchall_side_effect=[[], []])
     with _patch_db(cursor):
         res = logged_in_client.get("/history?period=week")
     assert res.status_code == 200
-    # week 분기에서는 cutoff 파라미터가 추가되어 user_id 외 1개 더 바인딩된다.
+    # week 분기에서는 하한·상한 경계가 추가되어 user_id 외 2개 더 바인딩된다.
     first_call = cursor.execute.call_args_list[0]
     sql, params = first_call.args
     assert "user_id = %s" in sql
     assert "created_at >= %s" in sql
+    assert "created_at < %s" in sql
     assert params[0] == SESSION_USER_ID
-    assert len(params) == 2
+    assert len(params) == 3
 
 
 def test_기간_필터_month(logged_in_client):
@@ -197,19 +198,32 @@ def test_비로그인_접근_차단(client):
     assert "/login" in res.headers["Location"]
 
 
-def test_week_month_경계_KST_공통유틸_사용():
-    """#11: _week_start/_month_start가 KST 기준(공통 utils.week)으로 계산된다.
+def test_week_month_경계_KST_공통유틸_사용(logged_in_client):
+    """#11: week/month 경계가 KST 기준(공통 utils.week) [시작, 익기간) 으로 바인딩된다.
 
     서버 로컬(date.today())이 아닌 KST 날짜를 써야 자정 부근 하루 오차가 없다.
-    kst_today를 고정해 월요일 시작·1일 시작이 정확히 산출되는지 검증한다.
+    kst_today를 고정해 월요일 시작·익주 상한, 1일 시작·익월 상한을 검증한다.
     """
     from datetime import date
     import routes.history as h
 
-    # 2026-06-12(금) → 같은 주 월요일은 2026-06-08
+    cursor = _make_cursor(fetchall_side_effect=[[], []])
+    # 2026-06-12(금) → 같은 주 [06-08 월요일, 06-15) / 같은 달 [06-01, 07-01)
     with patch.object(h, "kst_today", lambda: date(2026, 6, 12)):
-        assert h._week_start() == "2026-06-08"
-        assert h._month_start() == "2026-06-01"
+        with _patch_db(cursor):
+            logged_in_client.get("/history?period=week")
+        _, params = cursor.execute.call_args_list[0].args
+        assert params[1] == "2026-06-08 00:00:00"
+        assert params[2] == "2026-06-15 00:00:00"
+
+        cursor.execute.reset_mock()
+        cursor.fetchall.side_effect = [[], []]
+        with _patch_db(cursor):
+            logged_in_client.get("/history?period=month")
+        _, params = cursor.execute.call_args_list[0].args
+        assert params[1] == "2026-06-01 00:00:00"
+        assert params[2] == "2026-07-01 00:00:00"
+
         assert h._date_label(date(2026, 6, 12)) == "오늘, 6월 12일"
         assert h._date_label(date(2026, 6, 11)) == "어제, 6월 11일"
         assert h._date_label(date(2026, 6, 9)) == "6월 9일"
