@@ -1,5 +1,6 @@
 """분석 히스토리 (담당: 허남 — FR-21~25)."""
 import logging
+import uuid
 from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, abort, jsonify, render_template, request, session
@@ -7,6 +8,16 @@ from flask import Blueprint, abort, jsonify, render_template, request, session
 logger = logging.getLogger(__name__)
 
 _VALID_TYPES = frozenset({"delivery", "time"})
+_VALID_PERIODS = frozenset({"week", "month", "all"})
+
+
+def _valid_uuid(value: str) -> bool:
+    """record_id가 UUID 형식인지 검증한다 (예측 불가 입력 차단)."""
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
 
 from db.client import get_supabase
 from routes.auth import login_required
@@ -35,7 +46,11 @@ def _date_label(d: date) -> str:
 
 
 def _enrich(records: list[dict], record_type: str) -> list[dict]:
-    """created_at → date / time_label / date_label / summary 필드 추가."""
+    """created_at → date / time_label / date_label / summary 필드 추가.
+
+    주의: 전달받은 dict를 in-place로 변이(mutation)한다. DB 조회 직후 일회성으로만
+    사용하므로 부작용이 없으나, 캐시된 dict 재사용 시에는 복사본을 전달할 것.
+    """
     for r in records:
         r["type"] = record_type
         try:
@@ -76,6 +91,13 @@ def history_list():
     user_id = session["user"]["id"]
     period = request.args.get("period", "all")
     type_filter = request.args.get("type_filter", "all")
+
+    if period not in _VALID_PERIODS:
+        period = "all"  # 임의 값은 조용히 'all'로 정규화
+
+    # type_filter는 'all' 또는 _VALID_TYPES만 허용 (detail/delete와 검증 일관성)
+    if type_filter != "all" and type_filter not in _VALID_TYPES:
+        return jsonify({"error": "잘못된 타입"}), 400
 
     supabase = get_supabase()
 
@@ -140,6 +162,8 @@ def history_detail(record_id: str):
     user_id = session["user"]["id"]
     record_type = request.args.get("type", "delivery")
 
+    if not _valid_uuid(record_id):
+        abort(400)
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
@@ -174,6 +198,8 @@ def history_delete(record_id: str):
     user_id = session["user"]["id"]
     record_type = request.args.get("type", "delivery")
 
+    if not _valid_uuid(record_id):
+        abort(400)
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
@@ -197,7 +223,8 @@ def history_delete(record_id: str):
         return jsonify({"error": "기록을 찾을 수 없거나 삭제 권한이 없습니다."}), 404
 
     try:
-        supabase.table(table).delete().eq("id", record_id).execute()
+        # IDOR 방어: 삭제 쿼리에도 user_id 필터를 명시 (사전 조회와 이중 방어)
+        supabase.table(table).delete().eq("id", record_id).eq("user_id", user_id).execute()
     except Exception as e:
         logger.warning("히스토리 삭제 실패: %s", e)
         abort(503)

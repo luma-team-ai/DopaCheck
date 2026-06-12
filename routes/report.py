@@ -191,7 +191,10 @@ def report_page():
     4. 저번 주 vs 이번 주 비교 차트 데이터 (FR-20)
     5. 공유 카드 영역 → html2canvas로 이미지 저장/SNS 공유 (FR-19, 클라이언트 측)
     """
-    # login_required가 session["user"] 존재를 보장하지만, id 키 누락 시 401 처리
+    # login_required(routes/auth.py)는 session.get("user") 존재만 검증하고
+    # "id" 키 존재까지는 보장하지 않는다(OAuth 콜백 구현에 따라 누락 가능).
+    # 따라서 이 방어 코드는 dead code가 아니라 id 누락 시 500을 401로 바꾸는 안전장치다.
+    # auth.py는 타 담당(김승현) 공유 파일이라 단독 강화 대신 여기서 방어한다.
     user = session.get("user") or {}
     user_id: str | None = user.get("id")
     if not user_id:
