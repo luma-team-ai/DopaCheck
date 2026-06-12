@@ -35,7 +35,7 @@ def index():
     from flask import session, redirect, url_for
     if session.get("user_id"):
         return redirect(url_for("report.report_page"))
-    return redirect("/login")
+    return redirect(url_for("auth.login_page"))  # P3: url_for로 통일
 
 
 if __name__ == "__main__":

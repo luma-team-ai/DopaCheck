@@ -1,9 +1,12 @@
 # routes/auth.py
+import logging
 from flask import Blueprint, redirect, render_template, request, session, url_for
 from authlib.integrations.flask_client import OAuth
 from db.client import upsert_user_profile
 from functools import wraps
 import os
+
+logger = logging.getLogger(__name__)
 
 auth_bp = Blueprint("auth", __name__)
 oauth = OAuth()
@@ -51,7 +54,10 @@ def google_login():
 @auth_bp.route("/auth/google/callback")
 def google_callback():
     token = oauth.google.authorize_access_token()
+    # P2: userinfo가 None일 경우 (openid 스코프 응답 누락) 방어
     user_info = token.get("userinfo")
+    if not user_info or not user_info.get("email"):
+        return "Google 로그인 실패: 사용자 정보를 받아오지 못했습니다.", 401
 
     user_id = upsert_user_profile(
         email       = user_info["email"],
@@ -76,7 +82,15 @@ def kakao_login():
 
 @auth_bp.route("/oauth2/code/kakao")  # .env의 KAKAO_REDIRECT_URI와 일치
 def kakao_callback():
-    oauth.kakao.authorize_access_token()
+    # P2: 토큰 교환 실패 시 OAuthError가 일어나도 예외 처리 없이 진행되는 문제 방지
+    from authlib.integrations.base_client import OAuthError
+    try:
+        token = oauth.kakao.authorize_access_token()
+    except OAuthError as e:
+        logger.warning("Kakao 토큰 교환 실패: %s", e)
+        return "카카오 로그인 실패했습니다. 다시 시도해주세요.", 401
+    if not token or not token.get("access_token"):
+        return "카카오 인증 실패: 액세스 토큰을 수신하지 못했습니다.", 401
     resp = oauth.kakao.get("user/me")
     profile = resp.json()
 
@@ -101,7 +115,7 @@ def kakao_callback():
 @auth_bp.route("/logout")
 def logout():
     session.clear()
-    return redirect("/login")
+    return redirect(url_for("auth.login_page"))  # P3: url_for로 통일
 
 
 # ── 로그인 필수 데코레이터 ────────────────────────────────

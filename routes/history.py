@@ -10,6 +10,12 @@ logger = logging.getLogger(__name__)
 _VALID_TYPES = frozenset({"delivery", "time"})
 _VALID_PERIODS = frozenset({"week", "month", "all"})
 
+# P1: 테이블명을 화이트리스트 딕셔너리로 관리 — f-string 삽입 금지
+TABLE_MAP: dict[str, str] = {
+    "delivery": "delivery_records",
+    "time":     "time_records",
+}
+
 
 def _valid_uuid(value: str) -> bool:
     """record_id가 UUID 형식인지 검증한다 (예측 불가 입력 차단)."""
@@ -99,20 +105,24 @@ def history_list():
     if type_filter != "all" and type_filter not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    # 기간 필터 조건 SQL 구성
-    period_sql = ""
+    # P1: period 조건을 파라미터 바인딩으로 조립 (f-string SQL 인젝션 방지)
+    base_params: list = [user_id]
+    period_clause = ""
     if period == "week":
-        period_sql = f" AND created_at >= '{_week_start()}'"
+        period_clause = " AND created_at >= %s"
+        base_params.append(_week_start())
     elif period == "month":
-        period_sql = f" AND created_at >= '{_month_start()}'"
+        period_clause = " AND created_at >= %s"
+        base_params.append(_month_start())
 
     try:
         with db() as cursor:
             if type_filter != "time":
                 cursor.execute(
-                    f"SELECT id, total_price, total_calories, ai_comment, created_at"
-                    f" FROM delivery_records WHERE user_id = %s{period_sql} ORDER BY created_at DESC",
-                    (user_id,)
+                    "SELECT id, total_price, total_calories, ai_comment, created_at"
+                    " FROM delivery_records"
+                    f" WHERE user_id = %s{period_clause} ORDER BY created_at DESC",
+                    base_params
                 )
                 delivery_records = _enrich(cursor.fetchall() or [], "delivery")
             else:
@@ -120,9 +130,10 @@ def history_list():
 
             if type_filter != "delivery":
                 cursor.execute(
-                    f"SELECT id, youtube_min, instagram_min, tiktok_min, game_min, ai_comment, created_at"
-                    f" FROM time_records WHERE user_id = %s{period_sql} ORDER BY created_at DESC",
-                    (user_id,)
+                    "SELECT id, youtube_min, instagram_min, tiktok_min, game_min, ai_comment, created_at"
+                    " FROM time_records"
+                    f" WHERE user_id = %s{period_clause} ORDER BY created_at DESC",
+                    base_params
                 )
                 time_records = _enrich(cursor.fetchall() or [], "time")
             else:
@@ -169,12 +180,13 @@ def history_detail(record_id: str):
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    table = "delivery_records" if record_type == "delivery" else "time_records"
+    # P1: 테이블명을 TABLE_MAP 화이트리스트에서 가져옴
+    table = TABLE_MAP[record_type]
 
     try:
         with db() as cursor:
             cursor.execute(
-                f"SELECT * FROM {table} WHERE id = %s AND user_id = %s",
+                "SELECT * FROM " + table + " WHERE id = %s AND user_id = %s",
                 (record_id, user_id)
             )
             row = cursor.fetchone()
@@ -201,19 +213,20 @@ def history_delete(record_id: str):
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    table = "delivery_records" if record_type == "delivery" else "time_records"
+    # P1: 테이블명을 TABLE_MAP 화이트리스트에서 가져옴
+    table = TABLE_MAP[record_type]
 
     try:
         with db() as cursor:
             # IDOR 방어: 삭제 전 본인 소유 확인 (user_id 이중 검증)
             cursor.execute(
-                f"SELECT id FROM {table} WHERE id = %s AND user_id = %s",
+                "SELECT id FROM " + table + " WHERE id = %s AND user_id = %s",
                 (record_id, user_id)
             )
             if not cursor.fetchone():
                 return jsonify({"error": "기록을 찾을 수 없거나 삭제 권한이 없습니다."}), 404
             cursor.execute(
-                f"DELETE FROM {table} WHERE id = %s AND user_id = %s",
+                "DELETE FROM " + table + " WHERE id = %s AND user_id = %s",
                 (record_id, user_id)
             )
     except Exception as e:
