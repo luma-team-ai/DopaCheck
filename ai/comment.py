@@ -24,6 +24,8 @@ def _sanitize_context(obj, _depth: int = 0):
     프롬프트 인젝션 완화: 사용자 입력이 섞인 컨텍스트를 LLM에 직접 삽입하기 전에
     모든 문자열 리프 값을 길이 제한 후 json.dumps로 직렬화한다.
     """
+    if _depth > 10:
+        return str(obj)[:_MAX_STR_LEN]
     if isinstance(obj, dict):
         return {k: _sanitize_context(v, _depth + 1) for k, v in obj.items()}
     if isinstance(obj, list):

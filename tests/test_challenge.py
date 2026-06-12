@@ -238,3 +238,66 @@ def test_프롬프트_인젝션_리스트_truncate():
     result = _sanitize_context(["A" * 300, "B" * 50])
     assert len(result[0]) == 200
     assert len(result[1]) == 50  # 짧은 값은 유지
+
+
+def test_CSRF_세션_토큰_없으면_빈_토큰_우회_차단(logged_in_client):
+    """[P1] 세션에 CSRF 토큰이 없을 때 빈 X-CSRF-Token으로 요청하면 403을 반환한다."""
+    challenge_id = "aaaaaaaa-0000-0000-0000-000000000001"
+
+    # 세션에 csrf_token 키 없음 (초기 상태)
+    with logged_in_client.session_transaction() as sess:
+        sess.pop("csrf_token", None)
+
+    with patch("routes.challenge.db", _make_db_mock()):
+        res = logged_in_client.post(
+            f"/challenge/{challenge_id}/join",
+            headers={"X-CSRF-Token": ""},  # 빈 토큰 — 우회 시도
+        )
+
+    assert res.status_code == 403, "세션 토큰 없을 때 빈 토큰은 403이어야 함"
+
+
+def test_AI_추천_캐시_title_description_truncate(logged_in_client):
+    """[P2] AI 추천 캐시 저장 시 title은 50자, description은 200자로 잘린다."""
+    long_title = "T" * 100
+    long_desc = "D" * 300
+
+    with logged_in_client.session_transaction() as sess:
+        sess.pop("ai_recommendations", None)
+        sess.pop("ai_recommendations_ts", None)
+
+    @contextmanager
+    def mock_db_seq():
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {"id": "x"}
+        cursor.fetchall.side_effect = [
+            [],   # challenges
+            [],   # user_challenges
+            [{"created_at": "2024-01-01"}],   # delivery_rows
+            [],   # time_rows
+        ]
+        yield cursor
+
+    def fake_recommend(history):
+        return {"recommendations": [{"title": long_title, "description": long_desc, "target_type": "delivery", "target_value": 2}]}
+
+    with patch("routes.challenge.db", mock_db_seq), \
+         patch("routes.challenge.ai_challenge.recommend", fake_recommend):
+        res = logged_in_client.get("/challenge")
+
+    assert res.status_code == 200
+    with logged_in_client.session_transaction() as sess:
+        cached = sess.get("ai_recommendations", [])
+    assert len(cached) == 1
+    assert len(cached[0]["title"]) == 50, "title은 50자로 잘려야 함"
+    assert len(cached[0]["description"]) == 200, "description은 200자로 잘려야 함"
+
+
+def test_sanitize_context_깊이_초과시_조기종료():
+    """[P3] _sanitize_context는 depth > 10이면 str로 변환 후 200자로 자른다."""
+    from ai.comment import _sanitize_context
+
+    # depth 11에서 호출 — 조기 종료 경로
+    result = _sanitize_context({"key": "val"}, _depth=11)
+    assert isinstance(result, str)
+    assert len(result) <= 200

@@ -37,7 +37,9 @@ def _verify_csrf() -> None:
     타이밍 공격 방지를 위해 hmac.compare_digest 사용.
     불일치 시 abort(403).
     """
-    expected = session.get(_CSRF_SESSION_KEY, "")
+    expected = session.get(_CSRF_SESSION_KEY)
+    if not expected:
+        abort(403)
     received = (
         request.headers.get("X-CSRF-Token")
         or request.form.get("csrf_token")
@@ -57,7 +59,6 @@ def _calc_avg_delivery_per_week(delivery_rows: list) -> float:
     if len(delivery_rows) <= 1:
         return float(len(delivery_rows))
 
-    from utils.week import KST
     from datetime import datetime
 
     dates = []
@@ -211,6 +212,21 @@ def _get_ai_recommendations(user_id: int) -> list:
 
         result = ai_challenge.recommend(history)
         recommendations = result.get("recommendations", [])
+
+        # 세션 쿠키 4KB 한도 초과 방지 — 항목별 문자열 truncate 후 저장
+        _TITLE_MAX = 50
+        _DESC_MAX = 200
+        truncated = []
+        for rec in recommendations:
+            if isinstance(rec, dict):
+                truncated.append({
+                    k: (v[:_TITLE_MAX] if k == "title" and isinstance(v, str) else
+                        v[:_DESC_MAX] if k == "description" and isinstance(v, str) else v)
+                    for k, v in rec.items()
+                })
+            else:
+                truncated.append(rec)
+        recommendations = truncated
 
         # 세션에 캐시 저장
         session[_AI_CACHE_KEY] = recommendations
