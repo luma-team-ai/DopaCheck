@@ -23,9 +23,18 @@ def week_bounds(ref: date) -> tuple[str, str]:
     return start.isoformat(), end.isoformat()
 
 
+def kst_today() -> date:
+    """KST 기준 오늘 날짜. 서버 컨테이너 TZ(UTC 등)와 무관하게 한국 날짜를 반환한다.
+
+    `date.today()`(서버 로컬)는 자정 부근에서 하루 오차를 내므로 주차/날짜 경계
+    계산에는 반드시 이 함수를 사용한다(#11).
+    """
+    return datetime.now(KST).date()
+
+
 def get_week_ranges() -> tuple[tuple[str, str], tuple[str, str]]:
     """(이번 주 범위, 저번 주 범위) — 각 (start_iso, end_iso) 튜플. KST 기준."""
-    today = datetime.now(KST).date()
+    today = kst_today()
     return week_bounds(today), week_bounds(today - timedelta(weeks=1))
 
 

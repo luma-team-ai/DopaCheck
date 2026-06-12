@@ -1,9 +1,11 @@
 """분석 히스토리 (담당: 허남 — FR-21~25)."""
 import logging
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, jsonify, render_template, request, session
+
+from utils.week import KST, kst_today, week_bounds
 
 logger = logging.getLogger(__name__)
 
@@ -26,20 +28,18 @@ from routes.auth import login_required
 
 history_bp = Blueprint("history", __name__, url_prefix="/history")
 
-_KST = timezone(timedelta(hours=9))
-
 
 def _week_start() -> str:
-    today = date.today()
-    return (today - timedelta(days=today.weekday())).isoformat()
+    # KST 기준 이번 주 월요일 (utils.week 공통 유틸로 전역 통일 — #11)
+    return week_bounds(kst_today())[0]
 
 
 def _month_start() -> str:
-    return date.today().replace(day=1).isoformat()
+    return kst_today().replace(day=1).isoformat()
 
 
 def _date_label(d: date) -> str:
-    today = date.today()
+    today = kst_today()
     if d == today:
         return f"오늘, {d.month}월 {d.day}일"
     if d == today - timedelta(days=1):
@@ -59,12 +59,12 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
             raw = r["created_at"]
             if isinstance(raw, datetime):
                 # MariaDB DATETIME(naive) → KST로 간주. tz 정보가 없으면 KST 부여.
-                dt = (raw if raw.tzinfo else raw.replace(tzinfo=_KST)).astimezone(_KST)
+                dt = (raw if raw.tzinfo else raw.replace(tzinfo=KST)).astimezone(KST)
             else:
-                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(_KST)
+                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(KST)
         except Exception as e:
             logger.warning("created_at 파싱 실패: %s", e)
-            dt = datetime.now(_KST)
+            dt = datetime.now(KST)
         r["date"] = dt.strftime("%Y-%m-%d")
         r["date_label"] = _date_label(dt.date())
         hour, minute = dt.hour, dt.minute
