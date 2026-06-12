@@ -79,27 +79,40 @@ def upsert_user_profile(email: str, nickname: str, provider: str, provider_id: s
     """소셜 로그인 시 users 테이블에 프로필 생성/조회.
 
     - 최초 로그인: INSERT
-    - 재로그인: 기존 레코드 조회 후 반환
+    - 재로그인: 닉네임 갱신 후 id 반환 (P2: 재로그인 시 닉네임 미갱신 수정)
     반환값: user_id (BIGINT)
     """
     with db() as cursor:
-        # 이미 존재하면 조회
+        # 이미 존재하면 닉네임 갱신 후 id 반환
         cursor.execute(
             "SELECT id FROM users WHERE provider = %s AND provider_id = %s",
             (provider, provider_id)
         )
         row = cursor.fetchone()
         if row:
+            cursor.execute(
+                "UPDATE users SET nickname = %s WHERE id = %s",
+                (nickname, row["id"])
+            )
             return row["id"]
 
-        # 없으면 INSERT
+        # 없으면 INSERT — ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)로
+        # 항상 올바른 id를 반환 (P2: LAST_INSERT_ID()=0 버그 방지)
         cursor.execute(
             """
             INSERT INTO users (email, nickname, provider, provider_id)
             VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE nickname = VALUES(nickname)
+            ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), nickname=VALUES(nickname)
             """,
             (email, nickname, provider, provider_id)
         )
-        cursor.execute("SELECT LAST_INSERT_ID() AS id")
+        new_id = cursor.lastrowid
+        if new_id:
+            return new_id
+
+        # fallback: LAST_INSERT_ID가 0인 경우 SELECT로 재조회
+        cursor.execute(
+            "SELECT id FROM users WHERE provider = %s AND provider_id = %s",
+            (provider, provider_id)
+        )
         return cursor.fetchone()["id"]
