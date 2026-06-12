@@ -1,7 +1,233 @@
 {% extends "base.html" %}
-{% block title %}히스토리 상세{% endblock %}
-{% block content %}
-<h1>기록 상세</h1>
+{% block title %}기록 상세{% endblock %}
 
-<!-- TODO(허남): 기록 유형별(delivery/time) 상세 내용 렌더링 (FR-22) -->
+{% block header_left %}
+<a href="{{ url_for('history.history_list') }}" class="text-primary hover:opacity-80 transition-opacity active:scale-95">
+  <span class="material-symbols-outlined">arrow_back</span>
+</a>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold gradient-text" style="font-family:'Plus Jakarta Sans',sans-serif;">기록 상세</h1>
+{% endblock %}
+
+{% block header_right %}
+{% if record %}
+<button onclick="deleteAndBack('{{ record.id }}', '{{ record_type }}')"
+        class="text-outline-variant hover:text-error transition-colors active:scale-95">
+  <span class="material-symbols-outlined">delete</span>
+</button>
+{% else %}
+<span></span>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if not record %}
+<!-- 404 상태 -->
+<div class="flex flex-col items-center justify-center pt-24 text-center">
+  <span class="material-symbols-outlined text-6xl text-outline mb-4">search_off</span>
+  <p class="text-xl font-bold text-on-surface mb-2">기록을 찾을 수 없어요</p>
+  <p class="text-sm text-on-surface-variant mb-8">삭제됐거나 접근 권한이 없는 기록이에요.</p>
+  <a href="{{ url_for('history.history_list') }}"
+     class="gradient-btn px-8 h-[48px] rounded-full text-sm font-semibold text-white flex items-center">
+    목록으로
+  </a>
+</div>
+
+{% elif record_type == 'delivery' %}
+<!-- ─── 배달 상세 ─── -->
+<div class="space-y-4">
+
+  <!-- 헤더 카드 -->
+  <div class="glass-card rounded-xl p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-12 h-12 rounded-full bg-secondary-container/30 flex items-center justify-center text-on-secondary-container">
+        <span class="material-symbols-outlined text-[22px]">receipt_long</span>
+      </div>
+      <div>
+        <span class="text-[11px] font-semibold tracking-wider text-secondary uppercase">배달</span>
+        <p class="text-xs text-on-surface-variant">{{ record.date_label }} · {{ record.time_label }}</p>
+      </div>
+    </div>
+    <p class="text-2xl font-extrabold text-on-surface mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">
+      {{ "{:,}".format(record.total_price | int) }}원
+    </p>
+    <p class="text-sm text-on-surface-variant">
+      배달비 {{ "{:,}".format(record.delivery_fee | default(0) | int) }}원 포함 ·
+      {{ "{:,}".format(record.total_calories | default(0) | int) }} kcal
+    </p>
+  </div>
+
+  <!-- 음식 항목 -->
+  {% if record.items %}
+  <div class="glass-card rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider mb-3">주문 내역</h2>
+    <div class="space-y-3">
+      {% for item in record.items %}
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center">
+            <span class="material-symbols-outlined text-[16px] text-tertiary">restaurant</span>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-on-surface">{{ item.name }}</p>
+            {% if item.calories %}
+            <p class="text-[11px] text-on-surface-variant">{{ item.calories }} kcal</p>
+            {% endif %}
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-sm font-semibold text-on-surface">{{ "{:,}".format(item.price | int) }}원</p>
+          {% if item.quantity and item.quantity > 1 %}
+          <p class="text-[11px] text-on-surface-variant">× {{ item.quantity }}</p>
+          {% endif %}
+        </div>
+      </div>
+      {% if not loop.last %}
+      <div class="border-t border-outline-variant/30"></div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 환산 인사이트 -->
+  <div class="glass-card rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider mb-3">이걸로 환산하면</h2>
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-surface-container rounded-lg p-3 text-center">
+        <p class="text-2xl font-extrabold text-secondary" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          {{ "%.1f"|format(record.total_price / 20000) }}
+        </p>
+        <p class="text-[11px] text-on-surface-variant mt-1">치킨 마리</p>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center">
+        <p class="text-2xl font-extrabold text-primary" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          {{ record.total_calories // 10 if record.total_calories else 0 }}
+        </p>
+        <p class="text-[11px] text-on-surface-variant mt-1">러닝 분</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 코멘트 -->
+  {% if record.ai_comment %}
+  <div class="glass-card rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <span class="material-symbols-outlined text-[16px] text-primary">auto_awesome</span>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-primary mb-1">AI 코멘트</p>
+        <p class="text-sm text-on-surface leading-relaxed">{{ record.ai_comment }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% else %}
+<!-- ─── 시간 상세 ─── -->
+<div class="space-y-4">
+
+  <!-- 헤더 카드 -->
+  <div class="glass-card rounded-xl p-6">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-12 h-12 rounded-full bg-primary-container/30 flex items-center justify-center text-primary">
+        <span class="material-symbols-outlined text-[22px]">schedule</span>
+      </div>
+      <div>
+        <span class="text-[11px] font-semibold tracking-wider text-primary uppercase">시간</span>
+        <p class="text-xs text-on-surface-variant">{{ record.date_label }} · {{ record.time_label }}</p>
+      </div>
+    </div>
+    {% set total = (record.youtube_min|default(0)|int) + (record.instagram_min|default(0)|int) + (record.tiktok_min|default(0)|int) + (record.game_min|default(0)|int) %}
+    <p class="text-2xl font-extrabold text-on-surface mb-1" style="font-family:'Plus Jakarta Sans',sans-serif;">
+      {{ total // 60 }}시간 {{ total % 60 }}분
+    </p>
+    <p class="text-sm text-on-surface-variant">총 사용 시간</p>
+  </div>
+
+  <!-- 앱별 사용 시간 -->
+  <div class="glass-card rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider mb-4">앱별 사용 시간</h2>
+    {% set apps = [
+      ('유튜브',    record.youtube_min|default(0)|int,    'tertiary',  'smart_display'),
+      ('인스타그램', record.instagram_min|default(0)|int, 'secondary', 'photo_camera'),
+      ('틱톡',     record.tiktok_min|default(0)|int,     'primary',   'music_note'),
+      ('게임',     record.game_min|default(0)|int,       'on-secondary-container', 'sports_esports'),
+    ] %}
+    <div class="space-y-3">
+      {% for name, mins, color, icon in apps %}
+      {% set pct = (mins / total * 100) | round | int if total > 0 else 0 %}
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[16px] text-{{ color }}">{{ icon }}</span>
+            <span class="text-sm text-on-surface">{{ name }}</span>
+          </div>
+          <span class="text-sm font-semibold text-on-surface">{{ mins }}분</span>
+        </div>
+        <div class="h-1.5 rounded-full bg-surface-container-high overflow-hidden">
+          <div class="h-full rounded-full bg-{{ color }} transition-all" style="width:{{ pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 환산 인사이트 -->
+  <div class="glass-card rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider mb-3">이걸로 환산하면</h2>
+    {% set hourly = record.hourly_wage | default(10030) | int %}
+    <div class="grid grid-cols-2 gap-3">
+      <div class="bg-surface-container rounded-lg p-3 text-center">
+        <p class="text-2xl font-extrabold text-primary" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          {{ "%.1f"|format(total / 60 / 5) }}
+        </p>
+        <p class="text-[11px] text-on-surface-variant mt-1">책 권</p>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center">
+        <p class="text-2xl font-extrabold text-secondary" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          {{ "{:,}".format((total // 60 * hourly)) }}
+        </p>
+        <p class="text-[11px] text-on-surface-variant mt-1">원짜리 취미</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 코멘트 -->
+  {% if record.ai_comment %}
+  <div class="glass-card rounded-xl p-5">
+    <div class="flex items-start gap-3">
+      <div class="w-8 h-8 rounded-full bg-primary-container/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <span class="material-symbols-outlined text-[16px] text-primary">auto_awesome</span>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-primary mb-1">AI 코멘트</p>
+        <p class="text-sm text-on-surface leading-relaxed">{{ record.ai_comment }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function deleteAndBack(id, type) {
+  if (!confirm('이 기록을 삭제하시겠습니까?')) return;
+  const res = await fetch(`/history/${id}?type=${type}`, { method: 'DELETE' });
+  if (res.ok) {
+    window.location.href = '{{ url_for("history.history_list") }}';
+  } else {
+    const body = await res.json().catch(() => ({}));
+    alert(body.error || '삭제에 실패했습니다.');
+  }
+}
+</script>
 {% endblock %}
