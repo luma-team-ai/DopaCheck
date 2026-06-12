@@ -1,16 +1,11 @@
 """칼로리 추론 (담당: 오영석 — FR-41)."""
 import json
-import re
 
 import anthropic
 
+from ai.utils import extract_json
+
 _client = anthropic.Anthropic()
-
-
-def _extract_json(text: str) -> str:
-    text = text.strip()
-    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    return m.group(1).strip() if m else text
 
 
 def estimate(items: list[str]) -> dict:
@@ -45,7 +40,10 @@ def estimate(items: list[str]) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
     text = next(b.text for b in response.content if b.type == "text")
-    calories = json.loads(_extract_json(text))
+    try:
+        calories = json.loads(extract_json(text))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"칼로리 추론 응답 파싱 실패: {e}") from e
     total_kcal = sum(item["kcal"] for item in calories)
 
     return {"success": True, "calories": calories, "total_kcal": total_kcal}

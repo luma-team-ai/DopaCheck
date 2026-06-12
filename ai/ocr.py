@@ -1,9 +1,10 @@
 """영수증 OCR 파싱 (담당: 오영석 — FR-40)."""
 import base64
 import json
-import re
 
 import anthropic
+
+from ai.utils import extract_json
 
 _client = anthropic.Anthropic()
 
@@ -16,12 +17,6 @@ def _detect_media_type(image_bytes: bytes) -> str:
     if len(image_bytes) >= 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
         return "image/webp"
     return "image/jpeg"
-
-
-def _extract_json(text: str) -> str:
-    text = text.strip()
-    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    return m.group(1).strip() if m else text
 
 
 def parse_receipt(image_bytes: bytes) -> dict:
@@ -71,5 +66,8 @@ def parse_receipt(image_bytes: bytes) -> dict:
         }],
     )
     text = next(b.text for b in response.content if b.type == "text")
-    result = json.loads(_extract_json(text))
+    try:
+        result = json.loads(extract_json(text))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"영수증 OCR 응답 파싱 실패: {e}") from e
     return {"success": True, **result}

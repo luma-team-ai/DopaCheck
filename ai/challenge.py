@@ -1,16 +1,11 @@
 """챌린지 추천 (담당: 오영석 — FR-44)."""
 import json
-import re
 
 import anthropic
 
+from ai.utils import extract_json
+
 _client = anthropic.Anthropic()
-
-
-def _extract_json(text: str) -> str:
-    text = text.strip()
-    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    return m.group(1).strip() if m else text
 
 
 def recommend(history: dict) -> dict:
@@ -57,6 +52,9 @@ def recommend(history: dict) -> dict:
         messages=[{"role": "user", "content": prompt}],
     )
     text = next(b.text for b in response.content if b.type == "text")
-    recommendations = json.loads(_extract_json(text))
+    try:
+        recommendations = json.loads(extract_json(text))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"챌린지 추천 응답 파싱 실패: {e}") from e
 
     return {"success": True, "recommendations": recommendations}

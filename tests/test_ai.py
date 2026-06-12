@@ -64,3 +64,69 @@ def test_공감_코멘트_생성():
 
         assert isinstance(result, str)
         assert len(result) > 0
+
+
+def test_도파민_점수_계산():
+    """FR-39: 도파민 점수 규칙 기반 계산 (경계값 포함)."""
+    from ai.score import calculate
+
+    # 최고점: 배달 0원, 스크린타임 0분, 챌린지 4개 완료
+    result_max = calculate({"delivery_total": 0, "time_total_min": 0, "challenge_completed": 4})
+    assert result_max["score"] == 100
+    assert result_max["delivery_contribution"] == 40
+    assert result_max["time_contribution"] == 40
+    assert result_max["challenge_bonus"] == 20
+
+    # 최저점: 배달 200000원 이상, 스크린타임 2100분 이상, 챌린지 0개
+    result_min = calculate({"delivery_total": 200_000, "time_total_min": 2_100, "challenge_completed": 0})
+    assert result_min["score"] == 0
+    assert result_min["delivery_contribution"] == 0
+    assert result_min["time_contribution"] == 0
+    assert result_min["challenge_bonus"] == 0
+
+    # 중간값: 배달 100000원, 스크린타임 1050분, 챌린지 2개
+    result_mid = calculate({"delivery_total": 100_000, "time_total_min": 1_050, "challenge_completed": 2})
+    assert result_mid["delivery_contribution"] == 20
+    assert result_mid["time_contribution"] == 20
+    assert result_mid["challenge_bonus"] == 10
+    assert result_mid["score"] == 50
+
+
+def test_챌린지_추천():
+    """FR-44: 히스토리 기반 챌린지 추천 (mock LLM)."""
+    from ai.challenge import recommend
+
+    payload = [
+        {
+            "title": "이번 주 배달 2회 이하",
+            "description": "평소보다 1.2회 줄여보세요!",
+            "target_type": "delivery",
+            "target_value": 2,
+        },
+        {
+            "title": "유튜브 하루 1시간 이하",
+            "description": "주간 7시간 사용을 줄여보세요.",
+            "target_type": "time",
+            "target_value": 60,
+        },
+        {
+            "title": "배달+SNS 동시 줄이기",
+            "description": "두 가지 모두 10% 줄여보세요.",
+            "target_type": "both",
+            "target_value": 0,
+        },
+    ]
+    with patch("ai.challenge._client") as mock_client:
+        mock_client.messages.create.return_value = _mock_response(json.dumps(payload))
+        result = recommend(
+            {
+                "avg_delivery_per_week": 3.2,
+                "top_app": "youtube",
+                "top_app_hours": 6.5,
+            }
+        )
+
+    assert result["success"] is True
+    assert len(result["recommendations"]) == 3
+    assert result["recommendations"][0]["title"] == "이번 주 배달 2회 이하"
+    assert result["recommendations"][0]["target_type"] == "delivery"

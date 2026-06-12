@@ -1,7 +1,8 @@
 """AI 챌린지 (담당: 오영석 — FR-32~38)."""
 import logging
+import uuid
 
-from flask import Blueprint, jsonify, render_template, session
+from flask import Blueprint, jsonify, redirect, render_template, session, url_for
 
 import ai.challenge as ai_challenge
 from db.client import get_supabase
@@ -21,7 +22,9 @@ def challenge_page():
     2. 히스토리 1건 이상이면 ai.challenge.recommend(history) 호출 (FR-33)
     3. 참여 중 챌린지 달성률 프로그레스 바 (FR-36)
     """
-    user_id = session["user"]["id"]
+    user_id = session.get("user", {}).get("id")
+    if not user_id:
+        return redirect(url_for("auth.login_page"))
     supabase = get_supabase()
 
     # 기본 챌린지 목록 (FR-32)
@@ -87,7 +90,7 @@ def challenge_page():
                 .data or []
             )
 
-            weeks = max(1, len(delivery_rows) / 7)
+            weeks = max(1, len(delivery_rows) // 7)  # 정수 주 단위
             avg_delivery = len(delivery_rows) / weeks
 
             app_totals = {"youtube": 0, "instagram": 0, "tiktok": 0, "game": 0}
@@ -125,7 +128,15 @@ def join(challenge_id: str):
 
     동일 챌린지 활성 상태 중복 참여 차단 (FR-35 — DB unique index와 이중 방어)
     """
-    user_id = session["user"]["id"]
+    user_id = session.get("user", {}).get("id")
+    if not user_id:
+        return redirect(url_for("auth.login_page"))
+
+    try:
+        uuid.UUID(challenge_id)
+    except ValueError:
+        return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
+
     supabase = get_supabase()
 
     # 중복 참여 사전 체크 (FR-35)
