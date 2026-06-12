@@ -195,3 +195,21 @@ def test_비로그인_접근_차단(client):
     res = client.get("/history")
     assert res.status_code == 302
     assert "/login" in res.headers["Location"]
+
+
+def test_week_month_경계_KST_공통유틸_사용():
+    """#11: _week_start/_month_start가 KST 기준(공통 utils.week)으로 계산된다.
+
+    서버 로컬(date.today())이 아닌 KST 날짜를 써야 자정 부근 하루 오차가 없다.
+    kst_today를 고정해 월요일 시작·1일 시작이 정확히 산출되는지 검증한다.
+    """
+    from datetime import date
+    import routes.history as h
+
+    # 2026-06-12(금) → 같은 주 월요일은 2026-06-08
+    with patch.object(h, "kst_today", lambda: date(2026, 6, 12)):
+        assert h._week_start() == "2026-06-08"
+        assert h._month_start() == "2026-06-01"
+        assert h._date_label(date(2026, 6, 12)) == "오늘, 6월 12일"
+        assert h._date_label(date(2026, 6, 11)) == "어제, 6월 11일"
+        assert h._date_label(date(2026, 6, 9)) == "6월 9일"
