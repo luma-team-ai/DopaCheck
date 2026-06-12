@@ -1,17 +1,21 @@
 -- Dopamine Check DB 스키마 (PRD §11) — MariaDB 10.5+ / MySQL 8
 --
 -- 정책 (#21):
---   - users.id 는 BIGINT AUTO_INCREMENT 자체 PK (소셜 로그인 시 앱에서 email 기준 upsert).
+--   - users.id 는 BIGINT AUTO_INCREMENT 자체 PK. 소셜 로그인 시 (provider, provider_id) 로 upsert (#26).
 --   - 나머지 테이블 id 는 uuid(CHAR(36)), user_id 는 BIGINT FK.
 --   - RLS 제거 — 모든 조회는 앱에서 WHERE user_id = session['user_id'] 로 스코프한다.
 SET NAMES utf8mb4;
 
 CREATE TABLE IF NOT EXISTS users (
   id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  email       VARCHAR(255) NOT NULL UNIQUE,
+  email       VARCHAR(255) NOT NULL UNIQUE,    -- TODO(#26): 멀티프로바이더 동일 이메일 충돌 시 UNIQUE 제거 검토(DB담당 결정)
   nickname    VARCHAR(100),
   hourly_wage INT          NOT NULL DEFAULT 10030,
-  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+  -- 소셜로그인 식별키 (#26): upsert_user_profile 이 (provider, provider_id) 로 사용자 매칭
+  provider    VARCHAR(20)  NOT NULL,           -- 'google' | 'kakao'
+  provider_id VARCHAR(255) NOT NULL,           -- OAuth sub / 카카오 회원번호
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_provider (provider, provider_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS delivery_records (
