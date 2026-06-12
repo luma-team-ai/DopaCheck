@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}시간 분석{% endblock %}
+{% block content %}
+<h1>⏰ 시간 소비 분석</h1>
+
+<!-- TODO(이은석): 구현 항목
+  - 앱별 주간 사용 시간(h) 입력: 유튜브·인스타·틱톡·게임 (FR-9)
+  - 시급(원) 입력 (FR-10)
+  - 제출 후 로딩 스피너 + 진행 메시지
+-->
+<form action="{{ url_for('time.analyze') }}" method="post">
+  <label>유튜브 (h) <input type="number" name="youtube_h" min="0" step="0.5" value="0"></label>
+  <label>인스타 (h) <input type="number" name="instagram_h" min="0" step="0.5" value="0"></label>
+  <label>틱톡 (h) <input type="number" name="tiktok_h" min="0" step="0.5" value="0"></label>
+  <label>게임 (h) <input type="number" name="game_h" min="0" step="0.5" value="0"></label>
+  <label>시급 (원) <input type="number" name="hourly_wage" min="0" value="10030"></label>
+  <button type="submit">분석하기</button>
+</form>
+{% endblock %}

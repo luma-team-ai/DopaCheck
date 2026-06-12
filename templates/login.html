@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}로그인{% endblock %}
+{% block content %}
+<section class="login-box">
+  <h1>🧠 도파민 체크</h1>
+  <p>나의 도파민 소비, 얼마나 쓰고 있을까?</p>
+
+  <!-- TODO(김승현): Supabase OAuth 연동 (FR-0-1) -->
+  <a class="btn btn-google" href="{{ url_for('auth.oauth_start', provider='google') }}">Google로 시작하기</a>
+  <a class="btn btn-kakao" href="{{ url_for('auth.oauth_start', provider='kakao') }}">Kakao로 시작하기</a>
+</section>
+{% endblock %}

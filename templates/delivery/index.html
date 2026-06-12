@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}배달 분석{% endblock %}
+{% block content %}
+<h1>🍗 배달 영수증 분석</h1>
+
+<!-- TODO(김관영): 구현 항목
+  - 영수증 이미지 업로드 폼 (JPG/PNG — FR-1)
+  - 업로드 후 AI 처리 중 로딩 스피너 + 단계별 진행 메시지 (비기능 요구사항)
+  - OCR 추출 결과 확인/수정 UI (수용 기준)
+  - OCR 실패 시 수동 입력 폼 fallback (FR-7)
+  - 분석 결과: 지출 환산·칼로리 환산·공감 코멘트 (FR-4~6) — result.html
+-->
+<form action="{{ url_for('delivery.analyze') }}" method="post" enctype="multipart/form-data">
+  <input type="file" name="image" accept="image/jpeg,image/png" required>
+  <button type="submit">분석하기</button>
+</form>
+{% endblock %}

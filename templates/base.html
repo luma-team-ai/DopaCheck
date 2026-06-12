@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}도파민 체크{% endblock %} | Dopamine Check</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="nav">
+    <a href="{{ url_for('index') }}" class="nav-logo">🧠 도파민 체크</a>
+    {% if session.get('user') %}
+    <nav class="nav-menu">
+      <a href="{{ url_for('delivery.delivery_page') }}">배달 분석</a>
+      <a href="{{ url_for('time.time_page') }}">시간 분석</a>
+      <a href="{{ url_for('report.report_page') }}">리포트</a>
+      <a href="{{ url_for('history.history_list') }}">히스토리</a>
+      <a href="{{ url_for('score.score_page') }}">점수</a>
+      <a href="{{ url_for('challenge.challenge_page') }}">챌린지</a>
+      <a href="{{ url_for('auth.logout') }}">로그아웃</a>
+    </nav>
+    {% endif %}
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
