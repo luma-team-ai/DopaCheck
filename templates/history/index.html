@@ -1,12 +1,150 @@
 {% extends "base.html" %}
 {% block title %}히스토리{% endblock %}
-{% block content %}
-<h1>📋 분석 히스토리</h1>
 
-<!-- TODO(허남): 구현 항목
-  - 이번 주 / 이번 달 / 전체 기간 필터 탭 (FR-24)
-  - 날짜별 기록 목록 — 배달/시간 유형 뱃지 표시 (FR-21)
-  - 항목 클릭 → 상세 페이지 (FR-22)
-  - 삭제 버튼 → DELETE /history/<id> fetch 호출 (FR-23)
--->
+{% block header_left %}
+<button onclick="history.back()" class="text-primary hover:opacity-80 transition-opacity active:scale-95">
+  <span class="material-symbols-outlined">arrow_back</span>
+</button>
+{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold gradient-text" style="font-family:'Plus Jakarta Sans',sans-serif;">히스토리</h1>
+{% endblock %}
+
+{% block header_right %}
+<span class="material-symbols-outlined text-on-surface-variant">filter_list</span>
+{% endblock %}
+
+{% block content %}
+
+<!-- 기간 + 유형 필터 칩 (FR-24) -->
+<section class="flex gap-2 overflow-x-auto pb-5 no-scrollbar -mx-1 px-1">
+  {% set periods = [('all','전체'), ('week','이번 주'), ('month','이번 달')] %}
+  {% set types = [('all','전체'), ('delivery','배달'), ('time','시간')] %}
+
+  {% for val, label in periods %}
+  <a href="{{ url_for('history.history_list', period=val, type_filter=type_filter) }}"
+     class="px-5 py-2 rounded-full whitespace-nowrap text-[12px] font-semibold tracking-wider transition-all active:scale-95
+            {% if period == val %}bg-primary-container text-on-primary-container{% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+    {{ label }}
+  </a>
+  {% endfor %}
+
+  <div class="w-px bg-outline-variant self-stretch mx-1"></div>
+
+  {% for val, label in types %}
+  <a href="{{ url_for('history.history_list', period=period, type_filter=val) }}"
+     class="px-5 py-2 rounded-full whitespace-nowrap text-[12px] font-semibold tracking-wider transition-all active:scale-95
+            {% if type_filter == val %}bg-secondary-container text-on-secondary-container{% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+    {{ label }}
+  </a>
+  {% endfor %}
+</section>
+
+<!-- 기록 목록 (FR-21, FR-25) -->
+{% if grouped %}
+<div class="space-y-10" id="history-container">
+  {% for group in grouped %}
+  <div class="space-y-3" data-group="{{ loop.index }}">
+    <h2 class="text-sm font-semibold text-on-surface-variant pl-1">{{ group.label }}</h2>
+
+    {% for r in group.records %}
+    <div class="glass-card rounded-xl p-5 flex items-center gap-4 transition-transform active:scale-[0.98] cursor-pointer history-card"
+         data-id="{{ r.id }}"
+         data-type="{{ r.type }}"
+         onclick="goDetail('{{ r.id }}', '{{ r.type }}')">
+
+      <!-- 아이콘 -->
+      <div class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center
+                  {% if r.type == 'delivery' %}bg-secondary-container/30 text-on-secondary-container{% else %}bg-primary-container/30 text-primary{% endif %}">
+        <span class="material-symbols-outlined text-[22px]">
+          {% if r.type == 'delivery' %}receipt_long{% else %}schedule{% endif %}
+        </span>
+      </div>
+
+      <!-- 내용 -->
+      <div class="flex-1 min-w-0">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-[11px] font-semibold tracking-wider uppercase
+                       {% if r.type == 'delivery' %}text-secondary{% else %}text-primary{% endif %}">
+            {% if r.type == 'delivery' %}배달{% else %}시간{% endif %}
+          </span>
+          <span class="text-[10px] text-outline">{{ r.time_label }}</span>
+        </div>
+        <p class="text-sm font-semibold text-on-surface truncate">{{ r.summary }}</p>
+        {% if r.ai_comment %}
+        <p class="text-[11px] text-on-surface-variant mt-0.5 truncate">{{ r.ai_comment }}</p>
+        {% endif %}
+      </div>
+
+      <!-- 삭제 버튼 -->
+      <button class="text-outline-variant hover:text-error transition-colors p-1 flex-shrink-0 active:scale-90"
+              onclick="event.stopPropagation(); deleteRecord('{{ r.id }}', '{{ r.type }}', this)">
+        <span class="material-symbols-outlined text-[20px]">delete</span>
+      </button>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<!-- 빈 상태 -->
+<div class="flex flex-col items-center justify-center pt-20 text-center">
+  <div class="w-24 h-24 rounded-full bg-surface-container flex items-center justify-center mb-6">
+    <span class="material-symbols-outlined text-primary text-5xl opacity-40">history_toggle_off</span>
+  </div>
+  <p class="text-xl font-bold text-on-surface mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">아직 기록이 없어요</p>
+  <p class="text-sm text-on-surface-variant mb-8">배달 분석 또는 시간 분석을 시작해 보세요</p>
+  <a href="{{ url_for('delivery.delivery_page') }}"
+     class="gradient-btn px-10 h-[52px] rounded-full font-semibold text-white flex items-center shadow-lg">
+    분석 시작하기
+  </a>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function goDetail(id, type) {
+  window.location.href = `/history/${id}?type=${type}`;
+}
+
+async function deleteRecord(id, type, btn) {
+  if (!confirm('이 기록을 삭제하시겠습니까?')) return;
+
+  const card = btn.closest('.history-card');
+  card.style.transition = 'all 0.35s cubic-bezier(0.4,0,0.2,1)';
+  card.style.opacity = '0';
+  card.style.transform = 'translateX(24px)';
+
+  const res = await fetch(`/history/${id}?type=${type}`, { method: 'DELETE' });
+
+  if (res.ok) {
+    setTimeout(() => {
+      card.remove();
+      // 그룹이 비면 그룹 헤더도 제거
+      document.querySelectorAll('[data-group]').forEach(g => {
+        if (!g.querySelector('.history-card')) g.remove();
+      });
+      // 전체 비면 빈 상태 표시
+      if (!document.querySelector('.history-card')) {
+        document.getElementById('history-container').innerHTML = `
+          <div class="flex flex-col items-center justify-center pt-16 text-center">
+            <div class="w-24 h-24 rounded-full bg-surface-container flex items-center justify-center mb-6">
+              <span class="material-symbols-outlined text-primary text-5xl opacity-40">history_toggle_off</span>
+            </div>
+            <p class="text-xl font-bold text-on-surface mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">모든 기록이 삭제됐어요</p>
+          </div>`;
+      }
+    }, 380);
+  } else {
+    card.style.opacity = '1';
+    card.style.transform = '';
+    const body = await res.json().catch(() => ({}));
+    alert(body.error || '삭제에 실패했습니다.');
+  }
+}
+</script>
 {% endblock %}
