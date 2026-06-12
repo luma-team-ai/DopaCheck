@@ -67,6 +67,11 @@ def test_기간_필터_month(logged_in_client):
     with _patch_db(cursor):
         res = logged_in_client.get("/history?period=month")
     assert res.status_code == 200
+    # month 분기도 week와 동일하게 하한·상한 경계가 바인딩되어야 한다.
+    sql, params = cursor.execute.call_args_list[0].args
+    assert "created_at >= %s" in sql
+    assert "created_at < %s" in sql
+    assert len(params) == 3
 
 
 def test_목록_user_id_스코프_적용(logged_in_client):
