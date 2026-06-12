@@ -1,30 +1,26 @@
 """챌린지 테스트 (담당: 오영석)."""
+from contextlib import contextmanager
+
 import pytest
 from unittest.mock import MagicMock, patch
 
 
-def _make_supabase_mock(data=None, count=0):
-    """Supabase 체이닝 mock — 모든 메서드가 같은 mock_table을 반환한다."""
-    mock_result = MagicMock()
-    mock_result.data = data if data is not None else []
-    mock_result.count = count
+def _make_db_mock(fetchall=None, fetchone=None):
+    """db() 컨텍스트매니저 mock — cursor.fetchall/fetchone 반환값 지정."""
+    mock_cursor = MagicMock()
+    mock_cursor.fetchall.return_value = fetchall if fetchall is not None else []
+    mock_cursor.fetchone.return_value = fetchone
 
-    mock_table = MagicMock()
-    mock_table.select.return_value = mock_table
-    mock_table.eq.return_value = mock_table
-    mock_table.order.return_value = mock_table
-    mock_table.limit.return_value = mock_table
-    mock_table.insert.return_value = mock_table
-    mock_table.execute.return_value = mock_result
+    @contextmanager
+    def mock_db():
+        yield mock_cursor
 
-    mock_sb = MagicMock()
-    mock_sb.table.return_value = mock_table
-    return mock_sb
+    return mock_db
 
 
 def test_챌린지_페이지_렌더링(logged_in_client):
     """FR-32: 챌린지 목록 페이지가 200으로 응답한다."""
-    with patch("routes.challenge.get_supabase", return_value=_make_supabase_mock()):
+    with patch("routes.challenge.db", _make_db_mock()):
         res = logged_in_client.get("/challenge")
     assert res.status_code == 200
 
@@ -32,9 +28,8 @@ def test_챌린지_페이지_렌더링(logged_in_client):
 def test_챌린지_중복참여_차단(logged_in_client):
     """FR-35: 이미 참여 중인 챌린지에 재참여 시 409 반환."""
     challenge_id = "aaaaaaaa-0000-0000-0000-000000000001"
-    mock_sb = _make_supabase_mock(data=[{"id": "existing-uc"}])
 
-    with patch("routes.challenge.get_supabase", return_value=mock_sb):
+    with patch("routes.challenge.db", _make_db_mock(fetchone={"id": "existing-uc"})):
         res = logged_in_client.post(f"/challenge/{challenge_id}/join")
 
     assert res.status_code == 409
