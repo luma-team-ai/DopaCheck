@@ -2,36 +2,17 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, abort, render_template, session
 
 from ai import comment
 from db.client import get_supabase
 from routes.auth import login_required
+from utils.week import get_week_ranges, kst_bounds
 
 logger = logging.getLogger(__name__)
 
 report_bp = Blueprint("report", __name__, url_prefix="/report")
-
-KST = timezone(timedelta(hours=9))   # 한국 표준시 (DST 없음) — 주차 경계 기준
-
-
-# ── 주차 계산 헬퍼 ────────────────────────────────────────────────────────────
-
-def _week_bounds(ref: date) -> tuple[str, str]:
-    """ref가 속한 주(월~일)의 시작일(월요일)과 종료일(일요일) ISO 문자열을 반환한다."""
-    start = ref - timedelta(days=ref.weekday())   # 월요일
-    end = start + timedelta(days=6)               # 일요일
-    return start.isoformat(), end.isoformat()
-
-
-def get_week_ranges() -> tuple[tuple[str, str], tuple[str, str]]:
-    """(이번 주 범위, 저번 주 범위) — 각 (start_iso, end_iso) 튜플. KST 기준."""
-    today = datetime.now(KST).date()
-    this_week = _week_bounds(today)
-    last_week = _week_bounds(today - timedelta(weeks=1))
-    return this_week, last_week
 
 
 # ── 순수 집계 함수 (DB 없이 단위 테스트 가능) ─────────────────────────────────
@@ -90,16 +71,6 @@ def clamp_score(value) -> int:
 
 # ── DB 조회 헬퍼 ──────────────────────────────────────────────────────────────
 
-def _kst_bounds(week_start: str, week_end: str) -> tuple[str, str]:
-    """주 범위를 KST 타임존이 명시된 [시작, 익일) 경계 문자열로 변환한다.
-
-    created_at(timestamptz) 비교 시 ① 타임존 누락으로 인한 하루 오차,
-    ② 초 단위 lte 경계의 밀리초 누락을 방지한다 (익일 00:00 미만 exclusive).
-    """
-    next_day = (date.fromisoformat(week_end) + timedelta(days=1)).isoformat()
-    return f"{week_start}T00:00:00+09:00", f"{next_day}T00:00:00+09:00"
-
-
 def _fetch_delivery(user_id: str, week_start: str, week_end: str) -> list[dict]:
     """해당 주의 delivery_records를 조회한다.
 
@@ -107,7 +78,7 @@ def _fetch_delivery(user_id: str, week_start: str, week_end: str) -> list[dict]:
     UI에서 '기록 없음'과 구분이 필요하면 report_page의 db_error 컨텍스트를 활용하라.
     """
     try:
-        gte_at, lt_at = _kst_bounds(week_start, week_end)
+        gte_at, lt_at = kst_bounds(week_start, week_end)
         supabase = get_supabase()
         result = (
             supabase.table("delivery_records")
@@ -129,7 +100,7 @@ def _fetch_time(user_id: str, week_start: str, week_end: str) -> list[dict]:
     DB 오류 시 빈 리스트를 반환한다(의도적 폴백 설계).
     """
     try:
-        gte_at, lt_at = _kst_bounds(week_start, week_end)
+        gte_at, lt_at = kst_bounds(week_start, week_end)
         supabase = get_supabase()
         result = (
             supabase.table("time_records")
@@ -234,8 +205,8 @@ def report_page():
         last_week_start=last_start,
         # AI 인사이트
         ai_comment=ai_comment,
-        # 유저 닉네임
-        nickname=session["user"].get("nickname", ""),
+        # 유저 닉네임 (위에서 검증한 user dict 재사용)
+        nickname=user.get("nickname", ""),
     )
 
 
