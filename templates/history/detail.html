@@ -13,7 +13,7 @@
 
 {% block header_right %}
 {% if record %}
-<button id="btn-delete" data-id="{{ record.id }}" data-type="{{ record_type }}" class="text-outline-variant hover:text-error transition-colors active:scale-95">
+<button id="btn-delete" data-id="{{ record.id }}" data-type="{{ record_type | e }}" class="text-outline-variant hover:text-error transition-colors active:scale-95">
   <span class="material-symbols-outlined">delete</span>
 </button>
 {% else %}<span></span>{% endif %}

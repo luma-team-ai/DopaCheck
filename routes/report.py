@@ -191,11 +191,7 @@ def report_page():
     4. 저번 주 vs 이번 주 비교 차트 데이터 (FR-20)
     5. 공유 카드 영역 → html2canvas로 이미지 저장/SNS 공유 (FR-19, 클라이언트 측)
     """
-    # login_required가 session["user"] 존재를 보장하지만, id 키 누락 시 401 처리
-    user = session.get("user") or {}
-    user_id: str | None = user.get("id")
-    if not user_id:
-        abort(401)
+    user_id: str = session["user"]["id"]
 
     # ── 주차 범위 계산 ────────────────────────────────────────
     this_week_range, last_week_range = get_week_ranges()

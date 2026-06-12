@@ -77,6 +77,9 @@ def history_list():
     period = request.args.get("period", "all")
     type_filter = request.args.get("type_filter", "all")
 
+    if type_filter != "all" and type_filter not in _VALID_TYPES:
+        return jsonify({"error": "잘못된 타입"}), 400
+
     supabase = get_supabase()
 
     delivery_q = supabase.table("delivery_records").select(

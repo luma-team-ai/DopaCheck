@@ -14,7 +14,8 @@ def login_required(view):
     """
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get("user"):
+        user = session.get("user")
+        if not user or not user.get("id"):
             return redirect(url_for("auth.login_page"))
         return view(*args, **kwargs)
     return wrapped
