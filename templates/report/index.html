@@ -258,14 +258,14 @@
   const labels = ['배달 지출 (천 원)', '총 시간 (분)', '도파민 점수'];
 
   const thisData = [
-    Math.round({{ this_delivery.total_price }} / 1000),
-    {{ this_time.total_min }},
-    {{ this_score.score }},
+    Math.round({{ this_delivery.total_price | tojson }} / 1000),
+    {{ this_time.total_min | tojson }},
+    {{ this_score.score | tojson }},
   ];
   const lastData = [
-    Math.round({{ last_delivery.total_price }} / 1000),
-    {{ last_time.total_min }},
-    {{ last_score.score }},
+    Math.round({{ last_delivery.total_price | tojson }} / 1000),
+    {{ last_time.total_min | tojson }},
+    {{ last_score.score | tojson }},
   ];
 
   // 모두 0이면 차트 초기화만 하고 빈 상태로 둠

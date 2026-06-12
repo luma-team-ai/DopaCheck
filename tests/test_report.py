@@ -191,3 +191,37 @@ def test_주간_집계_및_비교차트_데이터(logged_in_client):
     assert b"compareChart" in res.data
     # 공유 카드 영역이 존재해야 함
     assert b'id="share-card"' in res.data
+
+
+# ── clamp_score 경계값 테스트 (점수 0~100 강제 — conic-gradient 방어) ────────
+
+from routes.report import clamp_score
+
+
+def test_clamp_score_정상_범위():
+    assert clamp_score(0) == 0
+    assert clamp_score(72) == 72
+    assert clamp_score(100) == 100
+
+
+def test_clamp_score_범위_초과_및_음수():
+    assert clamp_score(150) == 100   # 상한 강제
+    assert clamp_score(-10) == 0     # 하한 강제
+
+
+def test_clamp_score_None_및_비정상_입력():
+    assert clamp_score(None) == 0
+    assert clamp_score("bad") == 0
+
+
+# ── _kst_bounds 타임존·경계 테스트 (created_at 누락 방지) ───────────────────
+
+from routes.report import _kst_bounds
+
+
+def test_kst_bounds_타임존_명시():
+    """경계 문자열에 KST(+09:00) 오프셋이 명시되어야 한다."""
+    gte_at, lt_at = _kst_bounds("2026-06-08", "2026-06-14")
+    assert gte_at == "2026-06-08T00:00:00+09:00"
+    # 종료 경계는 일요일 익일(월요일) 00:00 미만 — 일요일 23:59:59.x 누락 방지
+    assert lt_at == "2026-06-15T00:00:00+09:00"

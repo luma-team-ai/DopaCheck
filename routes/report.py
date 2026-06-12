@@ -2,16 +2,19 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from flask import Blueprint, render_template, session
 
+from ai import comment
 from db.client import get_supabase
 from routes.auth import login_required
 
 logger = logging.getLogger(__name__)
 
 report_bp = Blueprint("report", __name__, url_prefix="/report")
+
+KST = timezone(timedelta(hours=9))   # 한국 표준시 (DST 없음) — 주차 경계 기준
 
 
 # ── 주차 계산 헬퍼 ────────────────────────────────────────────────────────────
@@ -24,8 +27,8 @@ def _week_bounds(ref: date) -> tuple[str, str]:
 
 
 def get_week_ranges() -> tuple[tuple[str, str], tuple[str, str]]:
-    """(이번 주 범위, 저번 주 범위) — 각 (start_iso, end_iso) 튜플."""
-    today = date.today()
+    """(이번 주 범위, 저번 주 범위) — 각 (start_iso, end_iso) 튜플. KST 기준."""
+    today = datetime.now(KST).date()
     this_week = _week_bounds(today)
     last_week = _week_bounds(today - timedelta(weeks=1))
     return this_week, last_week
@@ -77,18 +80,37 @@ def aggregate_time(rows: list[dict]) -> dict:
     }
 
 
+def clamp_score(value) -> int:
+    """도파민 점수를 0~100 범위로 강제한다 (CSS conic-gradient/차트 깨짐 방지)."""
+    try:
+        return max(0, min(100, int(value)))
+    except (TypeError, ValueError):
+        return 0
+
+
 # ── DB 조회 헬퍼 ──────────────────────────────────────────────────────────────
+
+def _kst_bounds(week_start: str, week_end: str) -> tuple[str, str]:
+    """주 범위를 KST 타임존이 명시된 [시작, 익일) 경계 문자열로 변환한다.
+
+    created_at(timestamptz) 비교 시 ① 타임존 누락으로 인한 하루 오차,
+    ② 초 단위 lte 경계의 밀리초 누락을 방지한다 (익일 00:00 미만 exclusive).
+    """
+    next_day = (date.fromisoformat(week_end) + timedelta(days=1)).isoformat()
+    return f"{week_start}T00:00:00+09:00", f"{next_day}T00:00:00+09:00"
+
 
 def _fetch_delivery(user_id: str, week_start: str, week_end: str) -> list[dict]:
     """해당 주의 delivery_records를 조회한다. 실패 시 빈 리스트 반환."""
     try:
+        gte_at, lt_at = _kst_bounds(week_start, week_end)
         supabase = get_supabase()
         result = (
             supabase.table("delivery_records")
             .select("total_price, total_calories")
             .eq("user_id", user_id)
-            .gte("created_at", week_start)
-            .lte("created_at", week_end + "T23:59:59")
+            .gte("created_at", gte_at)
+            .lt("created_at", lt_at)
             .execute()
         )
         return result.data or []
@@ -100,13 +122,14 @@ def _fetch_delivery(user_id: str, week_start: str, week_end: str) -> list[dict]:
 def _fetch_time(user_id: str, week_start: str, week_end: str) -> list[dict]:
     """해당 주의 time_records를 조회한다. 실패 시 빈 리스트 반환."""
     try:
+        gte_at, lt_at = _kst_bounds(week_start, week_end)
         supabase = get_supabase()
         result = (
             supabase.table("time_records")
             .select("youtube_min, instagram_min, tiktok_min, game_min")
             .eq("user_id", user_id)
-            .gte("created_at", week_start)
-            .lte("created_at", week_end + "T23:59:59")
+            .gte("created_at", gte_at)
+            .lt("created_at", lt_at)
             .execute()
         )
         return result.data or []
@@ -130,10 +153,14 @@ def _fetch_score(user_id: str, week_start: str) -> dict:
             .select("score, delivery_contribution, time_contribution, challenge_bonus")
             .eq("user_id", user_id)
             .eq("week_start", week_start)
+            .order("created_at", desc=True)
+            .limit(1)
             .execute()
         )
         if result.data:
-            return result.data[0]
+            row = result.data[0]
+            row["score"] = clamp_score(row.get("score"))
+            return row
         return empty
     except Exception as exc:
         logger.warning("dopamine_scores 조회 실패: %s", exc)
@@ -208,8 +235,7 @@ def _generate_ai_comment(
         "score": score["score"],
     }
     try:
-        from ai.comment import generate  # 지연 임포트(NotImplementedError 감지)
-        return generate("report", context)
+        return comment.generate("report", context)
     except NotImplementedError:
         logger.info("ai.comment.generate 미구현 — fallback 사용")
     except Exception as exc:
