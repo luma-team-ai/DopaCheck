@@ -1,11 +1,7 @@
 """챌린지 추천 (담당: 오영석 — FR-44)."""
 import json
 
-import anthropic
-
-from ai.utils import extract_json
-
-_client = anthropic.Anthropic()
+from ai.utils import extract_json, get_client
 
 
 def recommend(history: dict) -> dict:
@@ -51,7 +47,7 @@ def recommend(history: dict) -> dict:
         '"target_type": "delivery 또는 time 또는 both", "target_value": 숫자}, ...]'
     )
 
-    response = _client.messages.create(
+    response = get_client().messages.create(
         model="claude-opus-4-8",
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],

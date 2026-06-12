@@ -1,8 +1,10 @@
 """챌린지 테스트 (담당: 오영석)."""
+import time
 from contextlib import contextmanager
+from datetime import datetime, timedelta
+from unittest.mock import MagicMock, patch
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 
 def _make_db_mock(fetchall=None, fetchone=None):
@@ -29,8 +31,15 @@ def test_챌린지_중복참여_차단(logged_in_client):
     """FR-35: 이미 참여 중인 챌린지에 재참여 시 409 반환."""
     challenge_id = "aaaaaaaa-0000-0000-0000-000000000001"
 
+    # CSRF 토큰 세션 주입
+    with logged_in_client.session_transaction() as sess:
+        sess["csrf_token"] = "test-csrf-token"
+
     with patch("routes.challenge.db", _make_db_mock(fetchone={"id": "existing-uc"})):
-        res = logged_in_client.post(f"/challenge/{challenge_id}/join")
+        res = logged_in_client.post(
+            f"/challenge/{challenge_id}/join",
+            headers={"X-CSRF-Token": "test-csrf-token"},
+        )
 
     assert res.status_code == 409
     assert "이미 참여" in res.get_json()["error"]
@@ -55,7 +64,7 @@ def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client)
             [],
             # user_challenges
             [],
-            # delivery_rows
+            # has_delivery / has_time 체크 이후 delivery_rows
             [{"created_at": "2024-01-01"}],
             # time_rows — 전부 0
             [{"youtube_min": 0, "instagram_min": 0, "tiktok_min": 0, "game_min": 0}],
@@ -67,6 +76,11 @@ def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client)
     def fake_recommend(history):
         captured["history"] = history
         return {"recommendations": []}
+
+    # AI 추천 캐시 무효화
+    with logged_in_client.session_transaction() as sess:
+        sess.pop("ai_recommendations", None)
+        sess.pop("ai_recommendations_ts", None)
 
     with patch("routes.challenge.db", mock_db_seq), \
          patch("routes.challenge.ai_challenge.recommend", fake_recommend):
@@ -81,3 +95,209 @@ def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client)
 def test_챌린지_달성시_보너스_반영():
     """FR-37, FR-38: 달성 시 +5점"""
     ...
+
+
+# ── P2 추가 테스트 ────────────────────────────────────────
+
+def test_CSRF_토큰_불일치시_403(logged_in_client):
+    """CSRF 토큰이 일치하지 않으면 403을 반환한다."""
+    challenge_id = "aaaaaaaa-0000-0000-0000-000000000001"
+
+    # 세션에 토큰 주입 후, 다른 값으로 요청
+    with logged_in_client.session_transaction() as sess:
+        sess["csrf_token"] = "correct-token"
+
+    with patch("routes.challenge.db", _make_db_mock()):
+        res = logged_in_client.post(
+            f"/challenge/{challenge_id}/join",
+            headers={"X-CSRF-Token": "wrong-token"},
+        )
+
+    assert res.status_code == 403
+
+
+def test_CSRF_토큰_없으면_403(logged_in_client):
+    """CSRF 토큰 헤더가 아예 없으면 403을 반환한다."""
+    challenge_id = "aaaaaaaa-0000-0000-0000-000000000001"
+
+    with logged_in_client.session_transaction() as sess:
+        sess["csrf_token"] = "some-token"
+
+    with patch("routes.challenge.db", _make_db_mock()):
+        res = logged_in_client.post(f"/challenge/{challenge_id}/join")
+
+    assert res.status_code == 403
+
+
+def test_AI_추천_캐시_TTL_내_재사용(logged_in_client):
+    """AI 추천 캐시가 TTL 내에 있으면 LLM을 재호출하지 않는다."""
+    cached_recs = [{"title": "캐시된 추천", "description": "test", "target_type": "delivery", "target_value": 2}]
+    now = time.time()
+
+    with logged_in_client.session_transaction() as sess:
+        sess["ai_recommendations"] = cached_recs
+        sess["ai_recommendations_ts"] = now  # 방금 캐시됨
+        sess["ai_recommendations_uid"] = 1
+
+    call_count = [0]
+
+    def fake_recommend(history):
+        call_count[0] += 1
+        return {"recommendations": []}
+
+    with patch("routes.challenge.db", _make_db_mock()), \
+         patch("routes.challenge.ai_challenge.recommend", fake_recommend):
+        res = logged_in_client.get("/challenge")
+
+    assert res.status_code == 200
+    assert call_count[0] == 0, "TTL 내 캐시 적중 시 LLM 호출 금지"
+
+
+def test_AI_추천_캐시_TTL_만료시_재호출(logged_in_client):
+    """캐시 타임스탬프가 TTL을 초과하면 LLM을 재호출한다."""
+    from config import AI_RECOMMEND_CACHE_TTL
+
+    old_ts = time.time() - AI_RECOMMEND_CACHE_TTL - 1  # 만료된 캐시
+
+    with logged_in_client.session_transaction() as sess:
+        sess["ai_recommendations"] = [{"title": "오래된 캐시"}]
+        sess["ai_recommendations_ts"] = old_ts
+        sess["ai_recommendations_uid"] = 1
+
+    call_count = [0]
+
+    @contextmanager
+    def mock_db_seq():
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {"id": "x"}
+        cursor.fetchall.side_effect = [
+            [],   # challenges
+            [],   # user_challenges
+            [{"created_at": "2024-01-01"}],   # delivery_rows
+            [],   # time_rows
+        ]
+        yield cursor
+
+    def fake_recommend(history):
+        call_count[0] += 1
+        return {"recommendations": []}
+
+    with patch("routes.challenge.db", mock_db_seq), \
+         patch("routes.challenge.ai_challenge.recommend", fake_recommend):
+        res = logged_in_client.get("/challenge")
+
+    assert res.status_code == 200
+    assert call_count[0] == 1, "TTL 만료 시 LLM 재호출 필요"
+
+
+def test_avg_delivery_날짜_기반_산정():
+    """delivery_rows의 실제 날짜 범위로 주 수를 산정한다."""
+    from routes.challenge import _calc_avg_delivery_per_week
+
+    # 14일(2주) 범위에 4건 → avg = 4 / 2 = 2.0
+    base = datetime(2024, 1, 1)
+    rows = [
+        {"created_at": base},
+        {"created_at": base + timedelta(days=3)},
+        {"created_at": base + timedelta(days=7)},
+        {"created_at": base + timedelta(days=13)},
+    ]
+    avg = _calc_avg_delivery_per_week(rows)
+    assert pytest.approx(avg, rel=0.1) == pytest.approx(4 / (14 / 7), rel=0.1)
+
+
+def test_avg_delivery_0건_엣지케이스():
+    """0건이면 0.0을 반환하고 ZeroDivisionError가 발생하지 않는다."""
+    from routes.challenge import _calc_avg_delivery_per_week
+
+    assert _calc_avg_delivery_per_week([]) == 0.0
+
+
+def test_avg_delivery_1건_엣지케이스():
+    """1건이면 1.0을 반환한다 (주 수 = 1 보정)."""
+    from routes.challenge import _calc_avg_delivery_per_week
+
+    rows = [{"created_at": datetime(2024, 1, 5)}]
+    assert _calc_avg_delivery_per_week(rows) == 1.0
+
+
+def test_프롬프트_인젝션_truncate():
+    """context 문자열 값이 200자를 초과하면 200자로 잘린다."""
+    from ai.comment import _sanitize_context
+
+    long_str = "A" * 300
+    result = _sanitize_context({"key": long_str, "nested": {"inner": long_str}})
+    assert len(result["key"]) == 200
+    assert len(result["nested"]["inner"]) == 200
+
+
+def test_프롬프트_인젝션_리스트_truncate():
+    """list 안의 문자열 값도 200자로 잘린다."""
+    from ai.comment import _sanitize_context
+
+    result = _sanitize_context(["A" * 300, "B" * 50])
+    assert len(result[0]) == 200
+    assert len(result[1]) == 50  # 짧은 값은 유지
+
+
+def test_CSRF_세션_토큰_없으면_빈_토큰_우회_차단(logged_in_client):
+    """[P1] 세션에 CSRF 토큰이 없을 때 빈 X-CSRF-Token으로 요청하면 403을 반환한다."""
+    challenge_id = "aaaaaaaa-0000-0000-0000-000000000001"
+
+    # 세션에 csrf_token 키 없음 (초기 상태)
+    with logged_in_client.session_transaction() as sess:
+        sess.pop("csrf_token", None)
+
+    with patch("routes.challenge.db", _make_db_mock()):
+        res = logged_in_client.post(
+            f"/challenge/{challenge_id}/join",
+            headers={"X-CSRF-Token": ""},  # 빈 토큰 — 우회 시도
+        )
+
+    assert res.status_code == 403, "세션 토큰 없을 때 빈 토큰은 403이어야 함"
+
+
+def test_AI_추천_캐시_title_description_truncate(logged_in_client):
+    """[P2] AI 추천 캐시 저장 시 title은 50자, description은 200자로 잘린다."""
+    long_title = "T" * 100
+    long_desc = "D" * 300
+
+    with logged_in_client.session_transaction() as sess:
+        sess.pop("ai_recommendations", None)
+        sess.pop("ai_recommendations_ts", None)
+
+    @contextmanager
+    def mock_db_seq():
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {"id": "x"}
+        cursor.fetchall.side_effect = [
+            [],   # challenges
+            [],   # user_challenges
+            [{"created_at": "2024-01-01"}],   # delivery_rows
+            [],   # time_rows
+        ]
+        yield cursor
+
+    def fake_recommend(history):
+        return {"recommendations": [{"title": long_title, "description": long_desc, "target_type": "delivery", "target_value": 2}]}
+
+    with patch("routes.challenge.db", mock_db_seq), \
+         patch("routes.challenge.ai_challenge.recommend", fake_recommend):
+        res = logged_in_client.get("/challenge")
+
+    assert res.status_code == 200
+    with logged_in_client.session_transaction() as sess:
+        cached = sess.get("ai_recommendations", [])
+    assert len(cached) == 1
+    assert len(cached[0]["title"]) == 50, "title은 50자로 잘려야 함"
+    assert len(cached[0]["description"]) == 200, "description은 200자로 잘려야 함"
+
+
+def test_sanitize_context_깊이_초과시_조기종료():
+    """[P3] _sanitize_context는 depth > 10이면 str로 변환 후 200자로 자른다."""
+    from ai.comment import _sanitize_context
+
+    # depth 11에서 호출 — 조기 종료 경로
+    result = _sanitize_context({"key": "val"}, _depth=11)
+    assert isinstance(result, str)
+    assert len(result) <= 200

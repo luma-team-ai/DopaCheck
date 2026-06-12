@@ -100,7 +100,12 @@ async function joinChallenge(challengeId) {
   btn.disabled = true;
   btn.textContent = "참여 중...";
   try {
-    const res = await fetch(`/challenge/${challengeId}/join`, { method: "POST" });
+    // CSRF 토큰을 헤더에 포함 (세션 기반 CSRF 보호)
+    const csrfToken = {{ csrf_token | tojson }};
+    const res = await fetch(`/challenge/${challengeId}/join`, {
+      method: "POST",
+      headers: { "X-CSRF-Token": csrfToken },
+    });
     const data = await res.json();
     if (res.ok) {
       showToast(data.message || "챌린지에 참여했습니다!", "success");

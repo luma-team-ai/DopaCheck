@@ -22,7 +22,8 @@ def test_ocr_샘플_영수증_파싱():
         "delivery_fee": 3000,
         "total_price": 21000,
     }
-    with patch("ai.ocr._client") as mock_client:
+    # get_client()가 반환하는 싱글턴을 패치
+    with patch("ai.utils._client") as mock_client:
         mock_client.messages.create.return_value = _mock_response(json.dumps(payload))
         result = parse_receipt(b"\xff\xd8\xff" + b"\x00" * 64)  # dummy JPEG
 
@@ -41,7 +42,7 @@ def test_칼로리_추론():
         {"name": "후라이드치킨", "kcal": 1800},
         {"name": "콜라", "kcal": 140},
     ]
-    with patch("ai.calorie._client") as mock_client:
+    with patch("ai.utils._client") as mock_client:
         mock_client.messages.create.return_value = _mock_response(json.dumps(payload))
         result = estimate(["후라이드치킨", "콜라"])
 
@@ -58,7 +59,7 @@ def test_공감_코멘트_생성():
     expected = "오늘도 맛있는 걸 드셨군요! 러닝 28분이면 다 태울 수 있어요."
 
     for comment_type in ("delivery", "time", "report"):
-        with patch("ai.comment._client") as mock_client:
+        with patch("ai.utils._client") as mock_client:
             mock_client.messages.create.return_value = _mock_response(expected)
             result = generate(comment_type, {"total_price": 21000, "total_kcal": 1940})
 
@@ -116,7 +117,7 @@ def test_챌린지_추천():
             "target_value": 0,
         },
     ]
-    with patch("ai.challenge._client") as mock_client:
+    with patch("ai.utils._client") as mock_client:
         mock_client.messages.create.return_value = _mock_response(json.dumps(payload))
         result = recommend(
             {
@@ -130,3 +131,42 @@ def test_챌린지_추천():
     assert len(result["recommendations"]) == 3
     assert result["recommendations"][0]["title"] == "이번 주 배달 2회 이하"
     assert result["recommendations"][0]["target_type"] == "delivery"
+
+
+# ── P2 추가 테스트 ────────────────────────────────────────
+
+def test_AI_클라이언트_타임아웃_설정():
+    """get_client()가 반환하는 클라이언트에 timeout이 설정되어 있다."""
+    import anthropic
+    from unittest.mock import patch
+    from config import AI_REQUEST_TIMEOUT
+
+    # 싱글턴 초기화를 위해 _client 를 None으로 리셋
+    import ai.utils as ai_utils
+    original = ai_utils._client
+    ai_utils._client = None
+
+    try:
+        with patch("anthropic.Anthropic") as mock_cls:
+            mock_cls.return_value = MagicMock()
+            ai_utils.get_client()
+            mock_cls.assert_called_once_with(timeout=AI_REQUEST_TIMEOUT)
+    finally:
+        # 테스트 후 원래 상태 복원
+        ai_utils._client = original
+
+
+def test_AI_클라이언트_싱글턴():
+    """get_client()를 두 번 호출해도 같은 인스턴스를 반환한다."""
+    import ai.utils as ai_utils
+
+    # 싱글턴 초기화
+    ai_utils._client = None
+    with patch("ai.utils.anthropic.Anthropic") as mock_cls:
+        instance = MagicMock()
+        mock_cls.return_value = instance
+        c1 = ai_utils.get_client()
+        c2 = ai_utils.get_client()
+        assert c1 is c2
+        assert mock_cls.call_count == 1  # 한 번만 생성
+    ai_utils._client = None

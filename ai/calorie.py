@@ -1,11 +1,7 @@
 """칼로리 추론 (담당: 오영석 — FR-41)."""
 import json
 
-import anthropic
-
-from ai.utils import extract_json
-
-_client = anthropic.Anthropic()
+from ai.utils import extract_json, get_client
 
 
 def estimate(items: list[str]) -> dict:
@@ -34,7 +30,7 @@ def estimate(items: list[str]) -> dict:
         '[{"name": "음식명", "kcal": 정수}, ...]'
     )
 
-    response = _client.messages.create(
+    response = get_client().messages.create(
         model="claude-opus-4-8",
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
