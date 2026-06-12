@@ -10,11 +10,12 @@ def login_required(view):
     """비로그인 사용자를 /login으로 리다이렉트하는 데코레이터. (FR-0)
 
     모든 도메인 라우트에 이 데코레이터를 적용한다.
-    로그인 성공 시 session["user"]에 {"id": ..., "email": ..., "nickname": ...} 저장 가정.
+    평면 세션 패턴(#21): 로그인 성공 시 session에
+    user_id(BIGINT PK)·email·nickname 을 평면 키로 저장한다.
     """
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get("user"):
+        if not session.get("user_id"):
             return redirect(url_for("auth.login_page"))
         return view(*args, **kwargs)
     return wrapped
@@ -38,8 +39,11 @@ def oauth_start(provider: str):
 
 @auth_bp.route("/auth/callback")
 def oauth_callback():
-    """OAuth 콜백 — 토큰 교환 후 session["user"] 저장, users 테이블 upsert."""
-    # TODO(김승현): 콜백 처리 → 로그인 성공 시 redirect(url_for("index"))
+    """OAuth 콜백 — 토큰 교환 후 평면 세션(user_id 등) 저장, users 테이블 email 기준 upsert.
+
+    저장 형태(평면): session["user_id"]=<BIGINT PK>, session["email"], session["nickname"].
+    """
+    # TODO(#16, 김승현): 콜백 처리 → users upsert(email 기준) → session 평면 저장 → redirect(index)
     raise NotImplementedError
 
 
