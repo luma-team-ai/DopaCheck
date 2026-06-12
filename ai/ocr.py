@@ -2,11 +2,7 @@
 import base64
 import json
 
-import anthropic
-
-from ai.utils import extract_json
-
-_client = anthropic.Anthropic()
+from ai.utils import extract_json, get_client
 
 
 def _detect_media_type(image_bytes: bytes) -> str:
@@ -47,7 +43,7 @@ def parse_receipt(image_bytes: bytes) -> dict:
         "가격이 명확하지 않으면 0으로 처리하세요."
     )
 
-    response = _client.messages.create(
+    response = get_client().messages.create(
         model="claude-opus-4-8",
         max_tokens=1024,
         messages=[{

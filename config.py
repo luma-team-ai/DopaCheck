@@ -19,6 +19,10 @@ WORKOUT_HOURS = 1               # 운동 1회 시간 (h)
 # ── 기본값 ──────────────────────────────────────────────
 DEFAULT_HOURLY_WAGE = 10_030    # 2026 최저시급 (원) — users.hourly_wage 기본값
 
+# ── AI 클라이언트 설정 ────────────────────────────────────
+AI_REQUEST_TIMEOUT = 15         # Anthropic API 타임아웃 (초)
+AI_RECOMMEND_CACHE_TTL = 3_600  # AI 추천 세션 캐시 TTL (초 — 1시간)
+
 # ── 도파민 점수 공식 (FR-27) ─────────────────────────────
 SCORE_DELIVERY_WEIGHT = 0.4     # 배달 기여 40%
 SCORE_TIME_WEIGHT = 0.4         # 시간 기여 40%
