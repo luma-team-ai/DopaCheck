@@ -1,4 +1,16 @@
 """칼로리 추론 (담당: 오영석 — FR-41)."""
+import json
+import re
+
+import anthropic
+
+_client = anthropic.Anthropic()
+
+
+def _extract_json(text: str) -> str:
+    text = text.strip()
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    return m.group(1).strip() if m else text
 
 
 def estimate(items: list[str]) -> dict:
@@ -17,5 +29,23 @@ def estimate(items: list[str]) -> dict:
             "total_kcal": 1940
         }
     """
-    # TODO(오영석): Claude API로 음식명 → kcal 추론 구현
-    raise NotImplementedError
+    if not items:
+        return {"success": True, "calories": [], "total_kcal": 0}
+
+    food_list = ", ".join(items)
+    prompt = (
+        f"다음 음식들의 칼로리를 1인분 기준으로 추정해주세요: {food_list}\n\n"
+        "JSON 배열 형식으로만 응답하세요 (다른 텍스트 없이):\n"
+        '[{"name": "음식명", "kcal": 정수}, ...]'
+    )
+
+    response = _client.messages.create(
+        model="claude-opus-4-8",
+        max_tokens=512,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = next(b.text for b in response.content if b.type == "text")
+    calories = json.loads(_extract_json(text))
+    total_kcal = sum(item["kcal"] for item in calories)
+
+    return {"success": True, "calories": calories, "total_kcal": total_kcal}

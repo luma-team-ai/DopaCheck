@@ -1,4 +1,16 @@
 """챌린지 추천 (담당: 오영석 — FR-44)."""
+import json
+import re
+
+import anthropic
+
+_client = anthropic.Anthropic()
+
+
+def _extract_json(text: str) -> str:
+    text = text.strip()
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+    return m.group(1).strip() if m else text
 
 
 def recommend(history: dict) -> dict:
@@ -24,5 +36,27 @@ def recommend(history: dict) -> dict:
             ]
         }
     """
-    # TODO(오영석): Claude API로 히스토리 기반 챌린지 추천 구현
-    raise NotImplementedError
+    avg_delivery = history.get("avg_delivery_per_week", 0)
+    top_app = history.get("top_app", "")
+    top_app_hours = history.get("top_app_hours", 0)
+
+    prompt = (
+        f"사용자의 최근 습관:\n"
+        f"- 주간 평균 배달 횟수: {avg_delivery:.1f}회\n"
+        f"- 가장 많이 쓰는 앱: {top_app} ({top_app_hours:.1f}시간/주)\n\n"
+        "이 사용자에게 맞춤 챌린지 3개를 한국어로 추천해주세요. "
+        "각 챌린지는 현실적으로 달성 가능하고 구체적이어야 합니다.\n\n"
+        "JSON 배열 형식으로만 응답하세요 (다른 텍스트 없이):\n"
+        '[{"title": "챌린지 제목", "description": "구체적인 설명", '
+        '"target_type": "delivery 또는 time 또는 both", "target_value": 숫자}, ...]'
+    )
+
+    response = _client.messages.create(
+        model="claude-opus-4-8",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = next(b.text for b in response.content if b.type == "text")
+    recommendations = json.loads(_extract_json(text))
+
+    return {"success": True, "recommendations": recommendations}
