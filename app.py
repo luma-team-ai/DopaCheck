@@ -10,7 +10,7 @@ from flask import Flask, redirect, session, url_for
 
 load_dotenv()
 
-from routes.auth import auth_bp
+from routes.auth import auth_bp, init_oauth
 from routes.challenge import challenge_bp
 from routes.delivery import delivery_bp
 from routes.history import history_bp
@@ -21,6 +21,9 @@ from routes.time import time_bp
 app = Flask(__name__)
 # TODO(#14): 공개 기본값 fallback은 세션 위조 위험 — 운영 시 FLASK_SECRET_KEY 필수화(별도 PR).
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
+
+# OAuth 초기화 (Google/Kakao 소셜 로그인)
+init_oauth(app)
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(delivery_bp)

@@ -87,8 +87,6 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
 def history_list():
     """날짜별 분석 기록 목록. (FR-21, FR-24, FR-25)"""
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
     period = request.args.get("period", "all")
     type_filter = request.args.get("type_filter", "all")
 
@@ -172,8 +170,6 @@ def history_list():
 def history_detail(record_id: str):
     """특정 기록 상세 조회. (FR-22)"""
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
@@ -207,8 +203,6 @@ def history_detail(record_id: str):
 def history_delete(record_id: str):
     """기록 삭제. (FR-23)"""
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
