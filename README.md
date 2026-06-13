@@ -70,7 +70,8 @@ dopacheck/
 │   ├── calorie.py    칼로리 추론        ai.calorie.estimate(items)
 │   ├── comment.py    공감 코멘트        ai.comment.generate(type, context)
 │   ├── score.py      점수 산출          ai.score.calculate(data)
-│   └── challenge.py  챌린지 추천        ai.challenge.recommend(history)
+│   ├── challenge.py  챌린지 추천        ai.challenge.recommend(history)
+│   └── utils.py      공통 — get_client()(타임아웃 팩토리)·extract_json()
 ├── routes/           도메인별 Blueprint (담당자별 — 아래 표)
 ├── db/
 │   ├── client.py     get_connection()/db() 단일 팩토리 (pymysql — 직접 connect 금지)

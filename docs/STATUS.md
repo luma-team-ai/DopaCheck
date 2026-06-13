@@ -7,9 +7,10 @@
 | 항목 | 상태 | 담당 |
 |------|------|------|
 | GitHub 레포 (`luma-team-ai/dopacheck`) | ✅ 생성 | 정재봉 |
-| Supabase 프로젝트 + 스키마 적용 | ⬜ 대기 | 김승현 |
-| RLS 정책 설정 | ⬜ 대기 | 김승현 |
-| Google / Kakao OAuth 키 발급 | ⬜ 대기 | 김승현 |
+| DB MariaDB 전환 (#22, RLS→앱 레벨 `user_id` 필터) | ✅ 완료 | 정재봉 |
+| `db/schema.sql` 작성 (MariaDB) | ✅ 완료 | 정재봉 |
+| MariaDB 인스턴스 프로비저닝 + 스키마 적용 | ⬜ 대기 | 김승현 |
+| Google / Kakao OAuth 연동 (#16 PR) | 🔄 진행 | 김승현 |
 | Cloudtype 배포 | ⬜ 대기 | 김관영·이은석 |
 | 시드 더미 데이터 20건 | ⬜ 대기 | 김승현 |
 
@@ -24,13 +25,15 @@
 ### P0 (구현 시작 최소 조건 — PRD §14)
 - [ ] 도파민 점수 공식 팀 합의 (40/40/20)
 - [ ] 환산 기준 상수값 확정 (config.py 초안 검토)
-- [ ] Supabase 스키마 적용 (db/schema.sql)
-- [ ] OAuth 키 발급 + 로그인 연동
-- [ ] ⚠️ **배포 차단 게이트**: RLS 적용(#15) + FLASK_SECRET_KEY 설정(#14) 완료 전 프로덕션 배포 금지
+- [x] MariaDB 스키마 작성 (db/schema.sql, #22) — DB 인스턴스 적용은 인프라 표 참조
+- [ ] OAuth 로그인 연동 (#16 PR 리뷰 대기 — #26 provider/provider_id 컬럼 선행)
+- [ ] ⚠️ **배포 차단 게이트**: FLASK_SECRET_KEY 설정(#14) 완료 전 프로덕션 배포 금지 *(RLS 게이트는 #22 MariaDB 전환으로 폐기 — 앱 레벨 `user_id` 필터로 대체, #15 CLOSED)*
 
 ### P1 (도메인 구현 — 담당자별 병렬)
 - [x] /report (정재봉, #6·#17) · [x] /history (허남, #3·#8·#12)
-- [ ] /delivery (김관영) · /time (이은석) · /score (김승현) · [x] /challenge + ai/ (오영석, #28)
+- [x] /challenge + ai/ (오영석, #28·#32) — AI 5종 + 챌린지, P2 보강 완료
+- [ ] /delivery (김관영) · /time (이은석) · /score (김승현)
+- [ ] 소셜 로그인 (김승현, #16 PR) — #26 provider/provider_id 컬럼 결정 대기(email UNIQUE 정책)
 
 ### P2 (통합 — Day 5~6)
 - [ ] 전체 흐름 통합 테스트 · 데모 시나리오 완주 · 모바일 QA
@@ -39,8 +42,9 @@
 
 | 이슈 | 내용 |
 |------|------|
-| #15 RLS 미적용 | anon key 격리 의존 — **RLS 적용 전 프로덕션 배포 금지** (김승현) |
 | #14 FLASK_SECRET_KEY 공개 기본값 | 운영 미설정 시 세션 위조 가능 — 배포 전 환경변수 필수 (김관영) |
+| #26 provider/provider_id | 소셜로그인 식별키 컬럼 추가 + email UNIQUE 정책 결정 대기 (김승현) — #16 선행 |
+| #24 챌린지 AI P2 잔존 | `calorie.py` kcal 스키마 검증·`next()` StopIteration 미처리 (avg_delivery·CSRF는 #32 해소) |
+| #23 FR-35 race | 챌린지 중복참여 SELECT→INSERT race — 앱 검증만 적용, 커넥션 풀링과 함께 후속 |
 | #11 주차 타임존(KST) | report 적용 완료, 타 도메인은 `utils/week.py` 공통 유틸 사용 권장 |
-| #23 FR-35 race | 챌린지 중복참여 SELECT→INSERT race — 앱 검증만 적용, 풀링과 함께 후속 |
 | #10 report 차트/SRI | 비교 차트 단위 정규화·CDN SRI — 프론트(Stitch) 재작업 시 (정재봉) |
