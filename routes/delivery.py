@@ -3,7 +3,7 @@ import json
 import logging
 import uuid
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, session, url_for
 
 import ai.calorie as ai_calorie
 import ai.comment as ai_comment
@@ -124,6 +124,8 @@ def analyze():
     6. delivery_records 저장 + 도파민 점수 재산출 트리거 (FR-8, FR-31)
     """
     user_id = session.get("user_id")  # int (BIGINT PK)
+    if not user_id:
+        abort(401)
 
     # ── 수동 입력 경로 (OCR 실패 후 사용자가 manual.html 폼 제출) ──
     if request.form.get("manual_input") == "1":
@@ -239,6 +241,8 @@ def _handle_manual_input(user_id: int):
       - total_price: 총 금액 (원)
       - delivery_fee: 배달비 (원)
     """
+    if not user_id:
+        abort(401)
     raw_names = request.form.get("food_names", "")
     # 항목 수 상한 — AI 비용·지연 폭주 방지
     food_names = [n.strip() for n in raw_names.split(",") if n.strip()][:_MAX_FOOD_NAMES]

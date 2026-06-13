@@ -5,8 +5,9 @@ from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
+from werkzeug.exceptions import HTTPException
 
-from routes.delivery import calc_calorie_conversion, calc_spending_conversion
+from routes.delivery import _handle_manual_input, calc_calorie_conversion, calc_spending_conversion
 
 
 # ── 헬퍼 ────────────────────────────────────────────────
@@ -318,6 +319,19 @@ def test_수동_입력_분석_성공(logged_in_client):
     body = res.data.decode("utf-8")
     assert "치킨" in body
     assert _COMMENT_OK in body
+
+
+def test_user_id_없으면_401(app):
+    """user_id=None 시 abort(401) — defense-in-depth (login_required 우회 방어)."""
+    with app.test_request_context(
+        "/delivery/analyze",
+        method="POST",
+        data={"manual_input": "1", "food_names": "치킨", "total_price": "20000", "delivery_fee": "3000"},
+        content_type="application/x-www-form-urlencoded",
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            _handle_manual_input(None)
+        assert exc_info.value.code == 401
 
 
 def test_수동_입력_빈_음식명(logged_in_client):
