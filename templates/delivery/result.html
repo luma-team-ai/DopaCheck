@@ -1,12 +1,89 @@
 {% extends "base.html" %}
 {% block title %}배달 분석 결과{% endblock %}
 {% block content %}
-<h1>분석 결과</h1>
+<section class="card">
+  <h1>🍗 배달 분석 결과</h1>
 
-<!-- TODO(김관영): 분석 결과 화면
-  - 음식 항목 테이블 (음식명·금액·칼로리)
-  - 지출 환산: "치킨 N마리 / 헬스장 N개월" (FR-4)
-  - 칼로리 환산: "러닝 N분 / 걷기 N시간" (FR-5)
-  - LLM 공감 코멘트 (FR-6)
--->
+  {# ── 음식 항목 테이블 ── #}
+  {% if items %}
+  <h2>주문 내역</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>음식명</th>
+        <th>금액 (원)</th>
+        {% if calories %}
+        <th>칼로리 (kcal)</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% set cal_map = {} %}
+      {% if calories %}
+        {% for c in calories %}
+          {% set _ = cal_map.update({c.name: c.kcal}) %}
+        {% endfor %}
+      {% endif %}
+      {% for item in items %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ "{:,}".format(item.price | int) if item.price else "—" }}</td>
+        {% if calories %}
+        <td>{{ cal_map.get(item.name, "—") }}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
+  {# ── 금액 요약 ── #}
+  <div class="summary-row">
+    <span>배달비</span>
+    <strong>{{ "{:,}".format(delivery_fee) }}원</strong>
+  </div>
+  <div class="summary-row total">
+    <span>총 지출</span>
+    <strong>{{ "{:,}".format(total_price) }}원</strong>
+  </div>
+  {% if total_kcal %}
+  <div class="summary-row">
+    <span>총 칼로리</span>
+    <strong>{{ "{:,}".format(total_kcal) }} kcal</strong>
+  </div>
+  {% endif %}
+
+  {# ── 지출 환산 (FR-4) ── #}
+  <div class="conversion-box">
+    <h2>💸 지출 환산</h2>
+    <ul>
+      <li>🍗 {{ spending_conv.chicken_label }}</li>
+      <li>🏋️ {{ spending_conv.gym_label }}</li>
+    </ul>
+  </div>
+
+  {# ── 칼로리 환산 (FR-5) ── #}
+  {% if total_kcal %}
+  <div class="conversion-box">
+    <h2>🔥 칼로리 환산</h2>
+    <ul>
+      <li>🏃 {{ calorie_conv.running_label }}</li>
+      <li>🚶 {{ calorie_conv.walking_label }}</li>
+    </ul>
+  </div>
+  {% endif %}
+
+  {# ── 공감 코멘트 (FR-6) ── #}
+  {% if comment %}
+  <div class="comment-box">
+    <h2>💬 AI 코멘트</h2>
+    <p>{{ comment }}</p>
+  </div>
+  {% endif %}
+
+  <div class="btn-group">
+    <a href="{{ url_for('delivery.delivery_page') }}" class="btn btn-secondary">다시 분석</a>
+    <a href="{{ url_for('history.history_list') }}" class="btn btn-primary">히스토리 보기</a>
+  </div>
+</section>
 {% endblock %}

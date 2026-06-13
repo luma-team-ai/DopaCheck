@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}배달 직접 입력{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>🍗 배달 내역 직접 입력</h1>
+  <p class="subtitle">영수증 인식에 실패했습니다. 직접 입력해 분석을 계속할 수 있습니다.</p>
+
+  <form action="{{ url_for('delivery.analyze') }}" method="post">
+    <input type="hidden" name="manual_input" value="1">
+
+    <div class="form-group">
+      <label for="food_names">주문 음식 (쉼표로 구분)</label>
+      <input
+        type="text"
+        id="food_names"
+        name="food_names"
+        placeholder="예: 후라이드치킨, 콜라, 감자튀김"
+        required
+      >
+      <small>음식명을 쉼표(,)로 구분해서 입력하세요.</small>
+    </div>
+
+    <div class="form-group">
+      <label for="total_price">총 주문 금액 (원)</label>
+      <input
+        type="number"
+        id="total_price"
+        name="total_price"
+        placeholder="예: 21000"
+        min="0"
+        required
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="delivery_fee">배달비 (원)</label>
+      <input
+        type="number"
+        id="delivery_fee"
+        name="delivery_fee"
+        placeholder="예: 3000"
+        min="0"
+        value="0"
+      >
+    </div>
+
+    <div class="btn-group">
+      <button type="submit" class="btn btn-primary">분석하기</button>
+      <a href="{{ url_for('delivery.delivery_page') }}" class="btn btn-secondary">다시 업로드</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
