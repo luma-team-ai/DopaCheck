@@ -206,6 +206,20 @@ def test_잘못된_파일형식(logged_in_client):
     assert "/delivery" in res.headers.get("Location", "")
 
 
+def test_가짜_png_파일형식(logged_in_client):
+    """FR-1: image/png 선언이지만 매직 바이트가 없는 파일 → /delivery 리다이렉트 (MIME 스푸핑 차단)."""
+    data = {
+        "image": (io.BytesIO(b"this is not a real png"), "evil.png", "image/png"),
+    }
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=data,
+        content_type="multipart/form-data",
+    )
+    assert res.status_code == 302
+    assert "/delivery" in res.headers.get("Location", "")
+
+
 def test_칼로리_추론_실패시_부분_결과_진행(logged_in_client):
     """칼로리 실패 시에도 result.html을 렌더링한다 (부분 결과 허용)."""
     data = {

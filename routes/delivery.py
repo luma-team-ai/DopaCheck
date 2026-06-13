@@ -24,6 +24,22 @@ delivery_bp = Blueprint("delivery", __name__, url_prefix="/delivery")
 # ── 허용 MIME 유형 (FR-1) ────────────────────────────────
 _ALLOWED_MIME = {"image/jpeg", "image/png"}
 
+# 수동 입력 음식명 최대 개수 (AI 비용·지연 상한)
+_MAX_FOOD_NAMES = 20
+
+
+def _is_real_jpeg_or_png(image_bytes: bytes) -> bool:
+    """매직 바이트로 실제 JPEG/PNG 인지 검증한다. (FR-1 — MIME 스푸핑 차단)
+
+    클라이언트가 보내는 Content-Type(mimetype)은 위조 가능하므로 시그니처를 직접 확인한다.
+    - PNG: 89 50 4E 47 0D 0A 1A 0A
+    - JPEG: FF D8 FF
+    """
+    return (
+        image_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        or image_bytes[:3] == b"\xff\xd8\xff"
+    )
+
 
 # ── 순수 환산 함수 (FR-4, FR-5) ─────────────────────────
 # 경계값 테스트 용이하도록 라우트에서 분리한다.
@@ -125,6 +141,11 @@ def analyze():
 
     image_bytes = image_file.read()
 
+    # 매직 바이트 검증 — mimetype 위조 차단 (FR-1)
+    if not _is_real_jpeg_or_png(image_bytes):
+        flash("올바른 JPG/PNG 이미지가 아닙니다.", "error")
+        return redirect(url_for("delivery.delivery_page"))
+
     # ── OCR (FR-2) ─────────────────────────────────────────
     try:
         ocr_result = ai_ocr.parse_receipt(image_bytes)
@@ -219,7 +240,8 @@ def _handle_manual_input(user_id: int):
       - delivery_fee: 배달비 (원)
     """
     raw_names = request.form.get("food_names", "")
-    food_names = [n.strip() for n in raw_names.split(",") if n.strip()]
+    # 항목 수 상한 — AI 비용·지연 폭주 방지
+    food_names = [n.strip() for n in raw_names.split(",") if n.strip()][:_MAX_FOOD_NAMES]
 
     try:
         total_price = int(request.form.get("total_price") or 0)
