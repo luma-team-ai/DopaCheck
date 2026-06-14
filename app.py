@@ -22,6 +22,13 @@ app = Flask(__name__)
 # TODO(#14): 공개 기본값 fallback은 세션 위조 위험 — 운영 시 FLASK_SECRET_KEY 필수화(별도 PR).
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
 
+# 환경 분기: FLASK_ENV=production(CloudType 배포)일 때만 ProxyFix 적용.
+# - production: Nginx 리버스 프록시가 있으므로 X-Forwarded-Proto를 신뢰 → https:// URL 생성.
+# - development: 직접 실행이므로 ProxyFix 불필요, http://localhost 그대로 유지.
+if os.environ.get("FLASK_ENV") == "production":
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 # OAuth 초기화 (Google/Kakao 소셜 로그인)
 init_oauth(app)
 

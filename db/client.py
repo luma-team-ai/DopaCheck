@@ -44,7 +44,7 @@ def get_connection() -> pymysql.connections.Connection:
         port=int(os.environ.get("DB_PORT", "3306")),
         user=_env("DB_USER"),
         password=_env("DB_PASSWORD"),
-        db=_env("DB_NAME"),
+        database=_env("DB_NAME"),
         charset="utf8mb4",
         cursorclass=DictCursor,
         autocommit=False,

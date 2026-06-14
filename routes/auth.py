@@ -55,7 +55,10 @@ def login_page():
 # ── Google 로그인 ──────────────────────────────────────────
 @auth_bp.route("/auth/google")
 def google_login():
-    redirect_uri = url_for("auth.google_callback", _external=True)
+    # GOOGLE_REDIRECT_URI 환경변수가 있으면 최우선 사용 (CloudType 배포 환경).
+    # 없으면 url_for()로 동적 생성 (로컬 개발 환경 fallback).
+    # ProxyFix와 이중 방어 구조로 http/https 불일치 문제를 완전히 차단한다.
+    redirect_uri = os.environ.get("GOOGLE_REDIRECT_URI") or url_for("auth.google_callback", _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
 
 
