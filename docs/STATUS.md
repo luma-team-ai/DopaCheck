@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-14
+> 마지막 갱신: 2026-06-15
 
 ## 인프라
 
@@ -19,6 +19,7 @@
 
 ## 마지막 머지 PR
 
+- #70 홈 챌린지 집계를 `completed_at` 기준으로 통일 (**#69 P1 정합성 버그 CLOSED**, 정재봉) — `routes/home.py` 완료 집계가 `started_at`→`completed_at`로 score_service와 정합, `total`은 (시작 OR 완료) 합집합으로 확장해 completed ⊆ total 불변식 보장. code-reviewer P1 0건(초기 P1은 OR-COUNT 로직 정상 재분류), pytest 98 PASS
 - #67 Tailwind Play CDN → PostCSS(v3 CLI) 빌드 전환 (#49 CLOSED, 정재봉) — `base.html`·`login.html` CDN 제거 → `static/css/tailwind.css` 산출물 커밋(SRI 해소). 인라인 config 컬러 47개 전량 이식. code-reviewer P1 3건 → **G3.5 원본 대조로 전부 무효**(orb 컨테이너 `z-[-1]`·인라인 opacity/스크롤 보존). main rebase 후 pytest 95 PASS
 - #61 `recalculate_score`를 `services/score_service.py`로 분리 — **#58 CLOSED**(routes→routes 순환 임포트 제거, 계층 정리). #65 머지로 충돌 → main 리베이스 후 계산식은 #65 1:1 유지(동작 무변경). code-reviewer P1 2건(home.py 누락 import·테스트 patch 경로)→픽스 후 잔존 0, pytest 95 PASS
 - #65 점수 계산식을 #48 합의(`config`/`ai.score.calculate`)로 통일 — **#62·#63 CLOSED**(score 점수식 회귀·time 입력폼 cosmetic 해소)
