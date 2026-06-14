@@ -46,7 +46,7 @@ def init_oauth(app):
         access_token_url="https://kauth.kakao.com/oauth/token",
         api_base_url="https://kapi.kakao.com/v2/",
         client_kwargs={
-            "scope": "profile_nickname",  # account_email 제거 — 이메일 동의 불필요
+            "scope": "profile_nickname profile_image",  # account_email 제거 — 이메일 동의 불필요
             # client_secret이 None이어도 authlib이 Basic Auth를 시도할 수 있으므로
             # token_endpoint_auth_method를 "none"으로 명시해 이중으로 차단한다.
             "token_endpoint_auth_method": "none",
