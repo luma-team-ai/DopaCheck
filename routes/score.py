@@ -1,9 +1,9 @@
 """도파민 점수 + 랭킹 (담당: 김승현 — FR-26~31)."""
 from flask import Blueprint, render_template, session, redirect, url_for
-import ai.score as ai_score
 from routes.auth import login_required
 from db.client import db
 from utils.week import get_week_ranges, kst_bounds, kst_today
+from services.score_service import recalculate_score  # Issue #58: services 계층으로 분리
 
 score_bp = Blueprint("score", __name__, url_prefix="/score")
 
@@ -129,66 +129,3 @@ def score_page():
         avg_time_str=avg_time_str,
         unlock_count=unlock_count
     )
-
-
-def recalculate_score(user_id: int) -> None:
-    """분석 결과 저장 시 호출되는 점수 재산출 공통 함수. (FR-31)
-
-    delivery/time/challenge 라우트에서 저장 직후 호출한다.
-    1. 이번 주 배달·시간·챌린지 데이터 집계
-    2. dopamine_scores (user_id, week_start) upsert
-    """
-    this_week_range, _ = get_week_ranges()
-    week_start, week_end = this_week_range
-    gte_at, lt_at = kst_bounds(week_start, week_end)
-
-    with db() as cursor:
-        # 이번 주 배달 소비 총액 집계
-        cursor.execute(
-            "SELECT SUM(total_price) as sum_price FROM delivery_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
-            (user_id, gte_at, lt_at)
-        )
-        delivery_sum = cursor.fetchone()
-        delivery_total = delivery_sum["sum_price"] or 0
-
-        # 이번 주 시간 소비 총합 집계
-        cursor.execute(
-            "SELECT SUM(youtube_min + instagram_min + tiktok_min + game_min) as sum_min FROM time_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
-            (user_id, gte_at, lt_at)
-        )
-        time_sum = cursor.fetchone()
-        time_total_min = time_sum["sum_min"] or 0
-
-        # 이번 주 완료한 챌린지 수 집계
-        cursor.execute(
-            "SELECT COUNT(*) as comp_count FROM user_challenges WHERE user_id = %s AND is_completed = 1 AND completed_at >= %s AND completed_at < %s",
-            (user_id, gte_at, lt_at)
-        )
-        challenge_sum = cursor.fetchone()
-        challenge_completed = challenge_sum["comp_count"] or 0
-
-        # 공식 대입 계산 — #48 합의 계산식(config.py 상수 + ai.score.calculate) 사용
-        result = ai_score.calculate({
-            "delivery_total": delivery_total,
-            "time_total_min": time_total_min,
-            "challenge_completed": challenge_completed,
-        })
-        total_score = result["score"]
-        delivery_score = result["delivery_contribution"]
-        time_score = result["time_contribution"]
-        challenge_score = result["challenge_bonus"]
-
-        # DB에 upsert 저장
-        cursor.execute(
-            """
-            INSERT INTO dopamine_scores (user_id, score, delivery_contribution, time_contribution, challenge_bonus, week_start)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE
-                score = VALUES(score),
-                delivery_contribution = VALUES(delivery_contribution),
-                time_contribution = VALUES(time_contribution),
-                challenge_bonus = VALUES(challenge_bonus)
-            """,
-            (user_id, total_score, delivery_score, time_score, challenge_score, week_start)
-        )
-

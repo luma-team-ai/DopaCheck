@@ -34,7 +34,7 @@ def index():
 
     # 점수 재계산 시도 (최신 점수 반영)
     try:
-        from routes.score import recalculate_score
+        from services.score_service import recalculate_score
         recalculate_score(user_id)
     except Exception as exc:
         logger.warning("도파민 점수 재계산 실패: %s", exc)

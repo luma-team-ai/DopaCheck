@@ -72,7 +72,7 @@ def test_점수_산출_입출력():
 
 def test_분석_저장시_점수_재산출():
     """FR-31: recalculate_score가 dopamine_scores upsert를 수행하는지 검증."""
-    from routes.score import recalculate_score
+    from services.score_service import recalculate_score
 
     cursor = MagicMock()
     # 집계 3쿼리 fetchone 순서: delivery sum → time sum → challenge count
@@ -86,7 +86,7 @@ def test_분석_저장시_점수_재산출():
     def _agg_db():
         yield cursor
 
-    with patch("routes.score.db", _agg_db):
+    with patch("services.score_service.db", _agg_db):
         recalculate_score(user_id=1)
 
     # 마지막 execute 호출이 dopamine_scores INSERT(upsert)여야 함

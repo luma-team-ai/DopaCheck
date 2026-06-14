@@ -175,7 +175,7 @@ def test_영수증_분석_성공(logged_in_client):
         patch("routes.delivery.ai_calorie.estimate", return_value=_CAL_OK),
         patch("routes.delivery.ai_comment.generate", return_value=_COMMENT_OK),
         patch("routes.delivery.db", _make_db_mock()),
-        patch("routes.score.recalculate_score", side_effect=NotImplementedError),
+        patch("services.score_service.recalculate_score", side_effect=NotImplementedError),
     ):
         res = logged_in_client.post(
             "/delivery/analyze",
@@ -262,7 +262,7 @@ def test_칼로리_추론_실패시_부분_결과_진행(logged_in_client):
         patch("routes.delivery.ai_calorie.estimate", side_effect=Exception("LLM 오류")),
         patch("routes.delivery.ai_comment.generate", return_value=_COMMENT_OK),
         patch("routes.delivery.db", _make_db_mock()),
-        patch("routes.score.recalculate_score", side_effect=NotImplementedError),
+        patch("services.score_service.recalculate_score", side_effect=NotImplementedError),
     ):
         res = logged_in_client.post(
             "/delivery/analyze",
@@ -285,7 +285,7 @@ def test_코멘트_생성_실패시_부분_결과_진행(logged_in_client):
         patch("routes.delivery.ai_calorie.estimate", return_value=_CAL_OK),
         patch("routes.delivery.ai_comment.generate", side_effect=Exception("LLM 오류")),
         patch("routes.delivery.db", _make_db_mock()),
-        patch("routes.score.recalculate_score", side_effect=NotImplementedError),
+        patch("services.score_service.recalculate_score", side_effect=NotImplementedError),
     ):
         res = logged_in_client.post(
             "/delivery/analyze",
@@ -340,7 +340,7 @@ def test_수동_입력_분석_성공(logged_in_client):
         patch("routes.delivery.ai_calorie.estimate", return_value=_CAL_OK),
         patch("routes.delivery.ai_comment.generate", return_value=_COMMENT_OK),
         patch("routes.delivery.db", _make_db_mock()),
-        patch("routes.score.recalculate_score", side_effect=NotImplementedError),
+        patch("services.score_service.recalculate_score", side_effect=NotImplementedError),
     ):
         res = logged_in_client.post(
             "/delivery/analyze",
@@ -381,7 +381,7 @@ def test_수동_입력_빈_음식명(logged_in_client):
         patch("routes.delivery.ai_calorie.estimate", return_value={"success": True, "calories": [], "total_kcal": 0}),
         patch("routes.delivery.ai_comment.generate", return_value=""),
         patch("routes.delivery.db", _make_db_mock()),
-        patch("routes.score.recalculate_score", side_effect=NotImplementedError),
+        patch("services.score_service.recalculate_score", side_effect=NotImplementedError),
     ):
         res = logged_in_client.post(
             "/delivery/analyze",
