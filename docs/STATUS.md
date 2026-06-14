@@ -56,11 +56,15 @@
 
 | 이슈 | 내용 |
 |------|------|
+| #73 챌린지 완료 처리 미구현 | **P1** `is_completed`/`completed_at`/`progress` 쓰기 경로 0건 → `challenge_bonus` 구조적 항상 0(만점 불가). 무결성검사 발견 → 오영석 |
+| #74 챌린지 join TOCTOU | **P1** 중복검증 SELECT/INSERT 트랜잭션 분리(FR-35 race 정밀화). 단일 트랜잭션/원자쿼리 필요 → 오영석. (기존 'FR-35 race 파킹'을 이 이슈로 승격) |
+| #75 report 점수 재산출 누락 | **P2** report만 `recalculate_score` 미호출 → 경로별 점수 stale 불일치 → 정재봉 |
+| #76 score 시간지표 불일치 | **P2** score 화면 '평균 시간'이 game 제외+AVG → 점수용 SUM과 의미 불일치 → 김승현 |
 | #44 세션 쿠키 보안 | SameSite/Secure/HttpOnly 명시 설정 — ai:p2-followup |
 | #43 413 핸들러 | MAX_CONTENT_LENGTH 초과 시 413 응답 + UX — ai:p2-followup |
 | #42 CSRF DRY | challenge.py CSRF 로직을 utils/csrf.py로 통합 — ai:p2-followup |
 | #24 챌린지 AI P2 잔존 | `calorie.py` kcal 스키마 검증·`next()` StopIteration 미처리 |
-| FR-35 race(잔존) | 챌린지 중복참여 SELECT→INSERT TOCTOU race — 앱 검증만 적용(#23 풀 도입은 별개로 CLOSED). MariaDB partial unique 미지원, 동시성 차단은 미해결 파킹 |
+| (FR-35 race → #74로 승격) | 무결성검사로 '두 트랜잭션 분리'까지 확인되어 전용 이슈 #74 등록 |
 | #71 풀 blocking 무한대기 | `blocking=True` 타임아웃 없음 — sync 워커 무해, gthread 전환 시 bounded-timeout/503 필요(#23 후속) |
 | #11 주차 타임존(KST) | report 적용 완료, 타 도메인은 `utils/week.py` 공통 유틸 사용 권장 |
 </content>
