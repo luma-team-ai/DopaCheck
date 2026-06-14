@@ -1,89 +1,90 @@
-{% extends "base.html" %}
+{% extends "_app_base.html" %}
 {% block title %}배달 분석 결과{% endblock %}
+{% block app_title %}분석 결과{% endblock %}
+
 {% block content %}
-<section class="card">
-  <h1>🍗 배달 분석 결과</h1>
+{# 칼로리 맵 (음식명 → kcal) #}
+{% set cal_map = {} %}
+{% if calories %}
+  {% for c in calories %}{% set _ = cal_map.update({c.name: c.kcal}) %}{% endfor %}
+{% endif %}
 
-  {# ── 음식 항목 테이블 ── #}
-  {% if items %}
-  <h2>주문 내역</h2>
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>음식명</th>
-        <th>금액 (원)</th>
-        {% if calories %}
-        <th>칼로리 (kcal)</th>
-        {% endif %}
-      </tr>
-    </thead>
-    <tbody>
-      {% set cal_map = {} %}
-      {% if calories %}
-        {% for c in calories %}
-          {% set _ = cal_map.update({c.name: c.kcal}) %}
-        {% endfor %}
-      {% endif %}
-      {% for item in items %}
-      <tr>
-        <td>{{ item.name }}</td>
-        <td>{{ "{:,}".format(item.price | int) if item.price else "—" }}</td>
-        {% if calories %}
-        <td>{{ cal_map.get(item.name, "—") }}</td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
+<div class="space-y-6 mt-6">
+  <!-- Hero: 오늘 도파민 지출 -->
+  <div class="glass-card rounded-[2rem] p-card-padding text-center overflow-hidden relative">
+    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
+    <p class="font-label-caps text-on-surface-variant mb-2">오늘 도파민 지출</p>
+    <h2 class="font-display-lg text-hero-num-md text-primary glow-text tracking-tighter mb-4">{{ "{:,}".format(total_price) }}원</h2>
+    <div class="inline-flex items-center gap-2 px-4 py-2 bg-surface-container-high rounded-full border border-outline-variant/20">
+      <span class="material-symbols-outlined text-tertiary text-lg">restaurant</span>
+      <p class="text-sm text-tertiary font-medium">{{ spending_conv.chicken_label }} · {{ spending_conv.gym_label }}</p>
+    </div>
+  </div>
 
-  {# ── 금액 요약 ── #}
-  <div class="summary-row">
-    <span>배달비</span>
-    <strong>{{ "{:,}".format(delivery_fee) }}원</strong>
-  </div>
-  <div class="summary-row total">
-    <span>총 지출</span>
-    <strong>{{ "{:,}".format(total_price) }}원</strong>
-  </div>
+  <!-- 칼로리 카드 -->
   {% if total_kcal %}
-  <div class="summary-row">
-    <span>총 칼로리</span>
-    <strong>{{ "{:,}".format(total_kcal) }} kcal</strong>
+  <div class="glass-card rounded-2xl p-card-padding flex flex-col gap-4">
+    <div class="flex justify-between items-center">
+      <div class="flex flex-col">
+        <p class="text-on-surface-variant text-xs mb-1">섭취 칼로리</p>
+        <h3 class="font-display-lg text-display-lg text-on-surface">{{ "{:,}".format(total_kcal) }} kcal</h3>
+      </div>
+      <div class="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
+        <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1">bolt</span>
+      </div>
+    </div>
+    <p class="text-sm text-on-surface-variant">
+      = <span class="text-on-surface font-semibold">{{ calorie_conv.running_label }}</span> / {{ calorie_conv.walking_label }} 분량
+    </p>
   </div>
   {% endif %}
 
-  {# ── 지출 환산 (FR-4) ── #}
-  <div class="conversion-box">
-    <h2>💸 지출 환산</h2>
-    <ul>
-      <li>🍗 {{ spending_conv.chicken_label }}</li>
-      <li>🏋️ {{ spending_conv.gym_label }}</li>
-    </ul>
-  </div>
-
-  {# ── 칼로리 환산 (FR-5) ── #}
-  {% if total_kcal %}
-  <div class="conversion-box">
-    <h2>🔥 칼로리 환산</h2>
-    <ul>
-      <li>🏃 {{ calorie_conv.running_label }}</li>
-      <li>🚶 {{ calorie_conv.walking_label }}</li>
-    </ul>
-  </div>
-  {% endif %}
-
-  {# ── 공감 코멘트 (FR-6) ── #}
+  <!-- AI 코멘트 -->
   {% if comment %}
-  <div class="comment-box">
-    <h2>💬 AI 코멘트</h2>
-    <p>{{ comment }}</p>
+  <div class="glass-card rounded-2xl p-card-padding">
+    <div class="flex items-start gap-3">
+      <div class="mt-1 bg-primary/20 p-2 rounded-lg">
+        <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1">auto_awesome</span>
+      </div>
+      <p class="text-sm leading-relaxed text-on-surface">{{ comment }}</p>
+    </div>
   </div>
   {% endif %}
 
-  <div class="btn-group">
-    <a href="{{ url_for('delivery.delivery_page') }}" class="btn btn-secondary">다시 분석</a>
-    <a href="{{ url_for('history.history_list') }}" class="btn btn-primary">히스토리 보기</a>
+  <!-- 주문 내역 -->
+  {% if items %}
+  <div class="space-y-4">
+    <div class="flex justify-between items-end px-1">
+      <h4 class="font-bold text-lg text-on-surface">주문 내역</h4>
+      {% if delivery_fee %}<span class="text-xs text-on-surface-variant">배달비 {{ "{:,}".format(delivery_fee) }}원</span>{% endif %}
+    </div>
+    <div class="space-y-3">
+      {% for item in items %}
+      <div class="glass-card p-4 rounded-xl flex items-center justify-between">
+        <div class="flex flex-col">
+          <span class="text-on-surface font-semibold">{{ item.name }}</span>
+          <span class="text-xs text-on-surface-variant">
+            {{ item.quantity or 1 }}개{% if item.price %} · {{ "{:,}".format(item.price | int) }}원{% endif %}
+          </span>
+        </div>
+        {% set kcal = cal_map.get(item.name) %}
+        {% if kcal %}
+        <span class="bg-surface-variant/50 text-[10px] px-2 py-1 rounded-full text-on-surface-variant font-bold">{{ "{:,}".format(kcal | int) }} kcal</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
   </div>
-</section>
+  {% endif %}
+
+  <!-- 액션 -->
+  <div class="flex flex-col gap-3 pt-2">
+    <a href="{{ url_for('report.report_page') }}" class="gradient-button h-[52px] w-full rounded-xl flex items-center justify-center text-on-primary-container font-bold text-lg shadow-lg shadow-primary/20">
+      리포트에서 보기
+    </a>
+    <a href="{{ url_for('delivery.delivery_page') }}" class="h-[52px] w-full bg-transparent border border-outline-variant/30 rounded-xl flex items-center justify-center text-on-surface font-medium text-lg active:scale-[0.98] transition-transform">
+      다시 분석
+    </a>
+  </div>
+</div>
 {% endblock %}
