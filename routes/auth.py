@@ -27,14 +27,17 @@ def init_oauth(app):
     oauth.register(
         name="kakao",
         client_id=os.environ["KAKAO_CLIENT_ID"],
-        client_secret=os.environ.get("KAKAO_CLIENT_SECRET", ""),  # Kakao REST API는 secret 없이도 동작
+        # client_secret을 ""(빈 문자열)로 두면 authlib이 값이 있다고 판단해
+        # 토큰 요청 시 client_secret= 파라미터를 전송 → 카카오가 invalid_client 반환.
+        # None으로 설정해야 authlib이 자격증명 전송 자체를 완전히 생략한다.
+        client_secret=os.environ.get("KAKAO_CLIENT_SECRET") or None,
         authorize_url="https://kauth.kakao.com/oauth/authorize",
         access_token_url="https://kauth.kakao.com/oauth/token",
         api_base_url="https://kapi.kakao.com/v2/",
         client_kwargs={
             "scope": "profile_nickname",  # account_email 제거 — 이메일 동의 불필요
-            # 카카오 REST API는 client_secret 없이 client_id만으로 토큰 발급
-            # client_secret_post로 설정 시 빈 secret이 전송돼 invalid_client 오류 발생
+            # client_secret이 None이어도 authlib이 Basic Auth를 시도할 수 있으므로
+            # token_endpoint_auth_method를 "none"으로 명시해 이중으로 차단한다.
             "token_endpoint_auth_method": "none",
         }
     )
