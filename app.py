@@ -14,6 +14,7 @@ from routes.auth import auth_bp, init_oauth
 from routes.challenge import challenge_bp
 from routes.delivery import delivery_bp
 from routes.history import history_bp
+from routes.home import home_bp
 from routes.report import report_bp
 from routes.score import score_bp
 from routes.time import time_bp
@@ -40,6 +41,7 @@ if os.environ.get("FLASK_ENV") == "production":
 # OAuth 초기화 (Google/Kakao 소셜 로그인)
 init_oauth(app)
 
+app.register_blueprint(home_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(delivery_bp)
 app.register_blueprint(time_bp)
@@ -48,12 +50,17 @@ app.register_blueprint(history_bp)
 app.register_blueprint(score_bp)
 app.register_blueprint(challenge_bp)
 
+# P1 수정: dev_login은 FLASK_ENV=development일 때만 등록 (운영 오인 설정 시 이중 방어)
+if os.environ.get("FLASK_ENV") == "development":
+    from routes.dev_only import dev_bp
+    app.register_blueprint(dev_bp)
+
 
 @app.route("/")
 def index():
-    """홈 — 로그인 상태면 리포트로, 아니면 로그인으로 리다이렉트. (FR-0)"""
+    """홈 — 로그인 상태면 홈 대시보드로, 아니면 로그인으로 리다이렉트. (FR-0)"""
     if session.get("user_id"):
-        return redirect(url_for("report.report_page"))
+        return redirect(url_for("home.index"))
     return redirect(url_for("auth.login_page"))
 
 
@@ -65,7 +72,6 @@ def handle_request_entity_too_large(error):
     """
     flash("파일 크기가 5MB를 초과했습니다.", "error")
     return redirect(url_for("delivery.delivery_page"))
-
 
 if __name__ == "__main__":
     # 디버그 모드는 환경변수로 게이트 — 운영에서 debug=True 노출 방지 (#44 P3)

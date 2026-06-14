@@ -1,0 +1,9 @@
+<!-- Header -->
+<header class="fixed top-0 w-full h-[56px] bg-surface/80 dark:bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm z-50 flex items-center justify-between px-edge-padding">
+  <a href="/" class="flex items-center">
+    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck Logo" class="h-9 w-auto">
+  </a>
+  <a href="{{ url_for('auth.logout') }}" class="w-10 h-10 rounded-full border border-primary/20 overflow-hidden active:scale-95 transition-transform cursor-pointer" title="로그아웃">
+    <img alt="User avatar" class="w-full h-full object-cover" src="{{ session.get('avatar_url') or url_for('static', filename='images/default_avatar.svg') }}">
+  </a>
+</header>
