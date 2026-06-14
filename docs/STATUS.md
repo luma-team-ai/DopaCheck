@@ -12,13 +12,14 @@
 | `db/schema.sql` 작성 (MariaDB) | ✅ 완료 | 정재봉 |
 | CloudType 자동배포 워크플로 (`deploy-main.yml`, push 시 배포 + Secrets preflight) | ✅ 완료·검증 | 정재봉 |
 | **Stitch 디자인 기준 정립** (`base.html` 공통 디자인 시스템 — 팀원 상속 기준) | ✅ 완료 (#51) | 정재봉 |
-| Tailwind Play CDN → PostCSS 빌드 전환 (`static/css/tailwind.css` 산출물 커밋, SRI 해소) | 🔄 PR #67 검증 대기 (#49) | 정재봉 |
+| Tailwind Play CDN → PostCSS 빌드 전환 (`static/css/tailwind.css` 산출물 커밋, SRI 해소) | ✅ 완료 (#67) | 정재봉 |
 | Google / Kakao OAuth 연동 (#16→#38 머지) | ✅ 완료 | 김승현 |
 | MariaDB 인스턴스 프로비저닝 + 스키마 적용 | ⬜ 대기 | 김승현 |
 | 시드 더미 데이터 20건 | ⬜ 대기 | 김승현 |
 
 ## 마지막 머지 PR
 
+- #67 Tailwind Play CDN → PostCSS(v3 CLI) 빌드 전환 (#49 CLOSED, 정재봉) — `base.html`·`login.html` CDN 제거 → `static/css/tailwind.css` 산출물 커밋(SRI 해소). 인라인 config 컬러 47개 전량 이식. code-reviewer P1 3건 → **G3.5 원본 대조로 전부 무효**(orb 컨테이너 `z-[-1]`·인라인 opacity/스크롤 보존). main rebase 후 pytest 95 PASS
 - #61 `recalculate_score`를 `services/score_service.py`로 분리 — **#58 CLOSED**(routes→routes 순환 임포트 제거, 계층 정리). #65 머지로 충돌 → main 리베이스 후 계산식은 #65 1:1 유지(동작 무변경). code-reviewer P1 2건(home.py 누락 import·테스트 patch 경로)→픽스 후 잔존 0, pytest 95 PASS
 - #65 점수 계산식을 #48 합의(`config`/`ai.score.calculate`)로 통일 — **#62·#63 CLOSED**(score 점수식 회귀·time 입력폼 cosmetic 해소)
 - #52 /time 시간 분석(입력폼·결과 Stitch UI + FR-9~15 파이프라인) — 이은석. time.py 충돌은 PR52 채택, base.html은 main Stitch + `{% block nav %}` 래핑(time만 nav 숨김), test DB mock 보강. code-reviewer APPROVE, **P2/P3 cosmetic 후속 #63**
@@ -53,7 +54,6 @@
 
 | 이슈 | 내용 |
 |------|------|
-| #49 Tailwind Play CDN | **PR #67 생성·검증 대기**. Tailwind v3 CLI 빌드(`tailwind.css` 산출물 커밋)로 전환, 인라인 config 전량 이식·테스트 93 PASS. code-reviewer P1 3건 → G3.5 게이트 원본 대조로 **전부 무효 확인**(컨테이너 `z-[-1]`·인라인 opacity/스크롤 보존). 후속: README 빌드 절차·watch minify |
 | #44 세션 쿠키 보안 | SameSite/Secure/HttpOnly 명시 설정 — ai:p2-followup |
 | #43 413 핸들러 | MAX_CONTENT_LENGTH 초과 시 413 응답 + UX — ai:p2-followup |
 | #42 CSRF DRY | challenge.py CSRF 로직을 utils/csrf.py로 통합 — ai:p2-followup |
