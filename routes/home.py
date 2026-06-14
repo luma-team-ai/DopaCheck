@@ -114,24 +114,27 @@ def index():
         else:
             time_str = f"{mins}m"
 
-        # 4-3) 챌린지 달성 현황 (시작일이 이번 주 범위 내에 있고, 완료 여부 판단)
-        # 이번 주에 시작했거나 참여 중인 챌린지 수
+        # 4-3) 챌린지 달성 현황 (완료 기준 score_service와 일치 — Issue #69)
+        # 이번 주에 시작했거나 이번 주에 완료된 챌린지 수 (합집합: 완료가 항상 분모에 포함)
         cursor.execute(
             """
-            SELECT COUNT(*) as total_cnt 
-            FROM user_challenges 
-            WHERE user_id = %s AND started_at >= %s AND started_at < %s
+            SELECT COUNT(*) as total_cnt
+            FROM user_challenges
+            WHERE user_id = %s AND (
+              (started_at >= %s AND started_at < %s)
+              OR (is_completed = 1 AND completed_at >= %s AND completed_at < %s)
+            )
             """,
-            (user_id, this_gte_at, this_lt_at)
+            (user_id, this_gte_at, this_lt_at, this_gte_at, this_lt_at)
         )
         total_challenges = cursor.fetchone()["total_cnt"] or 0
 
-        # 이번 주에 완료된 챌린지 수
+        # 이번 주에 완료된 챌린지 수 (completed_at 기준 — score_service와 동일)
         cursor.execute(
             """
-            SELECT COUNT(*) as comp_cnt 
-            FROM user_challenges 
-            WHERE user_id = %s AND is_completed = 1 AND started_at >= %s AND started_at < %s
+            SELECT COUNT(*) as comp_cnt
+            FROM user_challenges
+            WHERE user_id = %s AND is_completed = 1 AND completed_at >= %s AND completed_at < %s
             """,
             (user_id, this_gte_at, this_lt_at)
         )
