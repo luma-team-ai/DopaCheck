@@ -75,7 +75,7 @@ def _build_pool() -> PooledDB:
             maxcached=pool_size,
             # 풀 소진 시 에러 대신 대기. 현재 배포는 gunicorn sync 워커(워커당 동시 1요청,
             # maxconnections≫1)라 소진/대기가 발생하지 않는다. gthread/eventlet 전환 시
-            # 무한 대기 위험이 있어 bounded-timeout/503 처리는 후속 이슈로 분리(#23 리뷰 P1-1).
+            # 무한 대기 위험이 있어 bounded-timeout/503 처리는 후속 이슈로 분리(#71).
             blocking=True,
             ping=4,          # 쿼리 실행 전 커넥션 유효성 확인(유휴 끊김 방지)
             reset=True,      # 반납 시 rollback 강제 — commit 완료 후엔 빈 트랜잭션이라 no-op
