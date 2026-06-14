@@ -31,7 +31,12 @@ def init_oauth(app):
         authorize_url="https://kauth.kakao.com/oauth/authorize",
         access_token_url="https://kauth.kakao.com/oauth/token",
         api_base_url="https://kapi.kakao.com/v2/",
-        client_kwargs={"scope": "profile_nickname"}  # account_email 제거 — 이메일 동의 불필요
+        client_kwargs={
+            "scope": "profile_nickname",  # account_email 제거 — 이메일 동의 불필요
+            # 카카오 REST API는 client_secret 없이 client_id만으로 토큰 발급
+            # client_secret_post로 설정 시 빈 secret이 전송돼 invalid_client 오류 발생
+            "token_endpoint_auth_method": "none",
+        }
     )
 
 
@@ -82,15 +87,20 @@ def kakao_login():
 
 @auth_bp.route("/oauth2/code/kakao")  # .env의 KAKAO_REDIRECT_URI와 일치
 def kakao_callback():
-    # P2: 토큰 교환 실패 시 OAuthError가 일어나도 예외 처리 없이 진행되는 문제 방지
     from authlib.integrations.base_client import OAuthError
+    # authlib은 Flask request context에서 redirect_uri를 자동 추출한다.
+    # authorize_access_token()에 redirect_uri를 명시적으로 넘기면
+    # 내부 fetch_access_token()에도 동일 인자가 전달되어
+    # "got multiple values for keyword argument 'redirect_uri'" TypeError 발생.
+    # → 인자 없이 호출하는 것이 올바른 방법.
     try:
         token = oauth.kakao.authorize_access_token()
     except OAuthError as e:
-        logger.warning("Kakao 토큰 교환 실패: %s", e)
-        return "카카오 로그인 실패했습니다. 다시 시도해주세요.", 401
+        logger.warning("Kakao 토큰 교환 실패 [%s]: %s", type(e).__name__, e)
+        return f"카카오 로그인 실패: {e}. 다시 시도해주세요.", 401
     if not token or not token.get("access_token"):
         return "카카오 인증 실패: 액세스 토큰을 수신하지 못했습니다.", 401
+
     resp = oauth.kakao.get("user/me")
     profile = resp.json()
 
