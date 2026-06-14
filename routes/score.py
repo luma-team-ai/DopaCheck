@@ -1,5 +1,6 @@
 """도파민 점수 + 랭킹 (담당: 김승현 — FR-26~31)."""
 from flask import Blueprint, render_template, session, redirect, url_for
+import ai.score as ai_score
 from routes.auth import login_required
 from db.client import db
 from utils.week import get_week_ranges, kst_bounds, kst_today
@@ -166,18 +167,16 @@ def recalculate_score(user_id: int) -> None:
         challenge_sum = cursor.fetchone()
         challenge_completed = challenge_sum["comp_count"] or 0
 
-        # 공식 대입 계산
-        # 1) 배달 지출 점수 (40점 만점): 기본 40점, 5000원 지출당 3점 감점 (최소 0)
-        delivery_score = max(0, 40 - int(delivery_total / 5000) * 3)
-
-        # 2) 시간 소비 점수 (40점 만점): 기본 40점, 사용 시간 1시간당 5점 감점 (최소 0)
-        time_score = max(0, 40 - int(time_total_min / 60) * 5)
-
-        # 3) 챌린지 보너스 (20점 만점): 개당 +5점 가산 (최대 20점)
-        challenge_score = min(20, challenge_completed * 5)
-
-        # 최종 스코어 합산
-        total_score = delivery_score + time_score + challenge_score
+        # 공식 대입 계산 — #48 합의 계산식(config.py 상수 + ai.score.calculate) 사용
+        result = ai_score.calculate({
+            "delivery_total": delivery_total,
+            "time_total_min": time_total_min,
+            "challenge_completed": challenge_completed,
+        })
+        total_score = result["score"]
+        delivery_score = result["delivery_contribution"]
+        time_score = result["time_contribution"]
+        challenge_score = result["challenge_bonus"]
 
         # DB에 upsert 저장
         cursor.execute(

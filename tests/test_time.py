@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from config import DEFAULT_HOURLY_WAGE
+
 
 @contextmanager
 def _fake_db():
@@ -14,7 +16,7 @@ def _fake_db():
     """
     cursor = MagicMock()
     cursor.fetchone.side_effect = [
-        {"hourly_wage": 9860},  # 저장된 시급
+        {"hourly_wage": DEFAULT_HOURLY_WAGE},  # 테스트 픽스처값(= config.DEFAULT_HOURLY_WAGE)
     ]
     yield cursor
 
