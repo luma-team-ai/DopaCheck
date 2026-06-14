@@ -21,3 +21,6 @@ venv/
 
 # 업로드 임시 파일
 uploads/
+
+# Node.js
+node_modules/
