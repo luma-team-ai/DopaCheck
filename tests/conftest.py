@@ -8,6 +8,7 @@ import os
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
 os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-google-client-secret")
 os.environ.setdefault("KAKAO_CLIENT_ID", "test-kakao-client-id")
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-for-pytest")
 
 import pytest
 
@@ -32,4 +33,5 @@ def logged_in_client(client):
         sess["user_id"] = 1            # BIGINT PK
         sess["email"] = "test@example.com"
         sess["nickname"] = "테스트"
+        sess["csrf_token"] = "test-csrf-token"
     return client

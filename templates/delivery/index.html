@@ -11,6 +11,7 @@
   - 분석 결과: 지출 환산·칼로리 환산·공감 코멘트 (FR-4~6) — result.html
 -->
 <form action="{{ url_for('delivery.analyze') }}" method="post" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="file" name="image" accept="image/jpeg,image/png" required>
   <button type="submit">분석하기</button>
 </form>

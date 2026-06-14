@@ -7,6 +7,7 @@
 
   <form action="{{ url_for('delivery.analyze') }}" method="post">
     <input type="hidden" name="manual_input" value="1">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
     <div class="form-group">
       <label for="food_names">주문 음식 (쉼표로 구분)</label>
