@@ -16,17 +16,28 @@ def init_oauth(app):
     """app.py에서 호출해 OAuth 초기화"""
     oauth.init_app(app)
 
+    # P2: 대괄호 접근(os.environ[key]) 대신 명시적 RuntimeError —
+    # 환경변수 미설정 시 KeyError 대신 원인이 명확한 메시지로 앱 시작을 막는다.
+    def _require_env(key: str) -> str:
+        val = os.environ.get(key)
+        if not val:
+            raise RuntimeError(
+                f"{key} 환경변수가 설정되지 않았습니다. "
+                f".env.example 참고 후 .env에 설정하세요."
+            )
+        return val
+
     oauth.register(
         name="google",
-        client_id=os.environ["GOOGLE_CLIENT_ID"],
-        client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
+        client_id=_require_env("GOOGLE_CLIENT_ID"),
+        client_secret=_require_env("GOOGLE_CLIENT_SECRET"),
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"}
     )
 
     oauth.register(
         name="kakao",
-        client_id=os.environ["KAKAO_CLIENT_ID"],
+        client_id=_require_env("KAKAO_CLIENT_ID"),
         # client_secret을 ""(빈 문자열)로 두면 authlib이 값이 있다고 판단해
         # 토큰 요청 시 client_secret= 파라미터를 전송 → 카카오가 invalid_client 반환.
         # None으로 설정해야 authlib이 자격증명 전송 자체를 완전히 생략한다.
@@ -69,8 +80,10 @@ def google_callback():
     try:
         token = oauth.google.authorize_access_token()
     except OAuthError as e:
+        # P2: OAuthError 원문(내부 엔드포인트·클라이언트ID 힌트 등 포함 가능)을 사용자에게 직접 노출 금지.
+        # 상세 오류는 서버 로그에만 기록, 사용자에게는 고정 문자열만 반환.
         logger.warning("Google 토큰 교환 실패 [%s]: %s", type(e).__name__, e)
-        return f"Google 로그인 실패: {e}. 다시 시도해주세요.", 401
+        return "로그인 중 오류가 발생했습니다. 다시 시도해주세요.", 401
 
     # P2: userinfo가 None일 경우 (openid 스코프 응답 누락) 방어
     user_info = token.get("userinfo")
@@ -93,8 +106,9 @@ def google_callback():
 # ── Kakao 로그인 ──────────────────────────────────────────
 @auth_bp.route("/auth/kakao")
 def kakao_login():
-    # .env의 KAKAO_REDIRECT_URI: http://localhost:5000/oauth2/code/kakao
-    redirect_uri = os.environ.get("KAKAO_REDIRECT_URI", url_for("auth.kakao_callback", _external=True))
+    # P3: google_login과 동일하게 or 패턴으로 통일 — os.environ.get(key, default)는
+    # default 인자가 항상 평가되어 url_for()가 불필요하게 호출되는 문제 있음.
+    redirect_uri = os.environ.get("KAKAO_REDIRECT_URI") or url_for("auth.kakao_callback", _external=True)
     return oauth.kakao.authorize_redirect(redirect_uri)
 
 
@@ -109,8 +123,9 @@ def kakao_callback():
     try:
         token = oauth.kakao.authorize_access_token()
     except OAuthError as e:
+        # P2: OAuthError 원문을 사용자에게 직접 노출 금지 — 상세 오류는 서버 로그에만 기록.
         logger.warning("Kakao 토큰 교환 실패 [%s]: %s", type(e).__name__, e)
-        return f"카카오 로그인 실패: {e}. 다시 시도해주세요.", 401
+        return "로그인 중 오류가 발생했습니다. 다시 시도해주세요.", 401
     if not token or not token.get("access_token"):
         return "카카오 인증 실패: 액세스 토큰을 수신하지 못했습니다.", 401
 

@@ -76,43 +76,36 @@ def db():
 
 
 def upsert_user_profile(email: str, nickname: str, provider: str, provider_id: str) -> int:
-    """소셜 로그인 시 users 테이블에 프로필 생성/조회.
+    """소셜 로그인 시 users 테이블에 프로필 upsert.
 
-    - 최초 로그인: INSERT
-    - 재로그인: 닉네임 갱신 후 id 반환 (P2: 재로그인 시 닉네임 미갱신 수정)
+    - 최초 로그인: INSERT → lastrowid 반환
+    - 재로그인: ON DUPLICATE KEY UPDATE로 닉네임 갱신 + LAST_INSERT_ID(id)로 기존 id 반환
+    - P2 수정: SELECT→INSERT 비원자적 분기(TOCTOU) 제거 → 단일 쿼리로 경쟁 조건 원천 차단
     반환값: user_id (BIGINT)
     """
     with db() as cursor:
-        # 이미 존재하면 닉네임 갱신 후 id 반환
-        cursor.execute(
-            "SELECT id FROM users WHERE provider = %s AND provider_id = %s",
-            (provider, provider_id)
-        )
-        row = cursor.fetchone()
-        if row:
-            cursor.execute(
-                "UPDATE users SET nickname = %s WHERE id = %s",
-                (nickname, row["id"])
-            )
-            return row["id"]
-
-        # 없으면 INSERT — ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)로
-        # 항상 올바른 id를 반환 (P2: LAST_INSERT_ID()=0 버그 방지)
+        # INSERT … ON DUPLICATE KEY UPDATE 단일 쿼리:
+        # - 신규: INSERT 성공 → lastrowid = 새 id
+        # - 중복: LAST_INSERT_ID(id) 트릭으로 기존 id를 lastrowid에 노출 + nickname 갱신
+        # provider+provider_id 쌍에 UNIQUE 제약이 있어야 ON DUPLICATE가 작동한다.
         cursor.execute(
             """
             INSERT INTO users (email, nickname, provider, provider_id)
             VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), nickname=VALUES(nickname)
+            ON DUPLICATE KEY UPDATE
+                id       = LAST_INSERT_ID(id),
+                nickname = VALUES(nickname)
             """,
             (email, nickname, provider, provider_id)
         )
-        new_id = cursor.lastrowid
-        if new_id:
-            return new_id
+        user_id = cursor.lastrowid
+        if user_id:
+            return user_id
 
-        # fallback: LAST_INSERT_ID가 0인 경우 SELECT로 재조회
+        # lastrowid가 0인 극히 드문 드라이버 엣지케이스 — SELECT fallback
         cursor.execute(
             "SELECT id FROM users WHERE provider = %s AND provider_id = %s",
             (provider, provider_id)
         )
         return cursor.fetchone()["id"]
+

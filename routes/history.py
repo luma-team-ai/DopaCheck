@@ -86,7 +86,7 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
 
 
 @history_bp.route("")
-@login_required
+@login_required  # 비로그인 차단 — if not user_id: abort(401) 대신 데코레이터로 위임 (P1 수정)
 def history_list():
     """날짜별 분석 기록 목록. (FR-21, FR-24, FR-25)"""
     user_id = session.get("user_id")
@@ -169,7 +169,7 @@ def history_list():
 
 
 @history_bp.route("/<record_id>")
-@login_required
+@login_required  # 비로그인 차단 — if not user_id: abort(401) 대신 데코레이터로 위임 (P1 수정)
 def history_detail(record_id: str):
     """특정 기록 상세 조회. (FR-22)"""
     user_id = session.get("user_id")
@@ -202,7 +202,7 @@ def history_detail(record_id: str):
 
 
 @history_bp.route("/<record_id>", methods=["DELETE"])
-@login_required
+@login_required  # 비로그인 차단 — if not user_id: abort(401) 대신 데코레이터로 위임 (P1 수정)
 def history_delete(record_id: str):
     """기록 삭제. (FR-23)"""
     user_id = session.get("user_id")
