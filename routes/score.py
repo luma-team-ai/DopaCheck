@@ -40,12 +40,12 @@ def score_page():
         score_record = cursor.fetchone()
 
         if not score_record:
-            # 방어용 기본값 (첫 로그인 후 분석 기록이 전혀 없는 경우)
+            # 방어용 기본값 (첫 로그인 후 분석 기록이 전혀 없는 경우 0점 세팅)
             score_record = {
-                "score": 60,
-                "delivery_contribution": 25,
-                "time_contribution": 25,
-                "challenge_bonus": 10
+                "score": 0,
+                "delivery_contribution": 0,
+                "time_contribution": 0,
+                "challenge_bonus": 0
             }
 
         score = score_record["score"]
@@ -114,14 +114,12 @@ def score_page():
             (user_id, week_start)
         )
         avg_res = cursor.fetchone()
-        avg_min = int(avg_res["avg_min"] or 192) # 기본 3시간 12분
+        avg_min = int(avg_res["avg_min"] or 0) # 데이터가 없는 경우 0분 세팅
         avg_hours = avg_min // 60
         avg_remain_min = avg_min % 60
         avg_time_str = f"{avg_hours}시간 {avg_remain_min}분" if avg_hours > 0 else f"{avg_remain_min}분"
 
-        unlock_count = int(avg_min * 0.25)
-        if unlock_count == 0:
-            unlock_count = 48 # 기본값 시뮬레이션
+        unlock_count = int(avg_min * 0.25) # 기본 0회
 
     return render_template(
         "score/index.html",
