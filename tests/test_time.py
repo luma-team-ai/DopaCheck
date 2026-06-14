@@ -1,9 +1,28 @@
 """시간 분석 테스트 (담당: 이은석)."""
+from contextlib import contextmanager
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 
+@contextmanager
+def _fake_db():
+    """time_page 본문 쿼리에 맞춘 커서 mock.
+
+    PR52 time.py의 time_page fetchone 호출:
+    1. users SELECT hourly_wage → {"hourly_wage": ...}
+    """
+    cursor = MagicMock()
+    cursor.fetchone.side_effect = [
+        {"hourly_wage": 9860},  # 저장된 시급
+    ]
+    yield cursor
+
+
 def test_입력_폼_렌더링(logged_in_client):
-    assert logged_in_client.get("/time").status_code == 200
+    # 입력 폼 라우트는 users.hourly_wage 단일 조회만 수행하므로 db만 mock.
+    with patch("routes.time.db", _fake_db):
+        assert logged_in_client.get("/time").status_code == 200
 
 
 @pytest.mark.skip(reason="TODO(이은석): 분석 파이프라인 구현 후 작성")
