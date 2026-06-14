@@ -1,8 +1,8 @@
 """도파민 점수 + 랭킹 (담당: 김승현 — FR-26~31)."""
-from datetime import datetime, timedelta
 from flask import Blueprint, render_template, session, redirect, url_for
 from routes.auth import login_required
 from db.client import db
+from utils.week import get_week_ranges, kst_bounds, kst_today
 
 score_bp = Blueprint("score", __name__, url_prefix="/score")
 
@@ -18,8 +18,10 @@ def score_page():
     4. 상위 N% 랭킹 — 시드 더미 데이터 20건 전제 (FR-30)
     """
     user_id = session.get("user_id")
-    today = datetime.now().date()
-    week_start = today - timedelta(days=today.weekday()) # 한국 월요일 기준
+    this_week_range, last_week_range = get_week_ranges()
+    week_start, week_end = this_week_range
+    last_week_start, _ = last_week_range
+    this_gte_at, this_lt_at = kst_bounds(week_start, week_end)
 
     # 점수 재산출 트리거 (데이터가 없거나 최신화가 필요할 때 대비)
     try:
@@ -66,8 +68,7 @@ def score_page():
         if percentile == 0:
             percentile = 1 # 최소 상위 1% 방지
 
-        # 3. 지난주 점수 비교 (개선율 산출)
-        last_week_start = week_start - timedelta(days=7)
+        # 3. 지난주 점수 비교 (점수 차이 산출, 단위=점)
         cursor.execute(
             "SELECT score FROM dopamine_scores WHERE user_id = %s AND week_start = %s",
             (user_id, last_week_start)
@@ -77,41 +78,34 @@ def score_page():
             last_score = last_week_record["score"]
             diff = score - last_score
             if diff >= 0:
-                compare_last_week = f"지난주보다 {diff}% 개선되었습니다."
+                compare_last_week = f"지난주보다 {diff}점 상승했습니다."
             else:
-                compare_last_week = f"지난주보다 {abs(diff)}% 하락하였습니다."
+                compare_last_week = f"지난주보다 {abs(diff)}점 하락했습니다."
         else:
             compare_last_week = "첫 점수 분석 주간입니다! 지표가 순조롭게 분석되고 있습니다."
 
-        # 4. 최근 7일(월~일) 요일별 트렌드
+        # 4. 최근 7일(월~일) 요일별 트렌드 — 일별 점수 기록이 없으므로
+        #    오늘(score)만 채우고, 그 외 요일은 None(데이터 없음)으로 공백 처리한다.
         days_names = ["월", "화", "수", "목", "금", "토", "일"]
         weekly_scores = []
-        current_weekday = today.weekday()
+        current_weekday = kst_today().weekday()
 
         for idx in range(7):
-            day_date = week_start + timedelta(days=idx)
-            if idx < current_weekday:
-                # 과거 요일: 시드 기반의 일관성 있는 난수 생성
-                day_score = (score + (idx * 4) - 8) % 101
-                day_score = max(30, min(95, day_score))
-            elif idx == current_weekday:
-                day_score = score
-            else:
-                day_score = 0 # 미래 요일은 0점 처리
+            day_score = score if idx == current_weekday else None
             weekly_scores.append({
-                "day": days_names[idx], 
-                "score": day_score, 
+                "day": days_names[idx],
+                "score": day_score,
                 "is_today": (idx == current_weekday)
             })
 
         # 5. 시간 통계 데이터 추출
         cursor.execute(
             """
-            SELECT AVG(youtube_min + instagram_min + tiktok_min) as avg_min 
-            FROM time_records 
-            WHERE user_id = %s AND created_at >= %s
+            SELECT AVG(youtube_min + instagram_min + tiktok_min) as avg_min
+            FROM time_records
+            WHERE user_id = %s AND created_at >= %s AND created_at < %s
             """,
-            (user_id, week_start)
+            (user_id, this_gte_at, this_lt_at)
         )
         avg_res = cursor.fetchone()
         avg_min = int(avg_res["avg_min"] or 0) # 데이터가 없는 경우 0분 세팅
@@ -119,7 +113,8 @@ def score_page():
         avg_remain_min = avg_min % 60
         avg_time_str = f"{avg_hours}시간 {avg_remain_min}분" if avg_hours > 0 else f"{avg_remain_min}분"
 
-        unlock_count = int(avg_min * 0.25) # 기본 0회
+        # 평균 사용 시간의 25%를 잠금 해제 횟수로 환산 (기본 0회), UI 깨짐 방지를 위해 99회로 상한
+        unlock_count = min(99, int(avg_min * 0.25))
 
     return render_template(
         "score/index.html",
@@ -142,30 +137,31 @@ def recalculate_score(user_id: int) -> None:
     1. 이번 주 배달·시간·챌린지 데이터 집계
     2. dopamine_scores (user_id, week_start) upsert
     """
-    today = datetime.now().date()
-    week_start = today - timedelta(days=today.weekday())
+    this_week_range, _ = get_week_ranges()
+    week_start, week_end = this_week_range
+    gte_at, lt_at = kst_bounds(week_start, week_end)
 
     with db() as cursor:
         # 이번 주 배달 소비 총액 집계
         cursor.execute(
-            "SELECT SUM(total_price) as sum_price FROM delivery_records WHERE user_id = %s AND created_at >= %s",
-            (user_id, week_start)
+            "SELECT SUM(total_price) as sum_price FROM delivery_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+            (user_id, gte_at, lt_at)
         )
         delivery_sum = cursor.fetchone()
         delivery_total = delivery_sum["sum_price"] or 0
 
         # 이번 주 시간 소비 총합 집계
         cursor.execute(
-            "SELECT SUM(youtube_min + instagram_min + tiktok_min + game_min) as sum_min FROM time_records WHERE user_id = %s AND created_at >= %s",
-            (user_id, week_start)
+            "SELECT SUM(youtube_min + instagram_min + tiktok_min + game_min) as sum_min FROM time_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+            (user_id, gte_at, lt_at)
         )
         time_sum = cursor.fetchone()
         time_total_min = time_sum["sum_min"] or 0
 
         # 이번 주 완료한 챌린지 수 집계
         cursor.execute(
-            "SELECT COUNT(*) as comp_count FROM user_challenges WHERE user_id = %s AND is_completed = 1 AND completed_at >= %s",
-            (user_id, week_start)
+            "SELECT COUNT(*) as comp_count FROM user_challenges WHERE user_id = %s AND is_completed = 1 AND completed_at >= %s AND completed_at < %s",
+            (user_id, gte_at, lt_at)
         )
         challenge_sum = cursor.fetchone()
         challenge_completed = challenge_sum["comp_count"] or 0

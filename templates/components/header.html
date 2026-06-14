@@ -4,6 +4,6 @@
     <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck Logo" class="h-9 w-auto">
   </a>
   <a href="{{ url_for('auth.logout') }}" class="w-10 h-10 rounded-full border border-primary/20 overflow-hidden active:scale-95 transition-transform cursor-pointer" title="로그아웃">
-    <img alt="User avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZ-bydRPR0FzEYxx7X30FANDV7niV5hdgzCbCSuMx02MIrJf8N7l_JG32XDdWU69BKROPShGDCTU7DMkiNeWFoR43hHZfB-lM9MAUrl2vaoiBYyuX6QkuxdD4egFA_bqHFVJ5GmhD3ZvC0T88rBvCvMzjRHCO2ZlgVf4weXC7sRYLOZGc4SZsZ3s3h32-m6GCrQfyaYjeQM-_JyhlVzn0B7-gsSxk493jZirBnA66m5P5IGKe-ThSHlrHQBAou4PEB8dkvaz4fIWF9">
+    <img alt="User avatar" class="w-full h-full object-cover" src="{{ session.get('avatar_url') or url_for('static', filename='images/default_avatar.svg') }}">
   </a>
 </header>
