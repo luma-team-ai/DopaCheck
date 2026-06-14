@@ -64,7 +64,14 @@ def google_login():
 
 @auth_bp.route("/auth/google/callback")
 def google_callback():
-    token = oauth.google.authorize_access_token()
+    from authlib.integrations.base_client import OAuthError
+    # P2: kakao_callback과 동일하게 OAuthError를 catch — state 불일치·코드 만료 시 500 노출 방지.
+    try:
+        token = oauth.google.authorize_access_token()
+    except OAuthError as e:
+        logger.warning("Google 토큰 교환 실패 [%s]: %s", type(e).__name__, e)
+        return f"Google 로그인 실패: {e}. 다시 시도해주세요.", 401
+
     # P2: userinfo가 None일 경우 (openid 스코프 응답 누락) 방어
     user_info = token.get("userinfo")
     if not user_info or not user_info.get("email"):
@@ -107,12 +114,21 @@ def kakao_callback():
     if not token or not token.get("access_token"):
         return "카카오 인증 실패: 액세스 토큰을 수신하지 못했습니다.", 401
 
+    # P2: user/me 응답 유효성 체크 — 네트워크 오류·비정상 응답 시 500 대신 401 반환.
     resp = oauth.kakao.get("user/me")
+    if not resp.ok:
+        logger.warning("Kakao user/me 요청 실패: status=%s", resp.status_code)
+        return "카카오 사용자 정보 조회 실패. 다시 시도해주세요.", 401
     profile = resp.json()
 
+    # P2: profile['id'] KeyError 방어 — id 없으면 401 반환.
     # account_email 스코프를 요청하지 않으므로 고유 식별자를 email 컬럼에 저장
     # users.email은 UNIQUE — 닉네임은 중복 가능하므로 kakao_{id} 형태로 고유값 사용
-    kakao_id = str(profile["id"])
+    raw_id = profile.get("id")
+    if not raw_id:
+        logger.warning("Kakao profile에 id 필드 없음: %s", list(profile.keys()))
+        return "카카오 사용자 식별자를 가져오지 못했습니다.", 401
+    kakao_id = str(raw_id)
     nickname = (
         profile.get("kakao_account", {}).get("profile", {}).get("nickname")
         or profile.get("properties", {}).get("nickname")
@@ -124,7 +140,7 @@ def kakao_callback():
         email       = email,
         nickname    = nickname,
         provider    = "kakao",
-        provider_id = str(profile["id"])
+        provider_id = kakao_id
     )
 
     session["user_id"]  = user_id
@@ -151,4 +167,4 @@ def login_required(view):
         if not session.get("user_id"):
             return redirect(url_for("auth.login_page"))
         return view(*args, **kwargs)
-    return wrapped
+    return wrapped
