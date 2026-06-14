@@ -138,9 +138,20 @@ class TestCalcCalorieConversion:
 
 # ── analyze() 통합 테스트 (FR-2~8) ──────────────────────
 
+def test_csrf_토큰_없으면_403(logged_in_client):
+    """CSRF 토큰 미포함 POST → 403."""
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data={"image": (io.BytesIO(_png_bytes()), "receipt.png", "image/png")},
+        content_type="multipart/form-data",
+    )
+    assert res.status_code == 403
+
+
 def test_영수증_분석_성공(logged_in_client):
     """FR-2~6: OCR → 칼로리 → 환산 → 코멘트 → 저장 → result.html 렌더링."""
     data = {
+        "csrf_token": "test-csrf-token",
         "image": (io.BytesIO(_png_bytes()), "receipt.png", "image/png"),
     }
 
@@ -168,6 +179,7 @@ def test_영수증_분석_성공(logged_in_client):
 def test_ocr_실패시_수동입력_폼(logged_in_client):
     """FR-7: OCR 예외 발생 → /delivery/manual 리다이렉트."""
     data = {
+        "csrf_token": "test-csrf-token",
         "image": (io.BytesIO(_png_bytes()), "receipt.png", "image/png"),
     }
 
@@ -186,7 +198,7 @@ def test_이미지_없이_분석_요청(logged_in_client):
     """FR-1: 이미지 없이 POST → /delivery 리다이렉트."""
     res = logged_in_client.post(
         "/delivery/analyze",
-        data={},
+        data={"csrf_token": "test-csrf-token"},
         content_type="multipart/form-data",
     )
     assert res.status_code == 302
@@ -196,6 +208,7 @@ def test_이미지_없이_분석_요청(logged_in_client):
 def test_잘못된_파일형식(logged_in_client):
     """FR-1: PNG/JPG 외 파일 → /delivery 리다이렉트."""
     data = {
+        "csrf_token": "test-csrf-token",
         "image": (io.BytesIO(b"fake gif data"), "receipt.gif", "image/gif"),
     }
     res = logged_in_client.post(
@@ -210,6 +223,7 @@ def test_잘못된_파일형식(logged_in_client):
 def test_가짜_png_파일형식(logged_in_client):
     """FR-1: image/png 선언이지만 매직 바이트가 없는 파일 → /delivery 리다이렉트 (MIME 스푸핑 차단)."""
     data = {
+        "csrf_token": "test-csrf-token",
         "image": (io.BytesIO(b"this is not a real png"), "evil.png", "image/png"),
     }
     res = logged_in_client.post(
@@ -224,6 +238,7 @@ def test_가짜_png_파일형식(logged_in_client):
 def test_칼로리_추론_실패시_부분_결과_진행(logged_in_client):
     """칼로리 실패 시에도 result.html을 렌더링한다 (부분 결과 허용)."""
     data = {
+        "csrf_token": "test-csrf-token",
         "image": (io.BytesIO(_png_bytes()), "receipt.png", "image/png"),
     }
 
@@ -246,6 +261,7 @@ def test_칼로리_추론_실패시_부분_결과_진행(logged_in_client):
 def test_코멘트_생성_실패시_부분_결과_진행(logged_in_client):
     """코멘트 실패 시에도 result.html을 렌더링한다 (부분 결과 허용)."""
     data = {
+        "csrf_token": "test-csrf-token",
         "image": (io.BytesIO(_png_bytes()), "receipt.png", "image/png"),
     }
 
@@ -268,6 +284,7 @@ def test_코멘트_생성_실패시_부분_결과_진행(logged_in_client):
 def test_db_저장_실패시_에러_리다이렉트(logged_in_client):
     """DB INSERT 실패 → /delivery 리다이렉트."""
     data = {
+        "csrf_token": "test-csrf-token",
         "image": (io.BytesIO(_png_bytes()), "receipt.png", "image/png"),
     }
 
@@ -297,6 +314,7 @@ def test_db_저장_실패시_에러_리다이렉트(logged_in_client):
 def test_수동_입력_분석_성공(logged_in_client):
     """FR-7: 수동 입력 폼 제출 → result.html 렌더링."""
     form_data = {
+        "csrf_token": "test-csrf-token",
         "manual_input": "1",
         "food_names": "후라이드치킨, 콜라",
         "total_price": "21000",
@@ -337,6 +355,7 @@ def test_user_id_없으면_401(app):
 def test_수동_입력_빈_음식명(logged_in_client):
     """수동 입력 시 음식명 없어도 칼로리 0으로 result.html 렌더링."""
     form_data = {
+        "csrf_token": "test-csrf-token",
         "manual_input": "1",
         "food_names": "",
         "total_price": "5000",
