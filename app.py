@@ -19,8 +19,7 @@ from routes.score import score_bp
 from routes.time import time_bp
 
 app = Flask(__name__)
-# TODO(#14): 공개 기본값 fallback은 세션 위조 위험 — 운영 시 FLASK_SECRET_KEY 필수화(별도 PR).
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
+app.secret_key = os.environ["FLASK_SECRET_KEY"]
 
 # 환경 분기: FLASK_ENV=production(CloudType 배포)일 때만 ProxyFix 적용.
 # - production: Nginx 리버스 프록시가 있으므로 X-Forwarded-Proto를 신뢰 → https:// URL 생성.
