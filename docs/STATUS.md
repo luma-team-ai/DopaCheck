@@ -7,6 +7,7 @@
 | 항목 | 상태 | 담당 |
 |------|------|------|
 | GitHub 레포 (`luma-team-ai/dopacheck`) | ✅ 생성 | 정재봉 |
+| Python 런타임 3.10.2 고정 (`runtime.txt`·`.python-version`) | ✅ 확정 | 정재봉 |
 | DB MariaDB 전환 (#22, RLS→앱 레벨 `user_id` 필터) | ✅ 완료 | 정재봉 |
 | `db/schema.sql` 작성 (MariaDB) | ✅ 완료 | 정재봉 |
 | MariaDB 인스턴스 프로비저닝 + 스키마 적용 | ⬜ 대기 | 김승현 |
