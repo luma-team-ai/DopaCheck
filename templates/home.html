@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <title>도파민 점수 | DopaCheck</title>
+  <title>DopaCheck - 홈 대시보드</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
@@ -57,40 +57,36 @@
     }
     .score-circle {
       position: relative;
-      width: 200px;
-      height: 200px;
+      width: 120px;
+      height: 120px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       background: radial-gradient(circle, #1c1c28 0%, #14141c 100%);
-      border: 8px solid #1c1c28;
-      box-shadow: 0 0 40px rgba(107, 91, 255, 0.2);
+      border: 6px solid #1c1c28;
+      box-shadow: 0 0 24px rgba(107, 91, 255, 0.2);
     }
     .score-progress {
       position: absolute;
-      inset: -8px;
+      inset: -6px;
       border-radius: 50%;
-      border: 8px solid transparent;
+      border: 6px solid transparent;
       border-top-color: #6b5bff;
       border-right-color: #c5c0ff;
       transform: rotate(-45deg);
     }
-    .chart-container {
-      height: 120px;
-      display: flex;
-      align-items: flex-end;
-      gap: 8px;
-      padding-bottom: 8px;
+    .gradient-text {
+      background: linear-gradient(135deg, #c5c0ff 0%, #ffb1c5 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-    .chart-bar {
-      width: 100%;
-      border-radius: 4px 4px 0 0;
-      background: #34343d;
-      transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
     }
-    .chart-bar.active {
-      background: #6b5bff;
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
   </style>
   <script id="tailwind-config">
@@ -196,109 +192,119 @@
 
   <!-- Main Container -->
   <main class="pt-[80px] pb-[100px] px-edge-padding max-w-[600px] mx-auto space-y-stack-lg">
-    <!-- Score Circle Section -->
-    <section class="flex flex-col items-center justify-center space-y-stack-md py-4">
-      <div class="score-circle" data-score="{{ score }}">
-        <div class="score-progress"></div>
-        <div class="flex flex-col items-center">
-          <span class="font-display-md-mobile text-display-md-mobile text-primary leading-none">{{ score }}</span>
-          <span class="font-label-md text-label-md text-on-surface-variant opacity-60">/ 100</span>
+    <!-- Hero Card (이번 주 도파민 점수) -->
+    <section class="glass-card p-6 relative overflow-hidden">
+      <div class="relative z-10 flex justify-between items-center">
+        <div class="space-y-2">
+          <p class="font-label-md text-label-md text-on-surface-variant/80">이번 주 도파민 점수</p>
+          <div class="flex items-baseline gap-1">
+            <span class="font-display-md-mobile text-[56px] leading-none text-primary font-extrabold">{{ score }}</span>
+            <span class="font-label-md text-label-md text-on-surface-variant/60">/100</span>
+          </div>
+          <div class="flex items-center gap-1.5 mt-2 py-1 px-3 bg-tertiary/10 rounded-full w-fit">
+            <span class="material-symbols-outlined text-[16px] text-tertiary">
+              {% if avg_diff >= 0 %}trending_up{% else %}trending_down{% endif %}
+            </span>
+            <p class="font-label-md text-label-md text-tertiary font-semibold">
+              평균 대비 {% if avg_diff >= 0 %}+{{ avg_diff }}{% else %}{{ avg_diff }}{% endif %} · 상위 {{ percentile }}%
+            </p>
+          </div>
         </div>
-      </div>
-      <p class="font-headline-md text-headline-md text-center mt-4">오늘의 도파민 지수</p>
-    </section>
-
-    <!-- Rank Summary Card -->
-    <div class="glass-card p-5 flex items-center gap-4 border-l-4 border-l-primary">
-      <div class="bg-primary/20 p-2 rounded-full">
-        <span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">stars</span>
-      </div>
-      <div>
-        <p class="font-body-md text-body-md text-on-surface font-semibold">상위 {{ percentile }}%의 자제력을 가지고 있어요.</p>
-        <p class="font-label-md text-label-md text-on-surface-variant">{{ compare_last_week }}</p>
-      </div>
-    </div>
-
-    <!-- 7-Day Trend Chart -->
-    <section class="glass-card p-6 space-y-stack-md">
-      <div class="flex justify-between items-center mb-4">
-        <h3 class="font-headline-md text-headline-md">점수 트렌드</h3>
-        <span class="font-label-md text-label-md text-primary">이번 주 요일별 지표</span>
-      </div>
-      <div class="chart-container">
-        {% for day_info in weekly_scores %}
-        <div class="flex-1 flex flex-col items-center gap-2">
-          <!-- 스코어 비례 높이 동적 매핑 (IDE 인라인 CSS 에러 회피 및 애니메이션 적용) -->
-          <div class="chart-bar {% if day_info.is_today %}active{% endif %} w-full" style="height: 0%;" data-score-height="{{ day_info.score }}"></div>
-          <span class="font-label-md text-label-md {% if day_info.is_today %}text-primary font-bold{% else %}text-on-surface-variant/60{% endif %}">
-            {{ day_info.day }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-    </section>
-
-    <!-- Score Raising Tip -->
-    <section class="space-y-stack-md">
-      <h3 class="font-headline-md text-headline-md px-2">점수 올리는 팁</h3>
-      <div class="glass-card relative overflow-hidden group p-6 flex flex-col gap-3">
-        <div class="flex items-center gap-3">
-          <span class="material-symbols-outlined text-tertiary">lightbulb</span>
-          <span class="font-body-lg text-body-lg font-bold">알림 다이어트</span>
-        </div>
-        <p class="font-body-md text-body-md text-on-surface-variant">
-          밤 11시 이후 SNS 알림을 꺼보세요. 취침 전 무분별한 스크롤링은 다음 날 도파민 수용체 감도를 낮추어 불필요한 과소비를 조장할 수 있습니다.
-        </p>
-        <a href="{{ url_for('challenge.challenge_page') }}" class="mt-2 py-3 px-6 rounded-xl primary-gradient text-white text-center font-bold text-label-md active:scale-95 transition-transform block text-decoration-none">
-          AI 챌린지 시작하러 가기
-        </a>
-        <div class="absolute -right-10 -bottom-10 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-          <span class="material-symbols-outlined text-[120px]">notifications_off</span>
+        <!-- Ring Progress Chart -->
+        <div class="score-circle" data-score="{{ score }}">
+          <div class="score-progress"></div>
+          <div class="flex flex-col items-center">
+            <span class="font-headline-md text-headline-md text-primary leading-none">{{ score }}</span>
+            <span class="font-label-md text-label-md text-on-surface-variant opacity-60">/ 100</span>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Weekly Stats Grid -->
+    <!-- Quick Action Grid -->
     <section class="grid grid-cols-2 gap-4">
-      <div class="glass-card p-4 flex flex-col gap-1">
-        <span class="font-label-md text-label-md text-on-surface-variant">평균 사용 시간</span>
-        <span class="font-headline-md text-headline-md text-primary">{{ avg_time_str }}</span>
-      </div>
-      <div class="glass-card p-4 flex flex-col gap-1">
-        <span class="font-label-md text-label-md text-on-surface-variant">잠금 해제 횟수</span>
-        <span class="font-headline-md text-headline-md text-secondary">{{ unlock_count }}회</span>
+      <!-- Delivery -->
+      <a href="{{ url_for('delivery.delivery_page') }}" class="glass-card p-5 flex flex-col items-center gap-3 active:scale-95 transition-all text-center hover:bg-white/5 duration-200">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-[#c5c0ff] flex items-center justify-center shadow-lg shadow-primary/20">
+          <span class="material-symbols-outlined text-[#13131b]">delivery_dining</span>
+        </div>
+        <span class="font-body-md text-body-md text-on-surface font-bold">배달 분석</span>
+      </a>
+      <!-- Time -->
+      <a href="{{ url_for('time.time_page') }}" class="glass-card p-5 flex flex-col items-center gap-3 active:scale-95 transition-all text-center hover:bg-white/5 duration-200">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-secondary to-[#ffd9e1] flex items-center justify-center shadow-lg shadow-secondary/20">
+          <span class="material-symbols-outlined text-[#13131b]">schedule</span>
+        </div>
+        <span class="font-body-md text-body-md text-on-surface font-bold">시간 분석</span>
+      </a>
+      <!-- Report -->
+      <a href="{{ url_for('report.report_page') }}" class="glass-card p-5 flex flex-col items-center gap-3 active:scale-95 transition-all text-center hover:bg-white/5 duration-200">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-secondary-container to-secondary flex items-center justify-center shadow-lg shadow-secondary-container/20">
+          <span class="material-symbols-outlined text-on-background">analytics</span>
+        </div>
+        <span class="font-body-md text-body-md text-on-surface font-bold">종합 리포트</span>
+      </a>
+      <!-- Challenge -->
+      <a href="{{ url_for('challenge.challenge_page') }}" class="glass-card p-5 flex flex-col items-center gap-3 active:scale-95 transition-all text-center hover:bg-white/5 duration-200">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-tertiary-container to-tertiary flex items-center justify-center shadow-lg shadow-tertiary/20">
+          <span class="material-symbols-outlined text-[#13131b]">emoji_events</span>
+        </div>
+        <span class="font-body-md text-body-md text-on-surface font-bold">챌린지</span>
+      </a>
+    </section>
+
+    <!-- Key Stats Section -->
+    <section class="space-y-3">
+      <h2 class="font-headline-md text-headline-md px-2 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">auto_awesome</span>
+        이번 주 핵심
+      </h2>
+      <div class="grid grid-cols-2 gap-3 pb-2">
+        <!-- Stat Pill 1 (Delivery) -->
+        <div class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full">
+          <span class="material-symbols-outlined text-secondary">fastfood</span>
+          <span class="font-label-md text-label-md whitespace-nowrap">배달 <span class="text-secondary font-bold">{{ "{:,}".format(delivery_total) }}원</span></span>
+        </div>
+        <!-- Stat Pill 2 (Screen Time) -->
+        <div class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full">
+          <span class="material-symbols-outlined text-[#ffd9e1]">smartphone</span>
+          <span class="font-label-md text-label-md whitespace-nowrap">사용 <span class="text-[#ffd9e1] font-bold">{{ time_str }}</span></span>
+        </div>
+        <!-- Stat Pill 3 (Challenges) -->
+        <div class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full col-span-2">
+          <span class="material-symbols-outlined text-tertiary">verified</span>
+          <span class="font-label-md text-label-md whitespace-nowrap">챌린지 <span class="text-tertiary font-bold">{{ completed_challenges }}/{{ total_challenges }} 달성</span></span>
+        </div>
       </div>
     </section>
+
+    <!-- Insights Banner -->
+    <a href="{{ url_for('report.report_page') }}" class="glass-card p-5 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between group cursor-pointer w-full text-left border-l-4 border-l-primary hover:bg-white/5 transition-colors duration-200">
+      <div class="space-y-1">
+        <p class="font-label-md text-label-md text-primary uppercase tracking-wider font-semibold">SMART INSIGHT</p>
+        <p class="font-body-md text-body-md text-on-surface font-medium">{{ insight_title }}</p>
+      </div>
+      <span class="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">arrow_forward_ios</span>
+    </a>
   </main>
 
-  {% set active_tab = 'score' %}
+  {% set active_tab = 'home' %}
   {% include "components/footer.html" %}
 
   <!-- Interactive Score Animation -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // 1. 원형 스코어 링 애니메이션
+      // 원형 스코어 링 애니메이션
       const ring = document.querySelector('.score-progress');
       const scoreCircle = document.querySelector('.score-circle');
       if (ring && scoreCircle) {
         ring.style.transition = 'all 1.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
         setTimeout(() => {
-          // 점수 100점당 360도 비율 계산 후 기본 rotate(-45deg) 기준으로 회전 각도 산정
           const score = parseInt(scoreCircle.dataset.score || '0', 10);
           const rotationAngle = (score / 100) * 360 - 45;
           ring.style.transform = `rotate(${rotationAngle}deg)`;
         }, 300);
       }
-
-      // 2. 트렌드 차트 바 높이 설정 (인라인 CSS 구문 에러 방지 및 등장 애니메이션 추가)
-      document.querySelectorAll('.chart-bar').forEach(bar => {
-        const scoreHeight = bar.dataset.scoreHeight;
-        if (scoreHeight) {
-          setTimeout(() => {
-            bar.style.height = `${scoreHeight}%`;
-          }, 100);
-        }
-      });
     });
   </script>
 </body>

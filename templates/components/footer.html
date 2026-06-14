@@ -1,0 +1,28 @@
+<!-- Bottom Navigation Tab Bar -->
+<nav class="fixed bottom-0 left-0 w-full h-[64px] bg-surface-container/90 dark:bg-surface-container/90 backdrop-blur-xl border-t border-outline-variant/20 shadow-[0_-4px_24px_rgba(0,0,0,0.4)] z-50 flex justify-around items-center px-2 pb-safe rounded-t-xl">
+  <!-- 홈 -->
+  <a class="flex flex-col items-center justify-center {% if active_tab == 'home' %}text-primary dark:text-primary-fixed-dim font-bold{% else %}text-on-surface-variant dark:text-on-surface-variant/60{% endif %} hover:bg-white/5 active:scale-90 transition-transform duration-150 text-decoration-none" href="/">
+    <span class="material-symbols-outlined" {% if active_tab == 'home' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>home</span>
+    <span class="font-label-md text-label-md">홈</span>
+  </a>
+  <!-- 분석 -->
+  <a class="flex flex-col items-center justify-center {% if active_tab == 'delivery' %}text-primary dark:text-primary-fixed-dim font-bold{% else %}text-on-surface-variant dark:text-on-surface-variant/60{% endif %} hover:bg-white/5 active:scale-90 transition-transform duration-150 text-decoration-none" href="{{ url_for('delivery.delivery_page') }}">
+    <span class="material-symbols-outlined" {% if active_tab == 'delivery' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>analytics</span>
+    <span class="font-label-md text-label-md">분석</span>
+  </a>
+  <!-- 리포트 -->
+  <a class="flex flex-col items-center justify-center {% if active_tab == 'report' %}text-primary dark:text-primary-fixed-dim font-bold{% else %}text-on-surface-variant dark:text-on-surface-variant/60{% endif %} hover:bg-white/5 active:scale-90 transition-transform duration-150 text-decoration-none" href="{{ url_for('report.report_page') }}">
+    <span class="material-symbols-outlined" {% if active_tab == 'report' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>description</span>
+    <span class="font-label-md text-label-md">리포트</span>
+  </a>
+  <!-- 점수 -->
+  <a class="flex flex-col items-center justify-center {% if active_tab == 'score' %}text-primary dark:text-primary-fixed-dim font-bold{% else %}text-on-surface-variant dark:text-on-surface-variant/60{% endif %} hover:bg-white/5 active:scale-90 transition-transform duration-150 text-decoration-none" href="{{ url_for('score.score_page') }}">
+    <span class="material-symbols-outlined" {% if active_tab == 'score' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>speed</span>
+    <span class="font-label-md text-label-md">점수</span>
+  </a>
+  <!-- 챌린지 -->
+  <a class="flex flex-col items-center justify-center {% if active_tab == 'challenge' %}text-primary dark:text-primary-fixed-dim font-bold{% else %}text-on-surface-variant dark:text-on-surface-variant/60{% endif %} hover:bg-white/5 active:scale-90 transition-transform duration-150 text-decoration-none" href="{{ url_for('challenge.challenge_page') }}">
+    <span class="material-symbols-outlined" {% if active_tab == 'challenge' %}style="font-variation-settings: 'FILL' 1;"{% endif %}>military_tech</span>
+    <span class="font-label-md text-label-md">챌린지</span>
+  </a>
+</nav>
