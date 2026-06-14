@@ -1,6 +1,6 @@
 """홈 대시보드 라우트 테스트."""
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from contextlib import contextmanager
 
 
