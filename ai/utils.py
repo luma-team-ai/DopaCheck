@@ -27,4 +27,8 @@ def extract_json(text: str) -> str:
     """LLM 응답에서 JSON 부분만 추출 (마크다운 코드블록 제거)."""
     text = text.strip()
     m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
-    return m.group(1).strip() if m else text
+    if m:
+        return m.group(1).strip()
+    # 코드블록 없이 JSON이 반환된 경우 { } 또는 [ ] 블록 추출
+    m2 = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", text)
+    return m2.group(1).strip() if m2 else text

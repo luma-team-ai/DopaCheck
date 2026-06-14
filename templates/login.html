@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="dark" lang="ko">
+<html class="dark" lang="ko" style="height: auto !important; overflow-y: auto !important;">
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
@@ -9,13 +9,21 @@
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet">
   <style>
+    html {
+      height: auto !important;
+      overflow-y: auto !important;
+    }
     body {
       font-family: 'Pretendard', sans-serif;
       background-color: #13121c;
-      overflow: hidden;
+      overflow-x: hidden; /* 가로 스크롤 차단 */
+      overflow-y: auto !important; /* 세로 스크롤 허용하여 모바일 대응 */
       margin: 0;
       padding: 0;
-      min-height: max(884px, 100dvh);
+      min-height: 100dvh;
+      height: auto !important;
+      display: flex;
+      flex-direction: column;
     }
 
     .orb {
@@ -156,82 +164,88 @@
     }
   </script>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen relative overflow-hidden bg-background text-on-surface">
+<body class="bg-background text-on-surface" style="height: auto !important; min-height: 100dvh !important; overflow-y: auto !important; overflow-x: hidden !important;">
   <!-- Ambient Background Orbs -->
   <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none flex items-center justify-center">
     <div class="orb orb-glow bg-gradient-to-br from-primary-container to-secondary-container w-[150vw] h-[150vh] max-w-[800px] max-h-[800px]"></div>
   </div>
 
-  <main class="relative z-10 w-full max-w-[320px] flex flex-col items-center flex-1 justify-center pt-[120px] pb-24 px-container-padding">
-    <div class="w-full flex flex-col items-center justify-center">
-      <!-- Brand Identity Section -->
-      <div class="flex flex-col items-center text-center">
-        <!-- 새 로고 이미지 적용 -->
-        <h1 class="mb-6 w-full flex justify-center">
-          <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck" class="h-12 w-auto mx-auto">
-        </h1>
-        <p class="font-body-lg text-body-lg text-on-surface-variant font-medium opacity-90">
-          당신의 도파민, 진짜 가치를 알려드려요
-        </p>
+  <!-- 전체 레이아웃 래퍼 (모바일 스크롤 최적화 및 풋터 하단 고정) -->
+  <div class="min-h-screen w-full flex flex-col items-center justify-between py-8 px-4 relative z-10">
+    
+    <!-- 중앙 메인 영역 -->
+    <main class="w-full max-w-[320px] flex flex-col items-center justify-center flex-grow">
+      <div class="w-full flex flex-col items-center justify-center">
+        <!-- Brand Identity Section -->
+        <div class="flex flex-col items-center text-center">
+          <!-- 새 로고 이미지 적용 -->
+          <h1 class="mb-4 w-full flex justify-center">
+            <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck" class="h-10 w-auto mx-auto">
+          </h1>
+          <p class="font-body-lg text-body-lg text-on-surface-variant font-medium opacity-90 text-sm">
+            당신의 도파민, 진짜 가치를 알려드려요
+          </p>
+        </div>
+
+        <!-- Flash Messages (오류 메시지 출력용) -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="w-full mt-4 space-y-2">
+              {% for category, message in messages %}
+                <div class="p-3 text-xs rounded-xl text-center font-medium {% if category == 'error' %}bg-error-container/20 text-error border border-error/20{% else %}bg-primary-container/20 text-primary border border-primary/20{% endif %}" style="backdrop-filter: blur(8px);">
+                  {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- Social Login Stack -->
+        <div class="w-full flex flex-col gap-[12px] mt-[24px]">
+          <!-- Kakao Login -->
+          <a href="{{ url_for('auth.kakao_login') }}" class="glass-button w-full max-w-[320px] mx-auto h-[52px] bg-[#FEE500] rounded-xl flex items-center justify-center relative overflow-hidden group">
+            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+            <div class="flex items-center gap-3">
+              <svg fill="none" height="17" viewBox="0 0 18 17" width="18" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 0C4.029 0 0 3.123 0 6.975C0 9.471 1.62 11.666 4.05 12.912L3.024 16.659C2.97 16.857 3.195 17.019 3.366 16.902L7.767 13.941C8.172 13.977 8.586 13.998 9 13.998C13.971 13.998 18 10.875 18 7.023C18 3.171 13.971 0.048 9 0.048V0Z" fill="black" fill-opacity="0.9"></path>
+              </svg>
+              <span class="text-[15px] font-bold text-black/90">카카오로 시작하기</span>
+            </div>
+          </a>
+          <!-- Google Login -->
+          <a href="{{ url_for('auth.google_login') }}" class="glass-button w-full max-w-[320px] mx-auto h-[52px] bg-white rounded-xl flex items-center justify-center border border-outline-variant/20 relative overflow-hidden group">
+            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+            <div class="flex items-center gap-3">
+              <svg fill="none" height="18" viewBox="0 0 18 18" width="18" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4"></path>
+                <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"></path>
+                <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"></path>
+                <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"></path>
+              </svg>
+              <span class="text-[15px] font-bold text-[#1F1F1F]">Google로 시작하기</span>
+            </div>
+          </a>
+        </div>
+
+        <!-- Minimalist Micro-interaction Component -->
+        <div class="mt-[40px] flex items-center justify-center gap-1.5 opacity-40">
+          <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+          <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style="animation-delay: 0.2s;"></div>
+          <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style="animation-delay: 0.4s;"></div>
+        </div>
       </div>
+    </main>
 
-      <!-- Flash Messages (오류 메시지 출력용) -->
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          <div class="w-full mt-6 space-y-2">
-            {% for category, message in messages %}
-              <div class="p-3.5 text-xs rounded-xl text-center font-medium {% if category == 'error' %}bg-error-container/20 text-error border border-error/20{% else %}bg-primary-container/20 text-primary border border-primary/20{% endif %}" style="backdrop-filter: blur(8px);">
-                {{ message }}
-              </div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %}
-
-      <!-- Social Login Stack -->
-      <div class="w-full flex flex-col gap-[12px] mt-[36px]">
-        <!-- Kakao Login -->
-        <a href="{{ url_for('auth.kakao_login') }}" class="glass-button w-full max-w-[320px] mx-auto h-[52px] bg-[#FEE500] rounded-xl flex items-center justify-center relative overflow-hidden group">
-          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
-          <div class="flex items-center gap-3">
-            <svg fill="none" height="17" viewBox="0 0 18 17" width="18" xmlns="http://www.w3.org/2000/svg">
-              <path d="M9 0C4.029 0 0 3.123 0 6.975C0 9.471 1.62 11.666 4.05 12.912L3.024 16.659C2.97 16.857 3.195 17.019 3.366 16.902L7.767 13.941C8.172 13.977 8.586 13.998 9 13.998C13.971 13.998 18 10.875 18 7.023C18 3.171 13.971 0.048 9 0.048V0Z" fill="black" fill-opacity="0.9"></path>
-            </svg>
-            <span class="text-[15px] font-bold text-black/90">카카오로 시작하기</span>
-          </div>
-        </a>
-        <!-- Google Login -->
-        <a href="{{ url_for('auth.google_login') }}" class="glass-button w-full max-w-[320px] mx-auto h-[52px] bg-white rounded-xl flex items-center justify-center border border-outline-variant/20 relative overflow-hidden group">
-          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
-          <div class="flex items-center gap-3">
-            <svg fill="none" height="18" viewBox="0 0 18 18" width="18" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4"></path>
-              <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"></path>
-              <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"></path>
-              <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"></path>
-            </svg>
-            <span class="text-[15px] font-bold text-[#1F1F1F]">Google로 시작하기</span>
-          </div>
-        </a>
+    <!-- Footer -->
+    <footer class="w-full flex justify-center mt-12">
+      <div class="flex items-center gap-4 text-[#6B6B7B] font-label-caps text-label-caps tracking-widest text-[11px]">
+        <a id="terms-link" class="hover:text-primary transition-colors duration-300 cursor-pointer" href="#">이용약관</a>
+        <span class="w-1 h-1 rounded-full bg-[#6B6B7B]"></span>
+        <a id="privacy-link" class="hover:text-primary transition-colors duration-300 cursor-pointer" href="#">개인정보처리방침</a>
       </div>
+    </footer>
 
-      <!-- Minimalist Micro-interaction Component -->
-      <div class="mt-[40px] flex items-center justify-center gap-1.5 opacity-40">
-        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
-        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style="animation-delay: 0.2s;"></div>
-        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style="animation-delay: 0.4s;"></div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Footer -->
-  <footer class="absolute bottom-6 left-0 right-0 z-10 flex justify-center">
-    <div class="flex items-center gap-4 text-[#6B6B7B] font-label-caps text-label-caps tracking-widest text-[11px]">
-      <a id="terms-link" class="hover:text-primary transition-colors duration-300 cursor-pointer" href="#">이용약관</a>
-      <span class="w-1 h-1 rounded-full bg-[#6B6B7B]"></span>
-      <a id="privacy-link" class="hover:text-primary transition-colors duration-300 cursor-pointer" href="#">개인정보처리방침</a>
-    </div>
-  </footer>
+  </div>
 
   <!-- 이용약관 모달 -->
   <div id="terms-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">

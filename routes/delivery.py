@@ -16,6 +16,7 @@ from config import (
 )
 from db.client import db
 from routes.auth import login_required
+from utils.csrf import get_or_create_csrf_token, verify_csrf
 
 logger = logging.getLogger(__name__)
 
@@ -100,14 +101,16 @@ def calc_calorie_conversion(total_kcal: int) -> dict:
 @login_required
 def delivery_page():
     """영수증 업로드 폼. (FR-1)"""
-    return render_template("delivery/index.html")
+    csrf_token = get_or_create_csrf_token()
+    return render_template("delivery/index.html", csrf_token=csrf_token)
 
 
 @delivery_bp.route("/manual")
 @login_required
 def manual_page():
     """OCR 실패 시 수동 입력 폼 fallback. (FR-7)"""
-    return render_template("delivery/manual.html")
+    csrf_token = get_or_create_csrf_token()
+    return render_template("delivery/manual.html", csrf_token=csrf_token)
 
 
 @delivery_bp.route("/analyze", methods=["POST"])
@@ -123,6 +126,7 @@ def analyze():
     5. ai.comment.generate("delivery", context) 호출 (FR-6)
     6. delivery_records 저장 + 도파민 점수 재산출 트리거 (FR-8, FR-31)
     """
+    verify_csrf()
     user_id = session.get("user_id")  # int (BIGINT PK)
     if not user_id:
         abort(401)
@@ -159,8 +163,50 @@ def analyze():
         flash("영수증 인식에 실패했습니다. 직접 입력해주세요.", "warning")
         return redirect(url_for("delivery.manual_page"))
 
-    # ── 칼로리 추론 (FR-3) — items dict 배열 → 음식명 list 변환 필수 ──
+    # ── 칼로리 추론 이후 공통 파이프라인 (FR-3~8) ─────────────
     food_names = [it["name"] for it in items if isinstance(it, dict) and it.get("name")]
+    return _finalize_delivery(user_id, items, total_price, delivery_fee, food_names)
+
+
+def _handle_manual_input(user_id: int):
+    """수동 입력 폼 제출 처리 — OCR fallback (FR-7).
+
+    폼 필드:
+      - food_names: 쉼표 구분 음식명 문자열
+      - total_price: 총 금액 (원)
+      - delivery_fee: 배달비 (원)
+    """
+    if not user_id:
+        abort(401)
+    raw_names = request.form.get("food_names", "")
+    food_names = [n.strip()[:100] for n in raw_names.split(",") if n.strip()][:_MAX_FOOD_NAMES]
+
+    try:
+        total_price = int(request.form.get("total_price") or 0)
+    except ValueError:
+        total_price = 0
+    try:
+        delivery_fee = int(request.form.get("delivery_fee") or 0)
+    except ValueError:
+        delivery_fee = 0
+
+    items = [{"name": n, "price": 0, "quantity": 1} for n in food_names]
+    return _finalize_delivery(
+        user_id, items, total_price, delivery_fee, food_names,
+        error_redirect="delivery.manual_page",
+    )
+
+
+def _finalize_delivery(
+    user_id: int,
+    items: list,
+    total_price: int,
+    delivery_fee: int,
+    food_names: list,
+    error_redirect: str = "delivery.delivery_page",
+):
+    """칼로리추론 → 환산 → 코멘트 → DB저장 → 점수재산출 → result.html 렌더링. (FR-3~8)"""
+    # ── 칼로리 추론 (FR-3) ─────────────────────────────────
     total_kcal = 0
     calories = []
     try:
@@ -173,7 +219,6 @@ def analyze():
     # ── 환산 (FR-4, FR-5) ──────────────────────────────────
     spending_conv = calc_spending_conversion(total_price)
     calorie_conv = calc_calorie_conversion(total_kcal)
-
     conversions = [spending_conv["chicken_label"], calorie_conv["running_label"]]
 
     # ── 공감 코멘트 (FR-6) ─────────────────────────────────
@@ -209,7 +254,7 @@ def analyze():
     except Exception as e:
         logger.error("delivery_records 저장 실패: %s", e)
         flash("결과 저장에 실패했습니다. 잠시 후 다시 시도해주세요.", "error")
-        return redirect(url_for("delivery.delivery_page"))
+        return redirect(url_for(error_redirect))
 
     # ── 도파민 점수 재산출 트리거 (FR-8, FR-31) ──────────────
     try:
@@ -217,100 +262,6 @@ def analyze():
         recalculate_score(user_id)
     except NotImplementedError:
         pass  # 점수 라우트 미구현 단계에서는 무시
-    except Exception as e:
-        logger.warning("도파민 점수 재산출 실패 (비치명적): %s", e)
-
-    return render_template(
-        "delivery/result.html",
-        items=items,
-        calories=calories,
-        total_price=total_price,
-        delivery_fee=delivery_fee,
-        total_kcal=total_kcal,
-        spending_conv=spending_conv,
-        calorie_conv=calorie_conv,
-        comment=comment,
-    )
-
-
-def _handle_manual_input(user_id: int):
-    """수동 입력 폼 제출 처리 — OCR fallback (FR-7).
-
-    폼 필드:
-      - food_names: 쉼표 구분 음식명 문자열
-      - total_price: 총 금액 (원)
-      - delivery_fee: 배달비 (원)
-    """
-    if not user_id:
-        abort(401)
-    raw_names = request.form.get("food_names", "")
-    # 항목 수 상한 — AI 비용·지연 폭주 방지
-    food_names = [n.strip() for n in raw_names.split(",") if n.strip()][:_MAX_FOOD_NAMES]
-
-    try:
-        total_price = int(request.form.get("total_price") or 0)
-    except ValueError:
-        total_price = 0
-    try:
-        delivery_fee = int(request.form.get("delivery_fee") or 0)
-    except ValueError:
-        delivery_fee = 0
-
-    # 수동 입력 items — price·quantity 없음
-    items = [{"name": n, "price": 0, "quantity": 1} for n in food_names]
-
-    # 칼로리 추론 (FR-3)
-    total_kcal = 0
-    calories = []
-    try:
-        cal_result = ai_calorie.estimate(food_names)
-        calories = cal_result.get("calories", [])
-        total_kcal = int(cal_result.get("total_kcal") or 0)
-    except Exception as e:
-        logger.warning("수동 입력 칼로리 추론 실패: %s", e)
-
-    spending_conv = calc_spending_conversion(total_price)
-    calorie_conv = calc_calorie_conversion(total_kcal)
-    conversions = [spending_conv["chicken_label"], calorie_conv["running_label"]]
-
-    comment = ""
-    try:
-        context = {
-            "total_price": total_price,
-            "total_kcal": total_kcal,
-            "conversions": conversions,
-        }
-        comment = ai_comment.generate("delivery", context)
-    except Exception as e:
-        logger.warning("수동 입력 코멘트 생성 실패: %s", e)
-
-    record_id = str(uuid.uuid4())
-    try:
-        with db() as cursor:
-            cursor.execute(
-                "INSERT INTO delivery_records"
-                " (id, user_id, total_price, delivery_fee, total_calories, items, ai_comment)"
-                " VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (
-                    record_id,
-                    user_id,
-                    total_price,
-                    delivery_fee,
-                    total_kcal,
-                    json.dumps(items, ensure_ascii=False),
-                    comment,
-                ),
-            )
-    except Exception as e:
-        logger.error("수동 입력 delivery_records 저장 실패: %s", e)
-        flash("결과 저장에 실패했습니다.", "error")
-        return redirect(url_for("delivery.manual_page"))
-
-    try:
-        from routes.score import recalculate_score
-        recalculate_score(user_id)
-    except NotImplementedError:
-        pass
     except Exception as e:
         logger.warning("도파민 점수 재산출 실패 (비치명적): %s", e)
 

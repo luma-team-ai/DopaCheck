@@ -1,6 +1,6 @@
 # routes/auth.py
 import logging
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, redirect, render_template, session, url_for
 from authlib.integrations.flask_client import OAuth
 from db.client import upsert_user_profile
 from functools import wraps
@@ -100,6 +100,7 @@ def google_callback():
     session["user_id"]  = user_id
     session["nickname"] = user_info.get("name") or user_info["email"].split("@")[0]
     session["email"]    = user_info["email"]
+    session["avatar_url"] = user_info.get("picture")
     return redirect("/")
 
 
@@ -161,6 +162,10 @@ def kakao_callback():
     session["user_id"]  = user_id
     session["nickname"] = nickname
     session["email"]    = email
+    session["avatar_url"] = (
+        profile.get("kakao_account", {}).get("profile", {}).get("profile_image_url")
+        or profile.get("properties", {}).get("profile_image")
+    )
     return redirect("/")
 
 

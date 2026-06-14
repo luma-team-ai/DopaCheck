@@ -33,4 +33,5 @@ def logged_in_client(client):
         sess["user_id"] = 1            # BIGINT PK
         sess["email"] = "test@example.com"
         sess["nickname"] = "테스트"
+        sess["csrf_token"] = "test-csrf-token"
     return client

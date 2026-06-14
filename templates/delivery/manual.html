@@ -1,53 +1,172 @@
-{% extends "base.html" %}
+{% extends "_app_base.html" %}
 {% block title %}배달 직접 입력{% endblock %}
+{% block app_title %}직접 입력{% endblock %}
+
 {% block content %}
-<section class="card">
-  <h1>🍗 배달 내역 직접 입력</h1>
-  <p class="subtitle">영수증 인식에 실패했습니다. 직접 입력해 분석을 계속할 수 있습니다.</p>
-
-  <form action="{{ url_for('delivery.analyze') }}" method="post">
-    <input type="hidden" name="manual_input" value="1">
-
-    <div class="form-group">
-      <label for="food_names">주문 음식 (쉼표로 구분)</label>
-      <input
-        type="text"
-        id="food_names"
-        name="food_names"
-        placeholder="예: 후라이드치킨, 콜라, 감자튀김"
-        required
-      >
-      <small>음식명을 쉼표(,)로 구분해서 입력하세요.</small>
+<!-- Warning Card -->
+<section class="mt-section-gap mb-stack-gap">
+  <div class="glass-panel rounded-xl p-card-padding flex items-start gap-4 border-l-4 border-l-tertiary">
+    <span class="material-symbols-outlined text-tertiary mt-1">warning</span>
+    <div>
+      <p class="font-title-md text-on-surface font-bold mb-1">영수증을 읽지 못했어요.</p>
+      <p class="text-on-surface-variant text-sm">정보를 정확하게 분석하기 위해<br>직접 입력해 주세요.</p>
     </div>
-
-    <div class="form-group">
-      <label for="total_price">총 주문 금액 (원)</label>
-      <input
-        type="number"
-        id="total_price"
-        name="total_price"
-        placeholder="예: 21000"
-        min="0"
-        required
-      >
-    </div>
-
-    <div class="form-group">
-      <label for="delivery_fee">배달비 (원)</label>
-      <input
-        type="number"
-        id="delivery_fee"
-        name="delivery_fee"
-        placeholder="예: 3000"
-        min="0"
-        value="0"
-      >
-    </div>
-
-    <div class="btn-group">
-      <button type="submit" class="btn btn-primary">분석하기</button>
-      <a href="{{ url_for('delivery.delivery_page') }}" class="btn btn-secondary">다시 업로드</a>
-    </div>
-  </form>
+  </div>
 </section>
+
+<form id="manual-form" action="{{ url_for('delivery.analyze') }}" method="post">
+  <input type="hidden" name="manual_input" value="1">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {# JS 가 제출 직전 채워넣는 서버 계약 필드 #}
+  <input type="hidden" name="food_names" id="food-names-hidden">
+  <input type="hidden" name="total_price" id="total-price-hidden">
+
+  <!-- 항목 입력 -->
+  <section class="space-y-4" id="rows-container">
+    <div class="flex justify-between items-end mb-2 px-1">
+      <h2 class="font-title-md text-on-surface">항목 입력</h2>
+      <span class="text-label-caps text-on-surface-variant">KRW (₩)</span>
+    </div>
+
+    <!-- 항목 행 (JS 가 복제) -->
+    <div class="form-row glass-panel rounded-xl p-4 relative">
+      <div class="grid grid-cols-12 gap-3">
+        <div class="col-span-12">
+          <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">음식명</label>
+          <input type="text" maxlength="100" class="food-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline outline-none transition-all" placeholder="예: 마라탕">
+        </div>
+        <div class="col-span-7">
+          <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">가격</label>
+          <input type="number" min="0" class="price-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface outline-none transition-all" placeholder="0">
+        </div>
+        <div class="col-span-3">
+          <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">수량</label>
+          <input type="number" min="1" value="1" class="qty-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-center text-on-surface outline-none transition-all">
+        </div>
+        <div class="col-span-2 flex items-end justify-center pb-2">
+          <button type="button" class="remove-row-btn text-on-surface-variant hover:text-error active:scale-90 transition-all">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <button type="button" id="add-row-btn" class="w-full h-14 mt-4 rounded-xl border-2 border-dashed border-outline-variant/30 text-on-surface-variant flex items-center justify-center gap-2 hover:bg-surface-container/50 active:scale-[0.98] transition-all">
+    <span class="material-symbols-outlined">add</span>
+    <span class="font-bold">항목 추가</span>
+  </button>
+
+  <!-- 배달비 (시안 외 추가 — 기존 기능 유지) -->
+  <div class="mt-4 glass-panel rounded-xl p-4 flex items-center justify-between gap-3">
+    <label for="delivery-fee" class="text-sm text-on-surface-variant">배달비</label>
+    <div class="flex items-center gap-1">
+      <input type="number" min="0" value="0" id="delivery-fee" name="delivery_fee" class="glow-border w-28 bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3 py-2 text-right text-on-surface outline-none transition-all">
+      <span class="text-on-surface-variant text-sm">원</span>
+    </div>
+  </div>
+
+  <!-- 총 합계 -->
+  <section class="mt-section-gap py-6 border-t border-outline-variant/20">
+    <div class="flex items-center justify-between">
+      <span class="font-title-md text-on-surface">총 합계</span>
+      <div class="text-right">
+        <span class="font-hero-num-md text-hero-num-md gradient-text" id="total-amount">0</span>
+        <span class="text-on-surface-variant ml-1">원</span>
+      </div>
+    </div>
+  </section>
+
+  <button type="submit" class="gradient-button w-full h-[52px] rounded-full text-white font-bold text-lg shadow-lg shadow-primary/20 active:scale-95 transition-all">
+    분석하기
+  </button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const rowsContainer = document.getElementById('rows-container');
+    const addBtn = document.getElementById('add-row-btn');
+    const totalDisplay = document.getElementById('total-amount');
+    const form = document.getElementById('manual-form');
+
+    function rowTemplate() {
+      const div = document.createElement('div');
+      div.className = 'form-row glass-panel rounded-xl p-4 relative';
+      div.innerHTML = `
+        <div class="grid grid-cols-12 gap-3">
+          <div class="col-span-12">
+            <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">음식명</label>
+            <input type="text" maxlength="100" class="food-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline outline-none transition-all" placeholder="예: 짜장면">
+          </div>
+          <div class="col-span-7">
+            <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">가격</label>
+            <input type="number" min="0" class="price-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface outline-none transition-all" placeholder="0">
+          </div>
+          <div class="col-span-3">
+            <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">수량</label>
+            <input type="number" min="1" value="1" class="qty-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-center text-on-surface outline-none transition-all">
+          </div>
+          <div class="col-span-2 flex items-end justify-center pb-2">
+            <button type="button" class="remove-row-btn text-on-surface-variant hover:text-error active:scale-90 transition-all">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+        </div>`;
+      return div;
+    }
+
+    function recalc() {
+      let total = 0;
+      document.querySelectorAll('.form-row').forEach((row) => {
+        const price = parseFloat(row.querySelector('.price-input').value) || 0;
+        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+        total += price * qty;
+      });
+      totalDisplay.textContent = total.toLocaleString();
+      return total;
+    }
+
+    function bindRow(row) {
+      row.querySelectorAll('input').forEach((i) => i.addEventListener('input', recalc));
+      row.querySelector('.remove-row-btn').addEventListener('click', () => {
+        if (document.querySelectorAll('.form-row').length > 1) { row.remove(); recalc(); }
+      });
+    }
+
+    // 첫 행 바인딩
+    document.querySelectorAll('.form-row').forEach(bindRow);
+
+    addBtn.addEventListener('click', () => {
+      const row = rowTemplate();
+      rowsContainer.appendChild(row);
+      bindRow(row);
+      recalc();
+    });
+
+    // 제출 직전 서버 계약 필드(food_names/total_price) 직렬화.
+    // total_price 는 '음식명이 있는 행'만 합산 — 빈 행 가격이 섞여 items 와 금액이
+    // 어긋나는 것을 방지(라우트 items 는 food_names 기준으로만 생성됨).
+    form.addEventListener('submit', (e) => {
+      const names = [];
+      let total = 0;
+      document.querySelectorAll('.form-row').forEach((row) => {
+        const name = row.querySelector('.food-input').value.trim();
+        if (!name) return;
+        names.push(name);
+        const price = parseFloat(row.querySelector('.price-input').value) || 0;
+        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+        total += price * qty;
+      });
+      if (names.length === 0) {
+        e.preventDefault();
+        alert('음식명을 1개 이상 입력해주세요.');
+        return;
+      }
+      document.getElementById('food-names-hidden').value = names.join(',');
+      document.getElementById('total-price-hidden').value = total;
+    });
+  })();
+</script>
 {% endblock %}

@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-13
+> 마지막 갱신: 2026-06-14
 
 ## 인프라
 
@@ -10,42 +10,51 @@
 | Python 런타임 3.10.2 고정 (`runtime.txt`·`.python-version`) | ✅ 확정 | 정재봉 |
 | DB MariaDB 전환 (#22, RLS→앱 레벨 `user_id` 필터) | ✅ 완료 | 정재봉 |
 | `db/schema.sql` 작성 (MariaDB) | ✅ 완료 | 정재봉 |
+| CloudType 자동배포 워크플로 (`deploy-main.yml`, push 시 배포 + Secrets preflight) | ✅ 완료·검증 | 정재봉 |
+| **Stitch 디자인 기준 정립** (`base.html` 공통 디자인 시스템 — 팀원 상속 기준) | ✅ 완료 (#51) | 정재봉 |
+| Google / Kakao OAuth 연동 (#16→#38 머지) | ✅ 완료 | 김승현 |
 | MariaDB 인스턴스 프로비저닝 + 스키마 적용 | ⬜ 대기 | 김승현 |
-| Google / Kakao OAuth 연동 (#16 PR) | 🔄 진행 | 김승현 |
-| Cloudtype 배포 | ⬜ 대기 | 김관영·이은석 |
 | 시드 더미 데이터 20건 | ⬜ 대기 | 김승현 |
 
 ## 마지막 머지 PR
 
-- #32 챌린지 AI P2 5건(#31 — LLM 타임아웃·CSRF·추천 캐시·인젝션 완화·avg_delivery) — 리뷰 P1(CSRF 빈 토큰) 픽스 후 머지
-- #28 AI 모듈 + 챌린지(FR-32~38, 40~44, 오영석) — 검수 P1 2건 픽스(b4737c7) 후 머지, P2 후속 #31 분리
-- #17 주차 공통 유틸 추출·#7 검증(정재봉) · #6 종합 리포트(FR-16~20, 정재봉) · #8·#12 히스토리 P2(허남) — PR머신 자동 머지
+- #50 홈 대시보드(헤더/푸터 공통 컴포넌트 + 실시간 데이터) + score Stitch UI — 김승현. score.py 충돌은 PR50 채택, test DB mock 보강(p1-blocked 해소). **점수식 회귀 → 후속 #62 분리**
+- #53 delivery 영역 Stitch UI 적용(업로드/수동입력/결과 + 공통 앱셸) — 김관영
+- #51 report 화면 Stitch 디자인 + 비교차트 정규화 + CDN SRI (#10 CLOSED, 정재봉) — code-reviewer P1 0건, P2-3은 후속 #49 분리
+- #48 config 환산상수·도파민 점수공식 팀 합의 확정 (placeholder 경고 제거, 정재봉)
+- #41 delivery CSRF + DRY + MAX_CONTENT_LENGTH · #40 FLASK_SECRET_KEY fallback 제거(#14) · #39 로그인 Stitch · #38 소셜 로그인(#16/#26)
 
 ## 다음 작업
 
-### P0 (구현 시작 최소 조건 — PRD §14)
-- [ ] 도파민 점수 공식 팀 합의 (40/40/20)
-- [ ] 환산 기준 상수값 확정 (config.py 초안 검토)
+### P0 (구현 시작 최소 조건 — PRD §14) — ✅ 전부 충족
+- [x] 도파민 점수 공식 팀 합의 (40/40/20, #48 확정)
+- [x] 환산 기준 상수값 확정 (`config.py`, #48)
 - [x] MariaDB 스키마 작성 (db/schema.sql, #22) — DB 인스턴스 적용은 인프라 표 참조
-- [ ] OAuth 로그인 연동 (#16 PR 리뷰 대기 — #26 provider/provider_id 컬럼 선행)
-- [ ] ⚠️ **배포 차단 게이트**: FLASK_SECRET_KEY 설정(#14) 완료 전 프로덕션 배포 금지 *(RLS 게이트는 #22 MariaDB 전환으로 폐기 — 앱 레벨 `user_id` 필터로 대체, #15 CLOSED)*
+- [x] OAuth 로그인 연동 (#38 머지)
+- [x] 배포 차단 게이트 해제: FLASK_SECRET_KEY 설정(#14·#40) *(RLS 게이트는 #22로 폐기, #15 CLOSED)*
 
 ### P1 (도메인 구현 — 담당자별 병렬)
-- [x] /report (정재봉, #6·#17) · [x] /history (허남, #3·#8·#12)
-- [x] /challenge + ai/ (오영석, #28·#32) — AI 5종 + 챌린지, P2 보강 완료
-- [ ] /delivery (김관영) · /time (이은석) · /score (김승현)
-- [ ] 소셜 로그인 (김승현, #16 PR) — #26 provider/provider_id 컬럼 결정 대기(email UNIQUE 정책)
+- [x] /report (정재봉, #6·#17·#51) · [x] /history (허남, #3·#8·#12)
+- [x] /challenge + ai/ (오영석, #28·#32) · [x] /delivery (김관영, #35·#41·#53) · [x] 소셜 로그인 (김승현, #38)
+- [ ] /time (이은석) · [~] /score (김승현, #50 머지 — 점수식 통일 후속 #62)
+
+### Stitch 디자인 마이그레이션 (base.html 기준 → 각 페이지 적용)
+- [x] login (#39) · [x] report (#51) · [x] delivery (#53) · [x] score (#50)
+- [ ] history · challenge · time — 각 담당이 `base.html` 상속 + Stitch 토큰으로 전환 (과도기 `style.css` 공존 중)
 
 ### P2 (통합 — Day 5~6)
-- [ ] 전체 흐름 통합 테스트 · 데모 시나리오 완주 · 모바일 QA
+- [ ] 전체 흐름 통합 테스트 · 데모 시나리오 완주 · 모바일 QA (Stitch 톤 혼재 페이지 시각 점검 포함)
 
 ## 알려진 이슈
 
 | 이슈 | 내용 |
 |------|------|
-| #14 FLASK_SECRET_KEY 공개 기본값 | 운영 미설정 시 세션 위조 가능 — 배포 전 환경변수 필수 (김관영) |
-| #26 provider/provider_id | 소셜로그인 식별키 컬럼 추가 + email UNIQUE 정책 결정 대기 (김승현) — #16 선행 |
-| #24 챌린지 AI P2 잔존 | `calorie.py` kcal 스키마 검증·`next()` StopIteration 미처리 (avg_delivery·CSRF는 #32 해소) |
+| #62 score 점수식 회귀 | `recalculate_score`가 #48 합의 공식(`ai.score.calculate`/config 상수) 대신 하드코딩 점수식 사용 → 점수 divergence. PR #50에서 화면·테스트 우선 머지 후 분리 |
+| #49 Tailwind Play CDN | `base.html`·`login.html` Play CDN(SRI 불가, 프로덕션 비권장) → PostCSS 빌드 전환 (전역, 정재봉) |
+| #44 세션 쿠키 보안 | SameSite/Secure/HttpOnly 명시 설정 — ai:p2-followup |
+| #43 413 핸들러 | MAX_CONTENT_LENGTH 초과 시 413 응답 + UX — ai:p2-followup |
+| #42 CSRF DRY | challenge.py CSRF 로직을 utils/csrf.py로 통합 — ai:p2-followup |
+| #24 챌린지 AI P2 잔존 | `calorie.py` kcal 스키마 검증·`next()` StopIteration 미처리 |
 | #23 FR-35 race | 챌린지 중복참여 SELECT→INSERT race — 앱 검증만 적용, 커넥션 풀링과 함께 후속 |
 | #11 주차 타임존(KST) | report 적용 완료, 타 도메인은 `utils/week.py` 공통 유틸 사용 권장 |
-| #10 report 차트/SRI | 비교 차트 단위 정규화·CDN SRI — 프론트(Stitch) 재작업 시 (정재봉) |
+</content>

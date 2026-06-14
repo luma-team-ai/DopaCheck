@@ -9,4 +9,6 @@
 | history.py    | /history     | 허남   |
 | score.py      | /score       | 김승현 |
 | challenge.py  | /challenge   | 오영석 |
+| home.py       | /home        | 공통   |
 """
+

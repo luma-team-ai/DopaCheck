@@ -1,53 +1,23 @@
 """AI 챌린지 (담당: 오영석 — FR-32~38)."""
-import hmac
 import logging
-import secrets
 import time
 import uuid
 
-from flask import Blueprint, abort, jsonify, render_template, request, session
+from flask import Blueprint, jsonify, render_template, session
 
 import ai.challenge as ai_challenge
 from config import AI_RECOMMEND_CACHE_TTL
 from db.client import db
 from routes.auth import login_required
+from utils.csrf import get_or_create_csrf_token, verify_csrf
 
 logger = logging.getLogger(__name__)
 
 challenge_bp = Blueprint("challenge", __name__, url_prefix="/challenge")
 
-# ── CSRF 세션 키 ─────────────────────────────────────────
-_CSRF_SESSION_KEY = "csrf_token"
-
 # ── AI 추천 세션 캐시 키 ──────────────────────────────────
 _AI_CACHE_KEY = "ai_recommendations"
 _AI_CACHE_TS_KEY = "ai_recommendations_ts"
-
-
-def _get_or_create_csrf_token() -> str:
-    """세션에서 CSRF 토큰을 읽거나, 없으면 생성해 저장 후 반환한다."""
-    if _CSRF_SESSION_KEY not in session:
-        session[_CSRF_SESSION_KEY] = secrets.token_urlsafe(32)
-    return session[_CSRF_SESSION_KEY]
-
-
-def _verify_csrf() -> None:
-    """요청 헤더(X-CSRF-Token) 또는 폼 필드(csrf_token)의 CSRF 토큰을 검증한다.
-
-    타이밍 공격 방지를 위해 hmac.compare_digest 사용.
-    불일치 시 abort(403).
-    """
-    expected = session.get(_CSRF_SESSION_KEY)
-    if not expected:
-        abort(403)
-    received = (
-        request.headers.get("X-CSRF-Token")
-        or request.form.get("csrf_token")
-        or ""
-    )
-    # compare_digest는 str/bytes 모두 요구 — 타입을 str로 통일
-    if not hmac.compare_digest(str(expected), str(received)):
-        abort(403)
 
 
 def _calc_avg_delivery_per_week(delivery_rows: list) -> float:
@@ -101,7 +71,7 @@ def challenge_page():
     user_id = session.get("user_id")
 
     # CSRF 토큰 생성 (join POST에서 검증)
-    csrf_token = _get_or_create_csrf_token()
+    csrf_token = get_or_create_csrf_token()
 
     # 기본 챌린지 목록 (FR-32)
     try:
@@ -249,13 +219,12 @@ def join(challenge_id: str):
     CSRF 검증 (세션 토큰 — X-CSRF-Token 헤더 또는 csrf_token 폼 필드)
     """
     # CSRF 검증 (불일치 시 403)
-    _verify_csrf()
+    verify_csrf()
 
     user_id = session.get("user_id")
 
-    try:
-        uuid.UUID(challenge_id)
-    except ValueError:
+    # 길이·문자 검증 (파라미터 바인딩으로 SQL 인젝션은 차단됨)
+    if not challenge_id or len(challenge_id) > 36:
         return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
 
     # 중복 참여 사전 체크 (FR-35)
