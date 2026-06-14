@@ -148,6 +148,21 @@ def test_csrf_토큰_없으면_403(logged_in_client):
     assert res.status_code == 403
 
 
+def test_업로드_5MB_초과시_413_핸들러_리다이렉트(logged_in_client):
+    """MAX_CONTENT_LENGTH(5MB) 초과 업로드 → 413 핸들러가 flash + /delivery 리다이렉트. (#43)"""
+    oversized = io.BytesIO(b"\x00" * (5 * 1024 * 1024 + 1))  # 5MB + 1byte
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data={
+            "csrf_token": "test-csrf-token",
+            "image": (oversized, "big.png", "image/png"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert res.status_code == 302
+    assert "/delivery" in res.headers["Location"]
+
+
 def test_영수증_분석_성공(logged_in_client):
     """FR-2~6: OCR → 칼로리 → 환산 → 코멘트 → 저장 → result.html 렌더링."""
     data = {
