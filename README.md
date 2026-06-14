@@ -61,6 +61,16 @@ flask --app app run --debug   # http://localhost:5000
 pytest                        # 테스트
 ```
 
+### CSS 빌드 (Tailwind, #49)
+
+`base.html`·`login.html`은 Play CDN 대신 **빌드된 `static/css/tailwind.css`(커밋됨)** 를 사용한다. 배포(CloudType `python` 빌드팩)는 이 산출물을 그대로 서빙하므로 **Node 빌드가 배포에 필요 없다**. 단, `templates/*.html`에서 Tailwind 클래스를 추가/변경하면 **반드시 재빌드 후 산출물을 커밋**해야 한다(안 하면 새 클래스가 누락돼 시각 회귀가 무음으로 발생).
+
+```bash
+npm install                # 최초 1회 (package-lock.json 기준 재현)
+npm run build:css          # templates 스캔 → static/css/tailwind.css 재빌드 (minify)
+npm run watch:css          # 개발 중 자동 재빌드 (커밋 전엔 build:css로 minify 확정)
+```
+
 ## 2. 프로젝트 구조
 
 ```
