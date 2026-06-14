@@ -1,37 +1,312 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html class="dark" lang="ko">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}도파민 체크{% endblock %} | Dopamine Check</title>
+  <title>{% block title %}도파민 체크{% endblock %} | DopaCheck</title>
+  <!-- Stitch Design System: Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <!-- Pretendard -->
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+  <!-- Inter + Plus Jakarta Sans -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+  <!-- 기존 style.css (과도기 호환 — history/delivery/challenge/score/time 페이지) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <!-- Stitch Design System: Tailwind Config -->
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "tertiary-container": "#bb5a00",
+            "surface-container-high": "#2a2933",
+            "tertiary": "#ffb689",
+            "on-secondary-fixed": "#3f001b",
+            "inverse-primary": "#5340e7",
+            "inverse-surface": "#e5e0ee",
+            "surface-container": "#1f1f28",
+            "on-tertiary": "#512300",
+            "secondary-fixed": "#ffd9e1",
+            "on-background": "#e5e0ee",
+            "error-container": "#93000a",
+            "background": "#13121c",
+            "on-error": "#690005",
+            "surface-dim": "#13121c",
+            "surface-bright": "#393842",
+            "primary-fixed-dim": "#c5c0ff",
+            "outline-variant": "#474555",
+            "tertiary-fixed": "#ffdbc8",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-primary-container": "#fffdff",
+            "primary-fixed": "#e3dfff",
+            "primary": "#c5c0ff",
+            "on-tertiary-fixed-variant": "#743500",
+            "on-surface": "#e5e0ee",
+            "surface-variant": "#35343e",
+            "outline": "#918ea1",
+            "inverse-on-surface": "#302f39",
+            "on-tertiary-container": "#fffdff",
+            "secondary": "#ffb1c5",
+            "secondary-fixed-dim": "#ffb1c5",
+            "tertiary-fixed-dim": "#ffb689",
+            "surface": "#13121c",
+            "on-surface-variant": "#c8c4d8",
+            "surface-container-lowest": "#0e0d16",
+            "primary-container": "#6b5bff",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "secondary-container": "#8c0a46",
+            "on-secondary": "#650030",
+            "surface-container-highest": "#35343e",
+            "surface-container-low": "#1b1a24",
+            "on-secondary-container": "#ff95b4",
+            "error": "#ffb4ab",
+            "on-primary-fixed": "#140067",
+            "surface-tint": "#c5c0ff",
+            "on-tertiary-fixed": "#311300",
+            "on-primary": "#2500a2"
+          },
+          borderRadius: {
+            DEFAULT: "0.25rem",
+            lg: "0.5rem",
+            xl: "0.75rem",
+            full: "9999px"
+          },
+          spacing: {
+            "card-padding": "24px",
+            unit: "4px",
+            "section-gap": "40px",
+            "stack-gap": "16px",
+            "container-padding": "20px"
+          },
+          fontFamily: {
+            "display-lg-mobile": ["Plus Jakarta Sans"],
+            "hero-num": ["Plus Jakarta Sans"],
+            "label-caps": ["Inter"],
+            "body-lg": ["Inter"],
+            "hero-num-md": ["Plus Jakarta Sans"],
+            "title-md": ["Inter"],
+            "display-lg": ["Plus Jakarta Sans"]
+          },
+          fontSize: {
+            "display-lg-mobile": ["28px", { lineHeight: "130%", fontWeight: "700" }],
+            "hero-num": ["96px", { lineHeight: "110%", letterSpacing: "-0.04em", fontWeight: "800" }],
+            "label-caps": ["12px", { lineHeight: "100%", letterSpacing: "0.05em", fontWeight: "600" }],
+            "body-lg": ["16px", { lineHeight: "160%", fontWeight: "400" }],
+            "hero-num-md": ["56px", { lineHeight: "110%", letterSpacing: "-0.04em", fontWeight: "800" }],
+            "title-md": ["20px", { lineHeight: "150%", fontWeight: "600" }],
+            "display-lg": ["32px", { lineHeight: "130%", fontWeight: "700" }]
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+    }
+
+    /* Orb 배경 애니메이션 */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.18;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    @keyframes drift {
+      0%   { transform: translate(0, 0) scale(1); }
+      33%  { transform: translate(5vw, 5vh) scale(1.05); }
+      66%  { transform: translate(-5vw, 8vh) scale(0.95); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
+    .orb-glow {
+      animation: drift 20s ease-in-out infinite;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    .glass-button {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .glass-button:active {
+      transform: scale(0.96);
+    }
+
+    /* Custom Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.03);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.15);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* 모바일 햄버거 메뉴 */
+    #mobile-menu { display: none; }
+    #mobile-menu.open { display: flex; }
+  </style>
   {% block head %}{% endblock %}
 </head>
-<body>
-  <header class="nav">
-    <a href="{{ url_for('index') }}" class="nav-logo">🧠 도파민 체크</a>
+<body class="dark min-h-screen bg-background text-on-surface relative overflow-x-hidden">
+
+  <!-- Ambient Background Orbs (전 페이지 공통 분위기) -->
+  <div class="fixed inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="orb orb-glow bg-gradient-to-br from-primary-container to-secondary-container"
+         style="width:70vw; max-width:600px; height:70vw; max-height:600px; top:-15%; left:-10%;"></div>
+    <div class="orb bg-tertiary-container"
+         style="width:40vw; max-width:360px; height:40vw; max-height:360px; bottom:5%; right:-8%; animation:drift 28s ease-in-out infinite reverse; opacity:0.1;"></div>
+  </div>
+
+  <!-- Navigation Header -->
+  <header class="relative z-10 w-full border-b border-outline-variant/20 bg-background/80 backdrop-blur-md sticky top-0">
+    <div class="max-w-3xl mx-auto px-container-padding h-14 flex items-center justify-between gap-4">
+      <!-- Logo -->
+      <a href="{{ url_for('index') }}" class="flex items-center gap-2 shrink-0 group">
+        <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck"
+             class="h-7 w-auto"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <span class="hidden items-center gap-1.5 text-on-surface font-bold text-base" style="display:none;">
+          <span class="material-symbols-outlined text-primary text-xl">psychology</span>
+          DopaCheck
+        </span>
+      </a>
+
+      {% if session.get('user') %}
+      <!-- Desktop Nav -->
+      <nav class="hidden sm:flex items-center gap-1" aria-label="주요 메뉴">
+        <a href="{{ url_for('delivery.delivery_page') }}"
+           class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+          <span class="material-symbols-outlined text-base leading-none">delivery_dining</span>
+          배달
+        </a>
+        <a href="{{ url_for('time.time_page') }}"
+           class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+          <span class="material-symbols-outlined text-base leading-none">schedule</span>
+          시간
+        </a>
+        <a href="{{ url_for('report.report_page') }}"
+           class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+          <span class="material-symbols-outlined text-base leading-none">bar_chart</span>
+          리포트
+        </a>
+        <a href="{{ url_for('history.history_list') }}"
+           class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+          <span class="material-symbols-outlined text-base leading-none">history</span>
+          히스토리
+        </a>
+        <a href="{{ url_for('score.score_page') }}"
+           class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+          <span class="material-symbols-outlined text-base leading-none">military_tech</span>
+          점수
+        </a>
+        <a href="{{ url_for('challenge.challenge_page') }}"
+           class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+          <span class="material-symbols-outlined text-base leading-none">flag</span>
+          챌린지
+        </a>
+        <a href="{{ url_for('auth.logout') }}"
+           class="flex items-center gap-1 ml-2 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/20 text-sm font-medium transition-colors">
+          <span class="material-symbols-outlined text-base leading-none">logout</span>
+          로그아웃
+        </a>
+      </nav>
+
+      <!-- Mobile Hamburger Button -->
+      <button id="hamburger-btn"
+              class="sm:hidden p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors"
+              aria-label="메뉴 열기" aria-expanded="false" aria-controls="mobile-menu">
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+      {% endif %}
+    </div>
+
     {% if session.get('user') %}
-    <nav class="nav-menu">
-      <a href="{{ url_for('delivery.delivery_page') }}">배달 분석</a>
-      <a href="{{ url_for('time.time_page') }}">시간 분석</a>
-      <a href="{{ url_for('report.report_page') }}">리포트</a>
-      <a href="{{ url_for('history.history_list') }}">히스토리</a>
-      <a href="{{ url_for('score.score_page') }}">점수</a>
-      <a href="{{ url_for('challenge.challenge_page') }}">챌린지</a>
-      <a href="{{ url_for('auth.logout') }}">로그아웃</a>
+    <!-- Mobile Nav Dropdown -->
+    <nav id="mobile-menu"
+         class="sm:hidden flex-col gap-1 px-container-padding pb-3 bg-background/95 backdrop-blur-md border-t border-outline-variant/10"
+         aria-label="모바일 메뉴">
+      <a href="{{ url_for('delivery.delivery_page') }}"
+         class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-lg">delivery_dining</span>배달 분석
+      </a>
+      <a href="{{ url_for('time.time_page') }}"
+         class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-lg">schedule</span>시간 분석
+      </a>
+      <a href="{{ url_for('report.report_page') }}"
+         class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-lg">bar_chart</span>리포트
+      </a>
+      <a href="{{ url_for('history.history_list') }}"
+         class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-lg">history</span>히스토리
+      </a>
+      <a href="{{ url_for('score.score_page') }}"
+         class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-lg">military_tech</span>점수
+      </a>
+      <a href="{{ url_for('challenge.challenge_page') }}"
+         class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-lg">flag</span>챌린지
+      </a>
+      <a href="{{ url_for('auth.logout') }}"
+         class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-error hover:bg-error-container/20 text-sm font-medium transition-colors">
+        <span class="material-symbols-outlined text-lg">logout</span>로그아웃
+      </a>
     </nav>
     {% endif %}
   </header>
 
-  <main class="container">
+  <!-- Main Content -->
+  <main class="relative z-10 w-full max-w-3xl mx-auto px-container-padding py-6">
+    <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for category, message in messages %}
-        <div class="flash flash-{{ category }}">{{ message }}</div>
-      {% endfor %}
+      {% if messages %}
+        <div class="mb-4 space-y-2">
+          {% for category, message in messages %}
+            <div class="p-3.5 text-sm rounded-xl text-center font-medium
+              {% if category == 'error' %}bg-error-container/20 text-error border border-error/20
+              {% else %}bg-primary-container/20 text-primary border border-primary/20{% endif %}"
+              style="backdrop-filter: blur(8px);">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
     {% endwith %}
+
     {% block content %}{% endblock %}
   </main>
 
   {% block scripts %}{% endblock %}
+
+  <!-- Mobile Menu Toggle Script -->
+  <script>
+    (function () {
+      const btn = document.getElementById('hamburger-btn');
+      const menu = document.getElementById('mobile-menu');
+      if (!btn || !menu) return;
+      btn.addEventListener('click', () => {
+        const open = menu.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.querySelector('.material-symbols-outlined').textContent = open ? 'close' : 'menu';
+      });
+    })();
+  </script>
 </body>
 </html>
