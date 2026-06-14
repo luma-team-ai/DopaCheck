@@ -40,6 +40,6 @@ def estimate(items: list[str]) -> dict:
         calories = json.loads(extract_json(text))
     except json.JSONDecodeError as e:
         raise ValueError(f"칼로리 추론 응답 파싱 실패: {e}") from e
-    total_kcal = sum(item["kcal"] for item in calories)
+    total_kcal = sum(item.get("kcal", 0) for item in calories)
 
     return {"success": True, "calories": calories, "total_kcal": total_kcal}
