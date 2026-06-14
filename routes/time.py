@@ -38,7 +38,7 @@ def analyze():
     2. SNS 시간 환산: 책 N권 / 강의 N개 / 운동 N회 (FR-11 — config.py 상수)
     3. 게임 시간 환산: 시급 기준 N원짜리 취미 (FR-12)
     4. ai.comment.generate("time", context) 호출 (FR-14)
-    5. time_records 저장 (FR-15)
+    5. time_records 저장 + users.hourly_wage 갱신 (FR-15)
     6. 도파민 점수 재산출 트리거 (FR-31) — stub이면 무시
     7. 결과 템플릿 렌더
     """
@@ -72,6 +72,12 @@ def analyze():
 
     # ── 3. 게임 시간 환산 (FR-12) ─────────────────────────────────────
     game_cost = int(game_h * hourly_wage)               # N원짜리 취미
+
+    # ── P2 합산 168h 초과 검증 ────────────────────────────────────────
+    # 각 필드는 0~168h로 클램핑되나 합산은 최대 672h까지 가능.
+    # 1주=168h 초과 시 결과는 표시하되 경고 플래그를 템플릿에 전달.
+    total_h = sns_total_h + game_h
+    over_limit = total_h > 168.0
 
     # ── 4. AI 공감 코멘트 (FR-14) ─────────────────────────────────────
     context = {
@@ -107,8 +113,15 @@ def analyze():
             """,
             (user_id, youtube_min, instagram_min, tiktok_min, game_min, hourly_wage, ai_msg),
         )
+        # P3-2: 마지막 입력 시급을 users에도 저장 — 다음 방문 시 기억 (UX)
+        cursor.execute(
+            "UPDATE users SET hourly_wage = %s WHERE id = %s",
+            (hourly_wage, user_id),
+        )
 
     # ── 6. 도파민 점수 재산출 (FR-31) — stub이면 조용히 무시 ──────────
+    # P3-1: score.py 구현 완료 후 최상단 import로 올릴 것 (김승현 PR 완료 시).
+    # 현재는 순환 참조 위험을 피하기 위해 함수 내 지연 import 유지.
     try:
         from routes.score import recalculate_score
         recalculate_score(user_id)
@@ -128,6 +141,8 @@ def analyze():
         hourly_wage=hourly_wage,
         # 계산값
         sns_total_h=sns_total_h,
+        total_h=total_h,
+        over_limit=over_limit,
         book_n=book_n,
         lecture_n=lecture_n,
         workout_n=workout_n,

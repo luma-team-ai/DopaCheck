@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html class="dark" lang="ko">
-<head>
-<meta charset="utf-8">
-<meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>시간 분석 - DopaCheck</title>
+{% extends 'base.html' %}
+{% block title %}시간 분석{% endblock %}
+
+{% block nav %}{% endblock nav %}
+
+{% block head %}
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
@@ -131,9 +131,13 @@
         border-color: rgba(197, 192, 255, 0.5);
         background-color: #2a2933;
     }
+    /* base.html .container 리셋 */
+    main.container { max-width: none; padding: 0; margin: 0; }
 </style>
-</head>
-<body class="min-h-screen">
+{% endblock head %}
+
+{% block content %}
+<div class="dark min-h-screen" style="background:#13121c;">
 <!-- Atmospheric Background Orbs -->
 <div class="bg-orb w-96 h-96 bg-primary top-[-10%] left-[-10%]"></div>
 <div class="bg-orb w-80 h-80 bg-secondary bottom-[20%] right-[-5%]"></div>
@@ -253,7 +257,10 @@
     </button>
   </footer>
 </form>
+</div><!-- /.dark -->
+{% endblock content %}
 
+{% block scripts %}
 <script>
     document.querySelectorAll('.input-card').forEach(card => {
         card.addEventListener('mouseenter', () => {
@@ -271,5 +278,4 @@
         });
     });
 </script>
-</body>
-</html>
+{% endblock scripts %}

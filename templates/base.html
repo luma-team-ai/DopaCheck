@@ -8,6 +8,7 @@
   {% block head %}{% endblock %}
 </head>
 <body>
+  {% block nav %}
   <header class="nav">
     <a href="{{ url_for('index') }}" class="nav-logo">🧠 도파민 체크</a>
     {% if session.get('user') %}
@@ -22,6 +23,7 @@
     </nav>
     {% endif %}
   </header>
+  {% endblock nav %}
 
   <main class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
