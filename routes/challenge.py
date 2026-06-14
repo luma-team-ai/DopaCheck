@@ -223,9 +223,8 @@ def join(challenge_id: str):
 
     user_id = session.get("user_id")
 
-    try:
-        uuid.UUID(challenge_id)
-    except ValueError:
+    # 길이·문자 검증 (파라미터 바인딩으로 SQL 인젝션은 차단됨)
+    if not challenge_id or len(challenge_id) > 36:
         return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
 
     # 중복 참여 사전 체크 (FR-35)

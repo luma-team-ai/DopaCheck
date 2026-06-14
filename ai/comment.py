@@ -54,7 +54,7 @@ def generate(comment_type: str, context: dict) -> str:
     prompt = template.format(context=json.dumps(safe_context, ensure_ascii=False))
 
     response = get_client().messages.create(
-        model="claude-opus-4-8",
+        model="claude-haiku-4-5",
         max_tokens=256,
         system=_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
