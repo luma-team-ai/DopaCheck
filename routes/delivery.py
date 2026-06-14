@@ -16,6 +16,7 @@ from config import (
 )
 from db.client import db
 from routes.auth import login_required
+from utils.csrf import get_or_create_csrf_token, verify_csrf
 
 logger = logging.getLogger(__name__)
 
@@ -100,14 +101,16 @@ def calc_calorie_conversion(total_kcal: int) -> dict:
 @login_required
 def delivery_page():
     """영수증 업로드 폼. (FR-1)"""
-    return render_template("delivery/index.html")
+    csrf_token = get_or_create_csrf_token()
+    return render_template("delivery/index.html", csrf_token=csrf_token)
 
 
 @delivery_bp.route("/manual")
 @login_required
 def manual_page():
     """OCR 실패 시 수동 입력 폼 fallback. (FR-7)"""
-    return render_template("delivery/manual.html")
+    csrf_token = get_or_create_csrf_token()
+    return render_template("delivery/manual.html", csrf_token=csrf_token)
 
 
 @delivery_bp.route("/analyze", methods=["POST"])
@@ -123,6 +126,7 @@ def analyze():
     5. ai.comment.generate("delivery", context) 호출 (FR-6)
     6. delivery_records 저장 + 도파민 점수 재산출 트리거 (FR-8, FR-31)
     """
+    verify_csrf()
     user_id = session.get("user_id")  # int (BIGINT PK)
     if not user_id:
         abort(401)
