@@ -12,6 +12,7 @@
 | `db/schema.sql` 작성 (MariaDB) | ✅ 완료 | 정재봉 |
 | CloudType 자동배포 워크플로 (`deploy-main.yml`, push 시 배포 + Secrets preflight) | ✅ 완료·검증 | 정재봉 |
 | **Stitch 디자인 기준 정립** (`base.html` 공통 디자인 시스템 — 팀원 상속 기준) | ✅ 완료 (#51) | 정재봉 |
+| Tailwind Play CDN → PostCSS 빌드 전환 (`static/css/tailwind.css` 산출물 커밋, SRI 해소) | 🔄 PR #67 검증 대기 (#49) | 정재봉 |
 | Google / Kakao OAuth 연동 (#16→#38 머지) | ✅ 완료 | 김승현 |
 | MariaDB 인스턴스 프로비저닝 + 스키마 적용 | ⬜ 대기 | 김승현 |
 | 시드 더미 데이터 20건 | ⬜ 대기 | 김승현 |
@@ -52,7 +53,7 @@
 |------|------|
 | #62 score 점수식 회귀 | `recalculate_score`가 #48 합의 공식(`ai.score.calculate`/config 상수) 대신 하드코딩 점수식 사용 → 점수 divergence. PR #50에서 화면·테스트 우선 머지 후 분리 |
 | #63 time 입력폼 cosmetic | `time/index.html` 시급 `default(10030)` 하드코딩(미트리거)·test 픽스처값 정합 — PR #52 후속(P2/P3) |
-| #49 Tailwind Play CDN | `base.html`·`login.html` Play CDN(SRI 불가, 프로덕션 비권장) → PostCSS 빌드 전환 (전역, 정재봉) |
+| #49 Tailwind Play CDN | **PR #67 생성·검증 대기**. Tailwind v3 CLI 빌드(`tailwind.css` 산출물 커밋)로 전환, 인라인 config 전량 이식·테스트 93 PASS. code-reviewer P1 3건 → G3.5 게이트 원본 대조로 **전부 무효 확인**(컨테이너 `z-[-1]`·인라인 opacity/스크롤 보존). 후속: README 빌드 절차·watch minify |
 | #44 세션 쿠키 보안 | SameSite/Secure/HttpOnly 명시 설정 — ai:p2-followup |
 | #43 413 핸들러 | MAX_CONTENT_LENGTH 초과 시 413 응답 + UX — ai:p2-followup |
 | #42 CSRF DRY | challenge.py CSRF 로직을 utils/csrf.py로 통합 — ai:p2-followup |
