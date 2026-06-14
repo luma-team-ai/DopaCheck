@@ -19,6 +19,7 @@
 
 ## 마지막 머지 PR
 
+- #72 DBUtils 커넥션 풀 도입 (**#23 CLOSED**, 정재봉) — `db/client.py` 요청마다 `pymysql.connect()`→`PooledDB` 풀 전환(503/고갈 방지). 모듈 싱글톤 지연초기화+`threading.Lock` DCL, `db()` 외부 계약 유지, `DB_POOL_SIZE`(기본5). FR-35 중복검증은 기구현이라 범위 제외. reviewer P1 2건(`int("")` 방어·`blocking` 무한대기)→픽스+**#71 분리**, 재검토 APPROVE, pytest 111 PASS
 - #70 홈 챌린지 집계를 `completed_at` 기준으로 통일 (**#69 P1 정합성 버그 CLOSED**, 정재봉) — `routes/home.py` 완료 집계가 `started_at`→`completed_at`로 score_service와 정합, `total`은 (시작 OR 완료) 합집합으로 확장해 completed ⊆ total 불변식 보장. code-reviewer P1 0건(초기 P1은 OR-COUNT 로직 정상 재분류), pytest 98 PASS
 - #67 Tailwind Play CDN → PostCSS(v3 CLI) 빌드 전환 (#49 CLOSED, 정재봉) — `base.html`·`login.html` CDN 제거 → `static/css/tailwind.css` 산출물 커밋(SRI 해소). 인라인 config 컬러 47개 전량 이식. code-reviewer P1 3건 → **G3.5 원본 대조로 전부 무효**(orb 컨테이너 `z-[-1]`·인라인 opacity/스크롤 보존). main rebase 후 pytest 95 PASS
 - #61 `recalculate_score`를 `services/score_service.py`로 분리 — **#58 CLOSED**(routes→routes 순환 임포트 제거, 계층 정리). #65 머지로 충돌 → main 리베이스 후 계산식은 #65 1:1 유지(동작 무변경). code-reviewer P1 2건(home.py 누락 import·테스트 patch 경로)→픽스 후 잔존 0, pytest 95 PASS
@@ -59,6 +60,7 @@
 | #43 413 핸들러 | MAX_CONTENT_LENGTH 초과 시 413 응답 + UX — ai:p2-followup |
 | #42 CSRF DRY | challenge.py CSRF 로직을 utils/csrf.py로 통합 — ai:p2-followup |
 | #24 챌린지 AI P2 잔존 | `calorie.py` kcal 스키마 검증·`next()` StopIteration 미처리 |
-| #23 FR-35 race | 챌린지 중복참여 SELECT→INSERT race — 앱 검증만 적용, 커넥션 풀링과 함께 후속 |
+| FR-35 race(잔존) | 챌린지 중복참여 SELECT→INSERT TOCTOU race — 앱 검증만 적용(#23 풀 도입은 별개로 CLOSED). MariaDB partial unique 미지원, 동시성 차단은 미해결 파킹 |
+| #71 풀 blocking 무한대기 | `blocking=True` 타임아웃 없음 — sync 워커 무해, gthread 전환 시 bounded-timeout/503 필요(#23 후속) |
 | #11 주차 타임존(KST) | report 적용 완료, 타 도메인은 `utils/week.py` 공통 유틸 사용 권장 |
 </content>
