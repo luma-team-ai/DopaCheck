@@ -24,3 +24,6 @@ uploads/
 
 # Node.js
 node_modules/
+
+# Playwright MCP 잔재
+.playwright-mcp/

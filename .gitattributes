@@ -1,0 +1,2 @@
+# Tailwind PostCSS 빌드 산출물 — 커밋하되 diff/언어통계에서 제외 (#49)
+static/css/tailwind.css linguist-generated=true -diff
