@@ -8,6 +8,7 @@ import os
 os.environ.setdefault("GOOGLE_CLIENT_ID", "test-google-client-id")
 os.environ.setdefault("GOOGLE_CLIENT_SECRET", "test-google-client-secret")
 os.environ.setdefault("KAKAO_CLIENT_ID", "test-kakao-client-id")
+os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key-for-pytest")
 
 import pytest
 

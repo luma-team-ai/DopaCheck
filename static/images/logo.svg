@@ -1,0 +1,11 @@
+<svg width="240" height="48" viewBox="0 0 240 48" xmlns="http://www.w3.org/2000/svg">
+  <rect width="48" height="48" rx="12" fill="#1a1a2e"/>
+  <polyline points="2,24 8,24 12,12 16,36 20,17 24,29 28,19.5 32,27 36,13.5 40,31.5 44,24 46,24"
+    fill="none" stroke="#7F77DD" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="24" cy="24" r="3" fill="#D85A30"/>
+  <circle cx="24" cy="24" r="1.4" fill="#1a1a2e"/>
+  <text x="62" y="30" font-family="'Pretendard', 'Helvetica Neue', Arial, sans-serif"
+    font-size="22" font-weight="600" letter-spacing="-0.3" fill="#FFFFFF">Dopa<tspan fill="#7F77DD">Check</tspan></text>
+  <text x="63" y="43" font-family="'Pretendard', 'Helvetica Neue', Arial, sans-serif"
+    font-size="9" font-weight="400" letter-spacing="2" fill="#6B6B7B">DOPAMINE TRACKER</text>
+</svg>

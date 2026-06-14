@@ -1,59 +1,379 @@
-{% extends "base.html" %}
-{% block title %}로그인{% endblock %}
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>로그인 | DopaCheck</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background-color: #13121c;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      min-height: max(884px, 100dvh);
+    }
 
-{% block header_left %}<span></span>{% endblock %}
-{% block header_title %}{% endblock %}
-{% block header_right %}<span></span>{% endblock %}
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.3;
+      z-index: -1;
+      pointer-events: none;
+    }
 
-{% block content %}
-<div class="flex flex-col items-center justify-center min-h-[80vh] text-center px-2">
+    @keyframes drift {
+      0% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(5vw, 5vh) scale(1.05); }
+      66% { transform: translate(-5vw, 8vh) scale(0.95); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
 
-  <!-- 로고 -->
-  <div class="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4"
-       style="background:linear-gradient(135deg,#6b5bff,#ffb1c5);">
-    <span class="text-4xl">🧠</span>
+    .orb-glow {
+      animation: drift 20s ease-in-out infinite;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+
+    .glass-button {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .glass-button:active {
+      transform: scale(0.96);
+    }
+
+    /* Custom Scrollbar for Modal content */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-container": "#bb5a00",
+            "surface-container-high": "#2a2933",
+            "tertiary": "#ffb689",
+            "on-secondary-fixed": "#3f001b",
+            "inverse-primary": "#5340e7",
+            "inverse-surface": "#e5e0ee",
+            "surface-container": "#1f1f28",
+            "on-tertiary": "#512300",
+            "secondary-fixed": "#ffd9e1",
+            "on-background": "#e5e0ee",
+            "error-container": "#93000a",
+            "background": "#13121c",
+            "on-error": "#690005",
+            "surface-dim": "#13121c",
+            "surface-bright": "#393842",
+            "primary-fixed-dim": "#c5c0ff",
+            "outline-variant": "#474555",
+            "tertiary-fixed": "#ffdbc8",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-primary-container": "#fffdff",
+            "primary-fixed": "#e3dfff",
+            "primary": "#c5c0ff",
+            "on-tertiary-fixed-variant": "#743500",
+            "on-surface": "#e5e0ee",
+            "surface-variant": "#35343e",
+            "outline": "#918ea1",
+            "inverse-on-surface": "#302f39",
+            "on-tertiary-container": "#fffdff",
+            "secondary": "#ffb1c5",
+            "secondary-fixed-dim": "#ffb1c5",
+            "tertiary-fixed-dim": "#ffb689",
+            "surface": "#13121c",
+            "on-surface-variant": "#c8c4d8",
+            "surface-container-lowest": "#0e0d16",
+            "primary-container": "#6b5bff",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "secondary-container": "#8c0a46",
+            "on-secondary": "#650030",
+            "surface-container-highest": "#35343e",
+            "surface-container-low": "#1b1a24",
+            "on-secondary-container": "#ff95b4",
+            "error": "#ffb4ab",
+            "on-primary-fixed": "#140067",
+            "surface-tint": "#c5c0ff",
+            "on-tertiary-fixed": "#311300",
+            "on-primary": "#2500a2"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "card-padding": "24px",
+            "unit": "4px",
+            "section-gap": "40px",
+            "stack-gap": "16px",
+            "container-padding": "20px"
+          },
+          "fontFamily": {
+            "display-lg-mobile": ["PlusJakartaSans"],
+            "hero-num": ["PlusJakartaSans"],
+            "label-caps": ["Inter"],
+            "body-lg": ["Inter"],
+            "hero-num-md": ["PlusJakartaSans"],
+            "title-md": ["Inter"],
+            "display-lg": ["PlusJakartaSans"]
+          },
+          "fontSize": {
+            "display-lg-mobile": ["28px", { "lineHeight": "130%", "fontWeight": "700" }],
+            "hero-num": ["96px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "label-caps": ["12px", { "lineHeight": "100%", "letterSpacing": "0.05em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "160%", "fontWeight": "400" }],
+            "hero-num-md": ["56px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "title-md": ["20px", { "lineHeight": "150%", "fontWeight": "600" }],
+            "display-lg": ["32px", { "lineHeight": "130%", "fontWeight": "700" }]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen relative overflow-hidden bg-background text-on-surface">
+  <!-- Ambient Background Orbs -->
+  <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none flex items-center justify-center">
+    <div class="orb orb-glow bg-gradient-to-br from-primary-container to-secondary-container w-[150vw] h-[150vh] max-w-[800px] max-h-[800px]"></div>
   </div>
-  <h1 class="text-3xl font-extrabold gradient-text mb-2" style="font-family:'Plus Jakarta Sans',sans-serif;">
-    DopaCheck
-  </h1>
-  <p class="text-sm text-on-surface-variant leading-relaxed mb-6">
-    나의 도파민 소비 패턴을 분석하고<br>더 건강한 습관을 만들어 보세요
-  </p>
 
-  <!-- 기능 칩 -->
-  <div class="flex flex-wrap gap-2 justify-center mb-8">
-    <span class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-primary-container/20 text-primary border border-primary/20">📦 배달 지출 분석</span>
-    <span class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-secondary-container/20 text-secondary border border-secondary/20">⏱ 시간 소비 시각화</span>
-    <span class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-surface-container-high text-tertiary border border-tertiary/20">🏆 도파민 점수</span>
-    <span class="px-3 py-1.5 rounded-full text-[11px] font-semibold bg-surface-container-high text-on-surface-variant border border-outline-variant/30">🎯 AI 챌린지</span>
+  <main class="relative z-10 w-full max-w-[320px] flex flex-col items-center flex-1 justify-center pt-[120px] pb-24 px-container-padding">
+    <div class="w-full flex flex-col items-center justify-center">
+      <!-- Brand Identity Section -->
+      <div class="flex flex-col items-center text-center">
+        <!-- 새 로고 이미지 적용 -->
+        <h1 class="mb-6 w-full flex justify-center">
+          <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck" class="h-12 w-auto mx-auto">
+        </h1>
+        <p class="font-body-lg text-body-lg text-on-surface-variant font-medium opacity-90">
+          당신의 도파민, 진짜 가치를 알려드려요
+        </p>
+      </div>
+
+      <!-- Flash Messages (오류 메시지 출력용) -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="w-full mt-6 space-y-2">
+            {% for category, message in messages %}
+              <div class="p-3.5 text-xs rounded-xl text-center font-medium {% if category == 'error' %}bg-error-container/20 text-error border border-error/20{% else %}bg-primary-container/20 text-primary border border-primary/20{% endif %}" style="backdrop-filter: blur(8px);">
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <!-- Social Login Stack -->
+      <div class="w-full flex flex-col gap-[12px] mt-[36px]">
+        <!-- Kakao Login -->
+        <a href="{{ url_for('auth.kakao_login') }}" class="glass-button w-full max-w-[320px] mx-auto h-[52px] bg-[#FEE500] rounded-xl flex items-center justify-center relative overflow-hidden group">
+          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+          <div class="flex items-center gap-3">
+            <svg fill="none" height="17" viewBox="0 0 18 17" width="18" xmlns="http://www.w3.org/2000/svg">
+              <path d="M9 0C4.029 0 0 3.123 0 6.975C0 9.471 1.62 11.666 4.05 12.912L3.024 16.659C2.97 16.857 3.195 17.019 3.366 16.902L7.767 13.941C8.172 13.977 8.586 13.998 9 13.998C13.971 13.998 18 10.875 18 7.023C18 3.171 13.971 0.048 9 0.048V0Z" fill="black" fill-opacity="0.9"></path>
+            </svg>
+            <span class="text-[15px] font-bold text-black/90">카카오로 시작하기</span>
+          </div>
+        </a>
+        <!-- Google Login -->
+        <a href="{{ url_for('auth.google_login') }}" class="glass-button w-full max-w-[320px] mx-auto h-[52px] bg-white rounded-xl flex items-center justify-center border border-outline-variant/20 relative overflow-hidden group">
+          <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors"></div>
+          <div class="flex items-center gap-3">
+            <svg fill="none" height="18" viewBox="0 0 18 18" width="18" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.64 9.20455C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20455Z" fill="#4285F4"></path>
+              <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"></path>
+              <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"></path>
+              <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"></path>
+            </svg>
+            <span class="text-[15px] font-bold text-[#1F1F1F]">Google로 시작하기</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- Minimalist Micro-interaction Component -->
+      <div class="mt-[40px] flex items-center justify-center gap-1.5 opacity-40">
+        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style="animation-delay: 0.2s;"></div>
+        <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" style="animation-delay: 0.4s;"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="absolute bottom-6 left-0 right-0 z-10 flex justify-center">
+    <div class="flex items-center gap-4 text-[#6B6B7B] font-label-caps text-label-caps tracking-widest text-[11px]">
+      <a id="terms-link" class="hover:text-primary transition-colors duration-300 cursor-pointer" href="#">이용약관</a>
+      <span class="w-1 h-1 rounded-full bg-[#6B6B7B]"></span>
+      <a id="privacy-link" class="hover:text-primary transition-colors duration-300 cursor-pointer" href="#">개인정보처리방침</a>
+    </div>
+  </footer>
+
+  <!-- 이용약관 모달 -->
+  <div id="terms-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <!-- Backdrop -->
+    <div class="modal-close-trigger absolute inset-0 bg-black/70 backdrop-blur-md"></div>
+    <!-- Modal Card -->
+    <div class="relative z-10 w-full max-w-lg bg-[#1c1b26] border border-outline-variant/30 rounded-2xl flex flex-col max-h-[75vh] shadow-2xl overflow-hidden" style="box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-5 border-b border-outline-variant/20">
+        <h2 class="text-base font-bold text-[#e5e0ee]">DopaCheck 서비스 이용약관</h2>
+        <button class="modal-close-trigger text-[#6B6B7B] hover:text-[#e5e0ee] text-2xl transition-colors">&times;</button>
+      </div>
+      <!-- Body -->
+      <div class="p-6 overflow-y-auto custom-scrollbar text-[13px] text-[#c8c4d8] space-y-4 leading-relaxed">
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-2">제 1 조 (목적)</h3>
+        <p>본 약관은 "DopaCheck"(이하 "서비스")가 제공하는 도파민 소비 패턴 분석 서비스 및 관련 제반 서비스의 이용과 관련하여 회사와 회원과의 권리, 의무 및 책임사항, 기타 필요한 사항을 규정함을 목적으로 합니다.</p>
+        
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">제 2 조 (용어의 정의)</h3>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>"서비스"라 함은 회원이 업로드한 배달 소비 내역 분석, 시간 소비 기록 시각화, 도파민 점수 산출 및 AI 기반 챌린지 서비스를 제공하는 플랫폼을 의미합니다.</li>
+          <li>"회원"이라 함은 서비스에 접속하여 본 약관에 동의하고 소셜 계정(Google, Kakao)을 연동하여 서비스를 이용하는 고객을 의미합니다.</li>
+        </ul>
+
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">제 3 조 (약관의 효력 및 변경)</h3>
+        <p>본 약관은 회원이 동의함으로써 효력이 발생하며, 서비스는 관계 법령을 위배하지 않는 범위에서 본 약관을 개정할 수 있습니다. 변경된 약관은 공지사항 또는 로그인 화면을 통해 공지됩니다.</p>
+
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">제 4 조 (서비스의 제공 및 이용제한)</h3>
+        <p>서비스는 회원에게 아래와 같은 기능을 제공합니다:</p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>배달 지출 명세서 분석을 통한 소비 도파민 지수 측정</li>
+          <li>일간 시간 소비 기록 기반의 행동 패턴 시각화</li>
+          <li>개인화된 도파민 개선 AI 챌린지 추천</li>
+        </ul>
+        <p>비정상적인 데이터 업로드, 시스템 해킹 시도 등의 행위가 감지될 경우 서비스 이용이 즉시 제한될 수 있습니다.</p>
+
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">제 5 조 (책임의 한계 및 면책)</h3>
+        <p>DopaCheck가 분석 및 가공하여 제공하는 도파민 지표와 점수, AI 제안 챌린지는 통계적 데이터 분석과 행동과학적 가이드라인에 기초한 참고 자료입니다. 이는 <strong>의학적 진단이나 전문적인 정신과적 치료를 대체할 수 없으며</strong>, 회원의 행동 개선에 따른 모든 결과적 책임은 회원 본인에게 있습니다.</p>
+      </div>
+      <!-- Footer -->
+      <div class="p-4 border-t border-outline-variant/20 flex justify-end bg-[#13121c]/40">
+        <button class="modal-close-trigger px-5 py-2.5 rounded-xl bg-primary-container text-on-primary-container font-semibold text-sm hover:opacity-90 active:scale-95 transition-all">확인</button>
+      </div>
+    </div>
   </div>
 
-  <!-- 로그인 버튼 -->
-  <div class="w-full max-w-xs space-y-3">
-    <a href="{{ url_for('auth.google_login') }}"
-       class="flex items-center justify-center gap-3 w-full h-[52px] rounded-xl font-semibold text-sm transition-all active:scale-95 hover:opacity-90"
-       style="background:rgba(255,255,255,0.08);border:1px solid rgba(197,192,255,0.2);color:#e5e0ee;">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 12.075 17.64 9.767 17.64 9.2z" fill="#4285F4"/>
-        <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-        <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-      </svg>
-      Google로 시작하기
-    </a>
+  <!-- 개인정보 처리방침 모달 -->
+  <div id="privacy-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <!-- Backdrop -->
+    <div class="modal-close-trigger absolute inset-0 bg-black/70 backdrop-blur-md"></div>
+    <!-- Modal Card -->
+    <div class="relative z-10 w-full max-w-lg bg-[#1c1b26] border border-outline-variant/30 rounded-2xl flex flex-col max-h-[75vh] shadow-2xl overflow-hidden" style="box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-5 border-b border-outline-variant/20">
+        <h2 class="text-base font-bold text-[#e5e0ee]">DopaCheck 개인정보 처리방침</h2>
+        <button class="modal-close-trigger text-[#6B6B7B] hover:text-[#e5e0ee] text-2xl transition-colors">&times;</button>
+      </div>
+      <!-- Body -->
+      <div class="p-6 overflow-y-auto custom-scrollbar text-[13px] text-[#c8c4d8] space-y-4 leading-relaxed">
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-2">1. 수집하는 개인정보 항목</h3>
+        <p>서비스는 회원가입, 분석 서비스 제공 및 원활한 상담을 위해 아래와 같은 개인정보를 수집합니다.</p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li><strong>간편 가입 시:</strong> 닉네임, 이메일 주소, 소셜 로그인 제공자 및 식별번호(Kakao/Google ID)</li>
+          <li><strong>서비스 이용 과정:</strong> 사용자가 분석을 위해 자발적으로 업로드하는 배달 소비 데이터, 직접 기록하는 시간 소비 상세 정보</li>
+        </ul>
 
-    <a href="{{ url_for('auth.kakao_login') }}"
-       class="flex items-center justify-center gap-3 w-full h-[52px] rounded-xl font-semibold text-sm transition-all active:scale-95 hover:opacity-90"
-       style="background:#FEE500;color:#191919;">
-      <svg width="18" height="17" viewBox="0 0 18 17" fill="none">
-        <path fill-rule="evenodd" clip-rule="evenodd" d="M9 0C4.029 0 0 3.134 0 7c0 2.505 1.67 4.706 4.2 5.99l-1.08 3.97a.25.25 0 0 0 .385.274L8.1 14.02c.296.027.597.04.9.04 4.971 0 9-3.134 9-7S13.971 0 9 0z" fill="#3A1D1D"/>
-      </svg>
-      Kakao로 시작하기
-    </a>
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">2. 개인정보 수집 및 이용 목적</h3>
+        <p>수집된 개인정보는 다음 목적 이외의 용도로는 사용되지 않습니다:</p>
+        <ul class="list-disc pl-5 space-y-1">
+          <li>소셜 연동을 통한 이용자 식별 및 회원 관리</li>
+          <li>개인 맞춤형 도파민 리포트 및 지표 분석 결과 산출</li>
+          <li>이용자의 생활 습관 개선을 위한 AI 챌린지 추천</li>
+        </ul>
+
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">3. 개인정보의 보유 및 이용 기간</h3>
+        <p>회원의 개인정보는 원칙적으로 <strong>회원 탈퇴 시 즉시 파기</strong>됩니다. 단, 관계 법령에 의해 보존할 필요가 있는 경우 해당 법령이 정한 기간 동안 보관합니다.</p>
+
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">4. 파기 절차 및 방법</h3>
+        <p>전자적 파일 형태로 저장된 개인정보는 기록을 재생할 수 없는 기술적 방법을 사용하여 즉시 영구 삭제하며, 종이 문서의 경우 분쇄하거나 소각합니다.</p>
+
+        <h3 class="text-sm font-semibold text-[#e5e0ee] mt-4">5. 이용자의 권리 및 행사방법</h3>
+        <p>이용자는 언제든지 자신의 개인정보 조회, 수정 및 탈퇴(삭제 요청) 권리를 행사할 수 있으며, 서비스 내 설정 메뉴 또는 고객센터를 통해 조치할 수 있습니다.</p>
+      </div>
+      <!-- Footer -->
+      <div class="p-4 border-t border-outline-variant/20 flex justify-end bg-[#13121c]/40">
+        <button class="modal-close-trigger px-5 py-2.5 rounded-xl bg-primary-container text-on-primary-container font-semibold text-sm hover:opacity-90 active:scale-95 transition-all">확인</button>
+      </div>
+    </div>
   </div>
 
-  <p class="text-[11px] text-on-surface-variant mt-6 leading-relaxed">
-    로그인 시 서비스 이용약관 및<br>개인정보 처리방침에 동의하게 됩니다.
-  </p>
-</div>
-{% endblock %}
+  <!-- Interactive Atmospheric Script -->
+  <script>
+    // Micro-interaction for social buttons
+    document.querySelectorAll('.glass-button').forEach(button => {
+      button.addEventListener('mousedown', () => {
+        button.style.transform = 'scale(0.96)';
+      });
+      button.addEventListener('mouseup', () => {
+        button.style.transform = 'scale(1)';
+      });
+      button.addEventListener('mouseleave', () => {
+        button.style.transform = 'scale(1)';
+      });
+    });
+
+    // Modal Control Logic
+    const termsModal = document.getElementById('terms-modal');
+    const privacyModal = document.getElementById('privacy-modal');
+    const termsLink = document.getElementById('terms-link');
+    const privacyLink = document.getElementById('privacy-link');
+
+    // Open Terms Modal
+    termsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      termsModal.classList.remove('hidden');
+      termsModal.classList.add('flex');
+      document.body.style.overflow = 'hidden'; // Lock background scroll
+    });
+
+    // Open Privacy Modal
+    privacyLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      privacyModal.classList.remove('hidden');
+      privacyModal.classList.add('flex');
+      document.body.style.overflow = 'hidden'; // Lock background scroll
+    });
+
+    // Close Modal Logic (Shared)
+    document.querySelectorAll('.modal-close-trigger').forEach(trigger => {
+      trigger.addEventListener('click', () => {
+        const modal = trigger.closest('[id$="-modal"]');
+        if (modal) {
+          modal.classList.remove('flex');
+          modal.classList.add('hidden');
+          
+          // Restore background scroll if no modals are visible
+          const activeModals = document.querySelectorAll('[id$="-modal"]:not(.hidden)');
+          if (activeModals.length === 0) {
+            document.body.style.overflow = '';
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

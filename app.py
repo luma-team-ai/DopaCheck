@@ -19,7 +19,7 @@ from routes.score import score_bp
 from routes.time import time_bp
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
+app.secret_key = os.environ["FLASK_SECRET_KEY"]
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5MB — 대용량 업로드 OOM 방지 (#36)
 
 # 환경 분기: FLASK_ENV=production(CloudType 배포)일 때만 ProxyFix 적용.
