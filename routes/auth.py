@@ -63,6 +63,23 @@ def login_page():
     return render_template("login.html")
 
 
+@auth_bp.route("/auth/dev_login")
+def dev_login():
+    """로컬 개발 검증을 위한 더미 로그인 라우트."""
+    if os.environ.get("FLASK_ENV") == "development":
+        user_id = upsert_user_profile(
+            email="dev_test@example.com",
+            nickname="대표님테스터",
+            provider="dev",
+            provider_id="dev_test"
+        )
+        session["user_id"] = user_id
+        session["nickname"] = "대표님테스터"
+        session["email"] = "dev_test@example.com"
+        return redirect("/")
+    return "Not Allowed in Production", 403
+
+
 # ── Google 로그인 ──────────────────────────────────────────
 @auth_bp.route("/auth/google")
 def google_login():
