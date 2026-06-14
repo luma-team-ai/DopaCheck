@@ -1,12 +1,358 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% block title %}시간 분석 결과{% endblock %}
-{% block content %}
-<h1>분석 결과</h1>
 
-<!-- TODO(이은석): 분석 결과 화면
-  - 앱별 사용 시간 비율 도넛 차트 (FR-13 — Chart.js 등 라이브러리 자유)
-  - SNS 시간 환산: "책 N권 / 강의 N개 / 운동 N회" (FR-11)
-  - 게임 시간 환산: "시급 기준 N원짜리 취미" (FR-12)
-  - LLM 공감 코멘트 (FR-14)
--->
-{% endblock %}
+{% block nav %}{% endblock nav %}
+
+{% block head %}
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                "colors": {
+                    "tertiary-container": "#bb5a00",
+                    "surface-container-high": "#2a2933",
+                    "tertiary": "#ffb689",
+                    "on-secondary-fixed": "#3f001b",
+                    "inverse-primary": "#5340e7",
+                    "inverse-surface": "#e5e0ee",
+                    "surface-container": "#1f1f28",
+                    "on-tertiary": "#512300",
+                    "secondary-fixed": "#ffd9e1",
+                    "on-background": "#e5e0ee",
+                    "error-container": "#93000a",
+                    "background": "#13121c",
+                    "on-error": "#690005",
+                    "surface-dim": "#13121c",
+                    "surface-bright": "#393842",
+                    "primary-fixed-dim": "#c5c0ff",
+                    "outline-variant": "#474555",
+                    "tertiary-fixed": "#ffdbc8",
+                    "on-error-container": "#ffdad6",
+                    "on-primary-fixed-variant": "#3a1bd0",
+                    "on-primary-container": "#fffdff",
+                    "primary-fixed": "#e3dfff",
+                    "primary": "#c5c0ff",
+                    "on-tertiary-fixed-variant": "#743500",
+                    "on-surface": "#e5e0ee",
+                    "surface-variant": "#35343e",
+                    "outline": "#918ea1",
+                    "inverse-on-surface": "#302f39",
+                    "on-tertiary-container": "#fffdff",
+                    "secondary": "#ffb1c5",
+                    "secondary-fixed-dim": "#ffb1c5",
+                    "tertiary-fixed-dim": "#ffb689",
+                    "surface": "#13121c",
+                    "on-surface-variant": "#c8c4d8",
+                    "surface-container-lowest": "#0e0d16",
+                    "primary-container": "#6b5bff",
+                    "on-secondary-fixed-variant": "#8c0a46",
+                    "secondary-container": "#8c0a46",
+                    "on-secondary": "#650030",
+                    "surface-container-highest": "#35343e",
+                    "surface-container-low": "#1b1a24",
+                    "on-secondary-container": "#ff95b4",
+                    "error": "#ffb4ab",
+                    "on-primary-fixed": "#140067",
+                    "surface-tint": "#c5c0ff",
+                    "on-tertiary-fixed": "#311300",
+                    "on-primary": "#2500a2"
+                },
+                "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+                },
+                "spacing": {
+                    "card-padding": "24px",
+                    "unit": "4px",
+                    "section-gap": "40px",
+                    "stack-gap": "16px",
+                    "container-padding": "20px"
+                },
+                "fontFamily": {
+                    "display-lg-mobile": ["Plus Jakarta Sans"],
+                    "hero-num": ["Plus Jakarta Sans"],
+                    "label-caps": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "hero-num-md": ["Plus Jakarta Sans"],
+                    "title-md": ["Inter"],
+                    "display-lg": ["Plus Jakarta Sans"]
+                },
+                "fontSize": {
+                    "display-lg-mobile": ["28px", {"lineHeight": "130%", "fontWeight": "700"}],
+                    "hero-num": ["96px", {"lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                    "label-caps": ["12px", {"lineHeight": "100%", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "160%", "fontWeight": "400"}],
+                    "hero-num-md": ["56px", {"lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                    "title-md": ["20px", {"lineHeight": "150%", "fontWeight": "600"}],
+                    "display-lg": ["32px", {"lineHeight": "130%", "fontWeight": "700"}]
+                }
+            },
+        },
+    }
+</script>
+<style>
+    body {
+        background-color: #13121c;
+        color: #e5e0ee;
+        font-family: 'Inter', sans-serif;
+        overflow-x: hidden;
+    }
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .bg-orb {
+        filter: blur(80px);
+        opacity: 0.2;
+        position: absolute;
+        z-index: -1;
+        border-radius: 50%;
+        animation: drift 15s infinite alternate ease-in-out;
+    }
+    @keyframes drift {
+        from { transform: translate(-10%, -10%) scale(1); }
+        to   { transform: translate(10%, 10%) scale(1.1); }
+    }
+    .result-card {
+        background-color: #1f1f28;
+        border: 1px solid rgba(197, 192, 255, 0.1);
+        border-radius: 16px;
+        padding: 24px;
+    }
+    .conversion-chip {
+        background: rgba(197, 192, 255, 0.08);
+        border: 1px solid rgba(197, 192, 255, 0.15);
+        border-radius: 12px;
+        padding: 16px 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: transform 0.2s ease;
+    }
+    .conversion-chip:hover { transform: translateY(-2px); }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in { animation: fadeInUp 0.5s ease forwards; }
+    .delay-1 { animation-delay: 0.1s; opacity: 0; }
+    .delay-2 { animation-delay: 0.2s; opacity: 0; }
+    .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    .delay-4 { animation-delay: 0.4s; opacity: 0; }
+    .delay-5 { animation-delay: 0.5s; opacity: 0; }
+    /* base.html .container 리셋 */
+    main.container { max-width: none; padding: 0; margin: 0; }
+</style>
+{% endblock head %}
+
+{% block content %}
+<div class="dark min-h-screen" style="background:#13121c;">
+
+<!-- Atmospheric Background Orbs -->
+<div class="bg-orb w-96 h-96 bg-primary top-[-10%] left-[-10%]"></div>
+<div class="bg-orb w-80 h-80 bg-secondary bottom-[20%] right-[-5%]"></div>
+
+<!-- Top App Bar -->
+<header class="fixed top-0 w-full z-50 bg-[#13121c]/80 backdrop-blur-xl border-b border-[#474555]/20 flex items-center justify-between px-5 h-16">
+  <a href="{{ url_for('time.time_page') }}" class="p-2 active:scale-95 transition-transform text-[#c5c0ff]">
+    <span class="material-symbols-outlined">arrow_back</span>
+  </a>
+  <h1 class="text-[20px] font-bold text-[#e5e0ee]" style="font-family:'Plus Jakarta Sans',sans-serif;">시간 분석 결과</h1>
+  <div class="w-10"></div>
+</header>
+
+<div class="pt-24 pb-32 px-5 max-w-lg mx-auto space-y-6">
+
+  <!-- P2-1: 합산 168h 초과 경고 배너 -->
+  {% if over_limit %}
+  <div class="animate-in delay-1 rounded-xl p-4 flex items-start gap-3"
+       style="background:rgba(255,180,171,0.1);border:1px solid rgba(255,180,171,0.3);">
+    <span class="material-symbols-outlined text-[#ffb4ab] flex-shrink-0" style="font-variation-settings:'FILL' 1;">warning</span>
+    <div>
+      <p class="text-[#ffb4ab] font-semibold text-sm">1주일 초과 입력</p>
+      <p class="text-[#c8c4d8] text-xs mt-0.5">입력한 총 시간({{ '%.1f'|format(total_h) }}h)이 1주일(168h)을 초과합니다. 각 앱의 시간을 다시 확인해보세요.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 헤드라인 -->
+  <section class="animate-in {% if over_limit %}delay-2{% else %}delay-1{% endif %}">
+    <p class="text-[12px] text-[#c8c4d8] uppercase tracking-widest mb-1">이번 주 결과</p>
+    <h2 class="text-[28px] font-bold leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
+      총 <span class="text-[#c5c0ff]">{{ '%.1f'|format(total_h) }}시간</span>을<br>소비했어요
+    </h2>
+  </section>
+
+  <!-- 도넛 차트 (FR-13) — P2-4: Jinja 조건으로 처리 -->
+  {% if sns_total_h + game_h > 0 %}
+  <div class="result-card animate-in delay-2">
+    <p class="text-[12px] text-[#c8c4d8] uppercase tracking-widest mb-4">앱별 시간 비율</p>
+    <div class="relative w-52 h-52 mx-auto">
+      <canvas id="timeDonutChart"></canvas>
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <span class="text-[11px] text-[#c8c4d8]">총</span>
+        <span class="text-[28px] font-bold text-[#e5e0ee] leading-tight">{{ '%.1f'|format(total_h) }}</span>
+        <span class="text-[11px] text-[#c8c4d8]">시간</span>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2 mt-5">
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-[#FF0000]"></div>
+        <span class="text-xs text-[#c8c4d8]">YouTube <span class="text-[#e5e0ee] font-semibold">{{ youtube_h }}h</span></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-[#ee2a7b]"></div>
+        <span class="text-xs text-[#c8c4d8]">Instagram <span class="text-[#e5e0ee] font-semibold">{{ instagram_h }}h</span></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-[#00f2ea]"></div>
+        <span class="text-xs text-[#c8c4d8]">TikTok <span class="text-[#e5e0ee] font-semibold">{{ tiktok_h }}h</span></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 rounded-full bg-[#c5c0ff]"></div>
+        <span class="text-xs text-[#c8c4d8]">Game <span class="text-[#e5e0ee] font-semibold">{{ game_h }}h</span></span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- SNS 시간 환산 (FR-11) -->
+  {% if sns_total_h > 0 %}
+  <div class="result-card animate-in delay-3">
+    <p class="text-[12px] text-[#c8c4d8] uppercase tracking-widest mb-4">SNS {{ '%.1f'|format(sns_total_h) }}시간으로 할 수 있었던 것들</p>
+    <div class="space-y-3">
+      <div class="conversion-chip">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(76,175,80,0.2);color:#4CAF50;">
+          <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">menu_book</span>
+        </div>
+        <div>
+          <p class="text-[#c8c4d8] text-xs">독서</p>
+          <p class="text-[#e5e0ee] font-semibold">책 <span class="text-[#c5c0ff] text-lg">{{ book_n }}</span>권을 읽을 수 있었어요</p>
+        </div>
+      </div>
+      <div class="conversion-chip">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(33,150,243,0.2);color:#2196F3;">
+          <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">school</span>
+        </div>
+        <div>
+          <p class="text-[#c8c4d8] text-xs">자기계발</p>
+          <p class="text-[#e5e0ee] font-semibold">온라인 강의 <span class="text-[#c5c0ff] text-lg">{{ lecture_n }}</span>개를 들을 수 있었어요</p>
+        </div>
+      </div>
+      <div class="conversion-chip">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(255,152,0,0.2);color:#FF9800;">
+          <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">fitness_center</span>
+        </div>
+        <div>
+          <p class="text-[#c8c4d8] text-xs">운동</p>
+          <p class="text-[#e5e0ee] font-semibold">운동을 <span class="text-[#c5c0ff] text-lg">{{ workout_n }}</span>회 할 수 있었어요</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 게임 시간 환산 (FR-12) -->
+  {% if game_h > 0 %}
+  <div class="result-card animate-in delay-4">
+    <p class="text-[12px] text-[#c8c4d8] uppercase tracking-widest mb-4">게임 {{ game_h }}시간의 기회비용</p>
+    <div class="flex items-center gap-4">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:rgba(197,192,255,0.2);color:#c5c0ff;">
+        <span class="material-symbols-outlined text-3xl" style="font-variation-settings:'FILL' 1;">payments</span>
+      </div>
+      <div>
+        <p class="text-[#c8c4d8] text-sm">시급 {{ '{:,}'.format(hourly_wage) }}원 기준</p>
+        <p class="text-[#e5e0ee] font-bold text-xl">
+          <span class="text-[#ffb689]">{{ '{:,}'.format(game_cost) }}원</span>짜리 취미예요
+        </p>
+        <p class="text-[#c8c4d8] text-xs mt-1">게임에 투자한 시간의 금전적 가치예요</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- AI 공감 코멘트 (FR-14) -->
+  <div class="result-card animate-in delay-5" style="background:linear-gradient(135deg,rgba(107,91,255,0.15),rgba(140,10,70,0.15));border-color:rgba(197,192,255,0.2);">
+    <div class="flex gap-3">
+      <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(197,192,255,0.2);color:#c5c0ff;">
+        <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+      </div>
+      <div>
+        <p class="text-[12px] text-[#c5c0ff] uppercase tracking-widest mb-1">AI 코치 한마디</p>
+        <p class="text-[#e5e0ee] text-base leading-relaxed">{{ ai_comment | e }}</p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main content -->
+
+<!-- Bottom CTA -->
+<div class="fixed bottom-0 left-0 w-full p-5 z-50" style="background:rgba(19,18,28,0.8);backdrop-filter:blur(12px);border-top:1px solid rgba(71,69,85,0.1);">
+  <a href="{{ url_for('time.time_page') }}"
+     id="btn-retry"
+     class="w-full h-[52px] rounded-xl flex items-center justify-center font-semibold text-white active:scale-[0.98] transition-transform"
+     style="background:linear-gradient(to right,#6b5bff,#8c0a46);box-shadow:0 8px 24px rgba(197,192,255,0.15);">
+    다시 입력하기
+  </a>
+</div>
+
+</div><!-- /.dark -->
+{% endblock content %}
+
+{% block scripts %}
+{% if sns_total_h + game_h > 0 %}
+<script>
+(function() {
+    // P1: tojson 필터로 XSS 방지 — 숫자·문자열 모두 안전하게 이스케이프
+    const youtube   = {{ youtube_h   | tojson }};
+    const instagram = {{ instagram_h | tojson }};
+    const tiktok    = {{ tiktok_h    | tojson }};
+    const game      = {{ game_h      | tojson }};
+
+    const ctx = document.getElementById('timeDonutChart');
+    if (!ctx) return;
+
+    new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['YouTube', 'Instagram', 'TikTok', 'Game'],
+            datasets: [{
+                data: [youtube, instagram, tiktok, game],
+                backgroundColor: [
+                    'rgba(255,0,0,0.85)',
+                    'rgba(238,42,123,0.85)',
+                    'rgba(0,242,234,0.85)',
+                    'rgba(197,192,255,0.85)',
+                ],
+                borderColor: '#13121c',
+                borderWidth: 3,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            cutout: '72%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => ` ${ctx.label}: ${ctx.parsed}h`
+                    }
+                }
+            },
+            animation: {
+                animateRotate: true,
+                duration: 900,
+                easing: 'easeOutQuart',
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock scripts %}
