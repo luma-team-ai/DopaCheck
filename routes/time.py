@@ -1,7 +1,9 @@
 """시간 소비 분석 (담당: 이은석 — FR-9~15)."""
+import hmac
 import logging
+import secrets
 
-from flask import Blueprint, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, render_template, request, session
 
 from ai import comment as ai_comment
 from config import BOOK_HOURS, DEFAULT_HOURLY_WAGE, LECTURE_HOURS, WORKOUT_HOURS
@@ -11,6 +13,23 @@ from routes.auth import login_required
 logger = logging.getLogger(__name__)
 
 time_bp = Blueprint("time", __name__, url_prefix="/time")
+
+_CSRF_SESSION_KEY = "csrf_token"
+
+
+def _get_or_create_csrf_token() -> str:
+    if _CSRF_SESSION_KEY not in session:
+        session[_CSRF_SESSION_KEY] = secrets.token_urlsafe(32)
+    return session[_CSRF_SESSION_KEY]
+
+
+def _verify_csrf() -> None:
+    expected = session.get(_CSRF_SESSION_KEY)
+    if not expected:
+        abort(403)
+    received = request.form.get("csrf_token") or ""
+    if not hmac.compare_digest(str(expected), str(received)):
+        abort(403)
 
 
 @time_bp.route("")
@@ -26,7 +45,8 @@ def time_page():
         )
         row = cursor.fetchone()
     hourly_wage = row["hourly_wage"] if row else DEFAULT_HOURLY_WAGE
-    return render_template("time/index.html", hourly_wage=hourly_wage)
+    csrf_token = _get_or_create_csrf_token()
+    return render_template("time/index.html", hourly_wage=hourly_wage, csrf_token=csrf_token)
 
 
 @time_bp.route("/analyze", methods=["POST"])
@@ -42,6 +62,7 @@ def analyze():
     6. 도파민 점수 재산출 트리거 (FR-31) — stub이면 무시
     7. 결과 템플릿 렌더
     """
+    _verify_csrf()
     user_id = session["user_id"]
 
     # ── 1. 입력 파싱 & 검증 (FR-9, FR-10) ────────────────────────────

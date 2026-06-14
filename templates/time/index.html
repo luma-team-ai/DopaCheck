@@ -152,6 +152,7 @@
 </header>
 
 <form action="{{ url_for('time.analyze') }}" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <main class="pt-24 pb-32 px-container-padding max-w-lg mx-auto">
     <!-- Headline -->
     <section class="mb-section-gap">
