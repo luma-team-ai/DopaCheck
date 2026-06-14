@@ -11,8 +11,11 @@ logger = logging.getLogger(__name__)
 
 _VALID_TYPES = frozenset({"delivery", "time"})
 _VALID_PERIODS = frozenset({"week", "month", "all"})
-# 동적 테이블명은 반드시 이 매핑으로만 해석한다 — 화이트리스트 우회를 구조적으로 차단(SQLi 방지).
-TABLE_MAP = {"delivery": "delivery_records", "time": "time_records"}
+# P1: 테이블명을 화이트리스트 딕셔너리로 관리 — 동적 테이블명은 반드시 이 매핑으로만 해석한다 (SQLi 방지).
+TABLE_MAP: dict[str, str] = {
+    "delivery": "delivery_records",
+    "time":     "time_records",
+}
 
 
 def _valid_uuid(value: str) -> bool:
@@ -83,12 +86,10 @@ def _enrich(records: list[dict], record_type: str) -> list[dict]:
 
 
 @history_bp.route("")
-@login_required
+@login_required  # 비로그인 차단 — if not user_id: abort(401) 대신 데코레이터로 위임 (P1 수정)
 def history_list():
     """날짜별 분석 기록 목록. (FR-21, FR-24, FR-25)"""
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
     period = request.args.get("period", "all")
     type_filter = request.args.get("type_filter", "all")
 
@@ -168,12 +169,10 @@ def history_list():
 
 
 @history_bp.route("/<record_id>")
-@login_required
+@login_required  # 비로그인 차단 — if not user_id: abort(401) 대신 데코레이터로 위임 (P1 수정)
 def history_detail(record_id: str):
     """특정 기록 상세 조회. (FR-22)"""
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
@@ -181,13 +180,13 @@ def history_detail(record_id: str):
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    # 동적 테이블명은 TABLE_MAP으로만 해석 — 사용자 입력 직접 삽입 불가.
+    # P1: 테이블명을 TABLE_MAP 화이트리스트에서 가져옴 — 사용자 입력 직접 삽입 불가.
     table = TABLE_MAP[record_type]
 
     try:
         with db() as cursor:
             cursor.execute(
-                f"SELECT * FROM {table} WHERE id = %s AND user_id = %s",
+                "SELECT * FROM " + table + " WHERE id = %s AND user_id = %s",
                 (record_id, user_id),
             )
             row = cursor.fetchone()
@@ -203,12 +202,10 @@ def history_detail(record_id: str):
 
 
 @history_bp.route("/<record_id>", methods=["DELETE"])
-@login_required
+@login_required  # 비로그인 차단 — if not user_id: abort(401) 대신 데코레이터로 위임 (P1 수정)
 def history_delete(record_id: str):
     """기록 삭제. (FR-23)"""
     user_id = session.get("user_id")
-    if not user_id:
-        abort(401)
     record_type = request.args.get("type", "delivery")
 
     if not _valid_uuid(record_id):
@@ -216,7 +213,7 @@ def history_delete(record_id: str):
     if record_type not in _VALID_TYPES:
         return jsonify({"error": "잘못된 타입"}), 400
 
-    # 동적 테이블명은 TABLE_MAP으로만 해석 — 사용자 입력 직접 삽입 불가.
+    # P1: 테이블명을 TABLE_MAP 화이트리스트에서 가져옴 — 사용자 입력 직접 삽입 불가.
     table = TABLE_MAP[record_type]
 
     # 404 분기를 with 블록 밖으로 빼 트랜잭션 경계를 명확히 한다
@@ -226,14 +223,14 @@ def history_delete(record_id: str):
         with db() as cursor:
             # 사전 조회 — 타인 기록/없는 기록 구분 (404 vs 204)
             cursor.execute(
-                f"SELECT id FROM {table} WHERE id = %s AND user_id = %s",
+                "SELECT id FROM " + table + " WHERE id = %s AND user_id = %s",
                 (record_id, user_id),
             )
             existing = cursor.fetchone()
             if existing:
                 # IDOR 방어: 삭제 쿼리에도 user_id 필터를 명시 (사전 조회와 이중 방어)
                 cursor.execute(
-                    f"DELETE FROM {table} WHERE id = %s AND user_id = %s",
+                    "DELETE FROM " + table + " WHERE id = %s AND user_id = %s",
                     (record_id, user_id),
                 )
     except Exception as e:
