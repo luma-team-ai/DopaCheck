@@ -2,6 +2,10 @@
 .env
 .env.local
 
+# CloudType 수동배포 매니페스트 — 시크릿 평문 포함, 커밋 금지 (배포는 .github/workflows/deploy-main.yml 사용)
+dopacheck.yaml
+*.deploy.local.yaml
+
 # Python
 __pycache__/
 *.py[cod]
