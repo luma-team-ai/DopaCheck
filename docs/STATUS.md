@@ -18,6 +18,7 @@
 
 ## 마지막 머지 PR
 
+- #52 /time 시간 분석(입력폼·결과 Stitch UI + FR-9~15 파이프라인) — 이은석. time.py 충돌은 PR52 채택, base.html은 main Stitch + `{% block nav %}` 래핑(time만 nav 숨김), test DB mock 보강. code-reviewer APPROVE, **P2/P3 cosmetic 후속 #63**
 - #50 홈 대시보드(헤더/푸터 공통 컴포넌트 + 실시간 데이터) + score Stitch UI — 김승현. score.py 충돌은 PR50 채택, test DB mock 보강(p1-blocked 해소). **점수식 회귀 → 후속 #62 분리**
 - #53 delivery 영역 Stitch UI 적용(업로드/수동입력/결과 + 공통 앱셸) — 김관영
 - #51 report 화면 Stitch 디자인 + 비교차트 정규화 + CDN SRI (#10 CLOSED, 정재봉) — code-reviewer P1 0건, P2-3은 후속 #49 분리
@@ -36,11 +37,11 @@
 ### P1 (도메인 구현 — 담당자별 병렬)
 - [x] /report (정재봉, #6·#17·#51) · [x] /history (허남, #3·#8·#12)
 - [x] /challenge + ai/ (오영석, #28·#32) · [x] /delivery (김관영, #35·#41·#53) · [x] 소셜 로그인 (김승현, #38)
-- [ ] /time (이은석) · [~] /score (김승현, #50 머지 — 점수식 통일 후속 #62)
+- [x] /time (이은석, #52 머지) · [~] /score (김승현, #50 머지 — 점수식 통일 후속 #62)
 
 ### Stitch 디자인 마이그레이션 (base.html 기준 → 각 페이지 적용)
-- [x] login (#39) · [x] report (#51) · [x] delivery (#53) · [x] score (#50)
-- [ ] history · challenge · time — 각 담당이 `base.html` 상속 + Stitch 토큰으로 전환 (과도기 `style.css` 공존 중)
+- [x] login (#39) · [x] report (#51) · [x] delivery (#53) · [x] score (#50) · [x] time (#52)
+- [ ] history · challenge — 각 담당이 `base.html` 상속 + Stitch 토큰으로 전환 (과도기 `style.css` 공존 중)
 
 ### P2 (통합 — Day 5~6)
 - [ ] 전체 흐름 통합 테스트 · 데모 시나리오 완주 · 모바일 QA (Stitch 톤 혼재 페이지 시각 점검 포함)
@@ -50,6 +51,7 @@
 | 이슈 | 내용 |
 |------|------|
 | #62 score 점수식 회귀 | `recalculate_score`가 #48 합의 공식(`ai.score.calculate`/config 상수) 대신 하드코딩 점수식 사용 → 점수 divergence. PR #50에서 화면·테스트 우선 머지 후 분리 |
+| #63 time 입력폼 cosmetic | `time/index.html` 시급 `default(10030)` 하드코딩(미트리거)·test 픽스처값 정합 — PR #52 후속(P2/P3) |
 | #49 Tailwind Play CDN | `base.html`·`login.html` Play CDN(SRI 불가, 프로덕션 비권장) → PostCSS 빌드 전환 (전역, 정재봉) |
 | #44 세션 쿠키 보안 | SameSite/Secure/HttpOnly 명시 설정 — ai:p2-followup |
 | #43 413 핸들러 | MAX_CONTENT_LENGTH 초과 시 413 응답 + UX — ai:p2-followup |
