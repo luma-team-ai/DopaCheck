@@ -135,6 +135,16 @@ class TestPooledDBArgs:
         assert kwargs["maxconnections"] == 10
         assert kwargs["maxcached"] == 10
 
+    def test_empty_pool_size_falls_back_to_5(self):
+        """DB_POOL_SIZE="" 빈 값이어도 int("") ValueError 없이 기본 5로 동작(#23 리뷰 P1-2)."""
+        _, kwargs = self._call_get_pool(extra_env={"DB_POOL_SIZE": ""})
+        assert kwargs["maxconnections"] == 5
+
+    def test_empty_db_port_falls_back_to_3306(self):
+        """DB_PORT="" 빈 값이어도 int("") ValueError 없이 기본 3306으로 동작(#23 리뷰 P1-2)."""
+        _, kwargs = self._call_get_pool(extra_env={"DB_PORT": ""})
+        assert kwargs["port"] == 3306
+
     def test_db_connect_kwargs_preserved(self):
         """기존 pymysql.connect 인자(charset, autocommit, init_command 등)가 유지돼야 한다."""
         _, kwargs = self._call_get_pool()
@@ -162,11 +172,11 @@ class TestPooledDBArgs:
 
 
 # --------------------------------------------------------------------------- #
-# 테스트: get_connection()
+# 테스트: _get_connection()
 # --------------------------------------------------------------------------- #
 
 class TestGetConnection:
-    """get_connection()이 풀에서 커넥션을 대여하는지 검증."""
+    """_get_connection()이 풀에서 커넥션을 대여하는지 검증."""
 
     def test_calls_pool_connection(self):
         mock_conn = MagicMock()
@@ -176,7 +186,7 @@ class TestGetConnection:
 
         with patch.dict(os.environ, _db_env()):
             with patch("db.client.PooledDB", return_value=mock_pool):
-                conn = client.get_connection()
+                conn = client._get_connection()
 
         mock_pool.connection.assert_called_once()
         assert conn is mock_conn
