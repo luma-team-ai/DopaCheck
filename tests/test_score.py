@@ -57,8 +57,10 @@ def test_점수_산출_입출력():
     assert worst["score"] == 20
 
     # 챌린지 보너스 상한 (min 적용): 100개여도 보너스는 20점
+    # 소비 0 + 챌린지 만점 → 40 + 40 + 20 = 100점(만점 경로)
     capped = calculate({"delivery_total": 0, "time_total_min": 0, "challenge_completed": 100})
     assert capped["challenge_bonus"] == 20
+    assert capped["score"] == 100
 
     # score는 항상 0~100 범위, 가중치 합 40/40/20
     for data in (best, worst, capped):
