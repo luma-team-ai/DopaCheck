@@ -258,7 +258,7 @@ def _finalize_delivery(
 
     # ── 도파민 점수 재산출 트리거 (FR-8, FR-31) ──────────────
     try:
-        from routes.score import recalculate_score
+        from services.score_service import recalculate_score
         recalculate_score(user_id)
     except NotImplementedError:
         pass  # 점수 라우트 미구현 단계에서는 무시

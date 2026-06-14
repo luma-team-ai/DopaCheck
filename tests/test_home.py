@@ -45,7 +45,7 @@ def test_로그인_홈_페이지_렌더링(logged_in_client):
     """로그인 한 유저는 홈 대시보드가 정상적으로 렌더링(200 OK)되어야 한다."""
     # recalculate_score는 별도 DB 접속을 일으키므로 no-op 처리하고,
     # 페이지 본문 쿼리만 _fake_db로 mock한다.
-    with patch("routes.score.recalculate_score", lambda user_id: None), \
+    with patch("services.score_service.recalculate_score", lambda user_id: None), \
             patch("routes.home.db", _fake_db):
         response = logged_in_client.get("/", follow_redirects=True)
     assert response.status_code == 200

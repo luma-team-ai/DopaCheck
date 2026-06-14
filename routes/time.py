@@ -144,7 +144,7 @@ def analyze():
     # P3-1: score.py 구현 완료 후 최상단 import로 올릴 것 (김승현 PR 완료 시).
     # 현재는 순환 참조 위험을 피하기 위해 함수 내 지연 import 유지.
     try:
-        from routes.score import recalculate_score
+        from services.score_service import recalculate_score
         recalculate_score(user_id)
     except NotImplementedError:
         pass  # score.py 미구현 — 점수 갱신 생략
