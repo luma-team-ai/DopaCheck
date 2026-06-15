@@ -4,7 +4,10 @@ from flask import Blueprint, render_template, session, redirect, url_for, reques
 
 from db.client import db
 from routes.auth import login_required
+from utils.csrf import get_or_create_csrf_token, verify_csrf
 from utils.week import get_week_ranges
+
+MAX_HOURLY_WAGE = 1_000_000
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +85,8 @@ def mypage_page():
         email_display=email_display,
         score=score,
         completed_challenges=completed_challenges,
-        total_analyses=total_analyses
+        total_analyses=total_analyses,
+        csrf_token=get_or_create_csrf_token()
     )
 
 
@@ -90,6 +94,8 @@ def mypage_page():
 @login_required
 def update_wage():
     """사용자의 기본 시급 설정을 업데이트."""
+    verify_csrf()
+
     user_id = session.get("user_id")
     hourly_wage_raw = request.form.get("hourly_wage")
 
@@ -99,10 +105,10 @@ def update_wage():
 
     try:
         hourly_wage = int(hourly_wage_raw)
-        if hourly_wage < 0:
+        if not (0 <= hourly_wage <= MAX_HOURLY_WAGE):
             raise ValueError()
     except ValueError:
-        flash("올바른 금액(양의 정수)을 입력해 주세요.", "error")
+        flash(f"올바른 금액(0~{MAX_HOURLY_WAGE:,}원)을 입력해 주세요.", "error")
         return redirect(url_for("mypage.mypage_page"))
 
     with db() as cursor:
