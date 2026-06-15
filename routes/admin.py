@@ -13,6 +13,21 @@ logger = logging.getLogger(__name__)
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
+def _mask_email(email: str) -> str:
+    """이메일 로컬파트 일부를 마스킹한다. (PII 노출 축소 — P2)
+
+    예: "abcdef@example.com" -> "ab****@example.com"
+    """
+    if not email or "@" not in email:
+        return email
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        masked_local = local[0] + "*" * (len(local) - 1)
+    else:
+        masked_local = local[:2] + "*" * (len(local) - 2)
+    return f"{masked_local}@{domain}"
+
+
 def admin_required(view):
     """관리자 권한을 강제하는 데코레이터.
     
@@ -22,16 +37,15 @@ def admin_required(view):
     @login_required
     def wrapped(*args, **kwargs):
         user_id = session.get("user_id")
-        role = session.get("role")
-        
-        # 세션에 역할이 없는 경우 DB에서 최신 역할을 조회하여 갱신합니다.
-        if not role:
-            with db() as cursor:
-                cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
-                user = cursor.fetchone()
-                role = user["role"] if user else "user"
-                session["role"] = role
-        
+
+        # 세션 캐시 대신 매 요청마다 DB에서 최신 역할을 조회한다.
+        # (관리자 권한 회수가 즉시 반영되도록 보장 — P2)
+        with db() as cursor:
+            cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+            user = cursor.fetchone()
+            role = user["role"] if user else "user"
+            session["role"] = role
+
         if role != "admin":
             return redirect(url_for("home.index"))
             
@@ -150,6 +164,8 @@ def admin_dashboard():
             """
         )
         ranking_list = cursor.fetchall()
+        for row in ranking_list:
+            row["email"] = _mask_email(row["email"])
 
         # 5. 챌린지 통계 (FR-58)
         cursor.execute("SELECT COUNT(*) as total FROM user_challenges")
