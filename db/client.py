@@ -1,4 +1,4 @@
-"""MariaDB 커넥션 팩토리 (#21 — Supabase에서 전환, #23 — 커넥션 풀 도입).
+"""MariaDB 커넥션 팩토리 (#21 — Supabase에서 전환, #23 — 커넥션 풀 도입, #71 — bounded timeout).
 
 DB 접근은 반드시 이 모듈의 db() 컨텍스트매니저를 통해서만 한다.
 (라우트마다 pymysql.connect 직접 호출 금지 — 키 관리·트랜잭션 단일화)
@@ -20,16 +20,31 @@ RLS는 제거됐다 — 모든 조회는 앱에서 WHERE user_id = %s 로 스코
     - 풀은 모듈 수준 싱글톤으로 지연 초기화된다(import 시 DB 접속 없음).
     - 환경변수 DB_POOL_SIZE(미설정 시 기본 5)로 최대 커넥션 수를 제어한다.
     - Gunicorn 멀티워커 환경에서 풀은 워커 프로세스별로 독립 생성된다.
+
+bounded-timeout (#71):
+    - blocking=False 로 변경 → 풀 소진 시 TooManyConnections 즉시 발생(무한 대기 제거).
+    - _get_connection()에서 DB_POOL_TIMEOUT(기본 30초) 내 재시도 루프를 수행한다.
+    - 타임아웃 초과 시 PoolExhaustedError(RuntimeError) 발생 → app.py에서 503으로 매핑.
+    - sync 워커에선 풀이 소진되지 않으므로 첫 시도에서 항상 성공(동작 동일).
 """
 from __future__ import annotations
 
 import os
 import threading
+import time
 from contextlib import contextmanager
 
 import pymysql
-from dbutils.pooled_db import PooledDB
+from dbutils.pooled_db import PooledDB, TooManyConnections
 from pymysql.cursors import DictCursor
+
+
+class PoolExhaustedError(RuntimeError):
+    """커넥션 풀 소진 시 bounded timeout 초과 → 503 매핑용 예외 (#71)."""
+
+
+# 풀 소진 시 재시도 폴링 간격 (초). monkeypatch로 교체 가능하도록 모듈 상수로 분리.
+_POOL_RETRY_INTERVAL = 0.05  # 50ms
 
 
 def _env(key: str) -> str:
@@ -73,10 +88,10 @@ def _build_pool() -> PooledDB:
             maxconnections=pool_size,
             mincached=1,
             maxcached=pool_size,
-            # 풀 소진 시 에러 대신 대기. 현재 배포는 gunicorn sync 워커(워커당 동시 1요청,
-            # maxconnections≫1)라 소진/대기가 발생하지 않는다. gthread/eventlet 전환 시
-            # 무한 대기 위험이 있어 bounded-timeout/503 처리는 후속 이슈로 분리(#71).
-            blocking=True,
+            # blocking=False: 풀 소진 시 무한 대기 대신 TooManyConnections 즉시 발생.
+            # _get_connection()에서 DB_POOL_TIMEOUT(기본 30초) bounded 재시도 루프로 처리.
+            # sync 워커에선 풀이 소진되지 않으므로 첫 시도에서 항상 성공(동작 동일) — #71.
+            blocking=False,
             ping=4,          # 쿼리 실행 전 커넥션 유효성 확인(유휴 끊김 방지)
             reset=True,      # 반납 시 rollback 강제 — commit 완료 후엔 빈 트랜잭션이라 no-op
             # --- pymysql.connect 인자 ---
@@ -95,13 +110,31 @@ def _build_pool() -> PooledDB:
         )
 
 
-def _get_connection():
+def _get_connection(timeout: float | None = None, interval: float = _POOL_RETRY_INTERVAL):
     """풀에서 커넥션을 대여한다(db() 내부 구현 세부 — 외부 직접 호출 금지).
 
     반환된 커넥션은 사용 후 .close()를 호출해야 풀에 반납된다. close 누락 시
     풀 커넥션이 영구 점유돼 누수되므로, 호출자는 항상 db() 컨텍스트매니저를 사용할 것.
+
+    풀 소진(TooManyConnections) 시 bounded 재시도 루프를 수행한다 (#71):
+    - timeout: 최대 대기 시간(초). None 이면 환경변수 DB_POOL_TIMEOUT(기본 30초) 사용.
+    - interval: 재시도 폴링 간격(초). 기본 _POOL_RETRY_INTERVAL(50ms).
+    - timeout 초과 시 PoolExhaustedError 발생.
+    - sync 워커에선 첫 시도에서 항상 성공 → sleep/timeout 경로를 타지 않음.
     """
-    return _get_pool().connection()
+    if timeout is None:
+        timeout = float(os.environ.get("DB_POOL_TIMEOUT") or "30")
+
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            return _get_pool().connection()
+        except TooManyConnections:
+            if time.monotonic() >= deadline:
+                raise PoolExhaustedError(
+                    f"커넥션 풀 소진: {timeout:.0f}초 내 커넥션 확보 실패"
+                )
+            time.sleep(interval)
 
 
 @contextmanager
