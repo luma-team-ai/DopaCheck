@@ -23,6 +23,14 @@ def get_client() -> anthropic.Anthropic:
     return _client
 
 
+def extract_text(response) -> str:
+    """응답 content에서 text 블록을 추출한다. tool_use만 반환 시 ValueError."""
+    text_block = next((b for b in response.content if b.type == "text"), None)
+    if text_block is None:
+        raise ValueError("응답에 text 블록이 없습니다 (tool_use only)")
+    return text_block.text
+
+
 def extract_json(text: str) -> str:
     """LLM 응답에서 JSON 부분만 추출 (마크다운 코드블록 제거)."""
     text = text.strip()

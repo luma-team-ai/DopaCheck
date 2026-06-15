@@ -1,7 +1,8 @@
 """챌린지 추천 (담당: 오영석 — FR-44)."""
 import json
 
-from ai.utils import extract_json, get_client
+from ai.utils import extract_json, extract_text, get_client
+from config import MODEL_CHALLENGE
 
 
 def recommend(history: dict) -> dict:
@@ -48,11 +49,11 @@ def recommend(history: dict) -> dict:
     )
 
     response = get_client().messages.create(
-        model="claude-haiku-4-5",
+        model=MODEL_CHALLENGE,
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = next(b.text for b in response.content if b.type == "text")
+    text = extract_text(response)
     try:
         recommendations = json.loads(extract_json(text))
     except json.JSONDecodeError as e:
