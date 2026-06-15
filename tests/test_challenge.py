@@ -100,7 +100,7 @@ def test_챌린지_달성시_완료처리():
     cursor.fetchone.side_effect = [
         {"sum_price": 20_000},
         {"sum_min": 0},
-        {"cnt": 3},        # 배달 3회 — delivery target_value=2 초과 → 달성
+        {"cnt": 2},        # 배달 2회 — delivery target_value=2 정확 달성(== 조건)
         {"comp_count": 1},
     ]
     # 활성 챌린지: delivery 타입, target_value=2

@@ -56,13 +56,18 @@ def recalculate_score(user_id: int) -> None:
             tv = ch["target_value"] or 1
             if tt == "delivery":
                 progress = delivery_count
-                done = delivery_count >= tv
+                # "N회 이하" 챌린지: 목표 횟수(tv)에 딱 도달했을 때 완료
+                # (>= 로 초과 시에도 완료 처리되던 버그 수정)
+                done = delivery_count == tv
             elif tt == "time":
-                progress = int(time_hours)
-                done = time_hours >= tv
+                # target_value 단위는 분(min) — time_hours(시간)와 단위 불일치 버그 수정
+                progress = time_total_min
+                done = time_total_min == tv
             else:  # "both"
-                progress = min(delivery_count, int(time_hours))
-                done = delivery_count >= tv and time_hours >= tv
+                # target_value=3 은 배달 횟수 기준; SNS 시간 목표는 별도 컬럼 없음(스키마 개선 필요)
+                # 현재는 배달 횟수 기준으로만 완료 판정
+                progress = delivery_count
+                done = delivery_count == tv
 
             if done:
                 cursor.execute(
