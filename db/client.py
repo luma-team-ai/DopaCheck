@@ -77,15 +77,21 @@ _pool_timeout: float | None = None
 
 
 def _resolve_pool_timeout() -> float:
-    """DB_POOL_TIMEOUT(초)을 1회만 읽어 캐싱한다. 미설정 시 기본 30. (#93)
+    """DB_POOL_TIMEOUT(초)을 1회만 읽어 캐싱한다. 미설정 시 기본 30. (#93, DCL #102)
 
     import 시 즉시 읽지 않고(lazy) 최초 호출 시 값을 확정한다.
     이후 호출은 캐시된 값을 그대로 반환 — env 재평가 없음.
     빈 문자열("") 방어: `or "30"` 으로 int("") ValueError 를 방지한다.
+
+    스레드 안전성: _get_pool()과 동일한 double-checked locking 패턴 적용.
+    _pool_lock은 재진입 불가(threading.Lock)이므로 _get_pool() 내부(lock 보유 중)에서
+    이 함수를 호출하지 않도록 구조적으로 분리돼 있다 — 데드락 없음.
     """
     global _pool_timeout
     if _pool_timeout is None:
-        _pool_timeout = float(os.environ.get("DB_POOL_TIMEOUT") or "30")
+        with _pool_lock:
+            if _pool_timeout is None:   # double-checked locking — _get_pool과 동일 패턴
+                _pool_timeout = float(os.environ.get("DB_POOL_TIMEOUT") or "30")
     return _pool_timeout
 
 
