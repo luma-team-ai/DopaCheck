@@ -68,14 +68,22 @@
         <span class="type-tag type-{{ ch.target_type }}">{{ ch.target_type }}</span>
         <span class="target-tag">목표: {{ ch.target_value }}</span>
       </div>
-      {% if ch.id in joined_ids %}
+      {% if ch.id in completed_ids %}
+        <div class="progress-section">
+          <div class="progress-label"><span>달성률</span><span>100%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+        </div>
+        <button class="btn-joined" disabled>🏅 완료</button>
+      {% elif ch.id in joined_ids %}
+        {% set raw = progress_map.get(ch.id, 0) %}
+        {% set pct = [(raw * 100 // ch.target_value), 100] | min if ch.target_value else 0 %}
         <div class="progress-section">
           <div class="progress-label">
             <span>달성률</span>
-            <span>{{ progress_map.get(ch.id, 0) }}%</span>
+            <span>{{ pct }}%</span>
           </div>
           <div class="progress-bar">
-            <div class="progress-fill" style="width: {{ progress_map.get(ch.id, 0) }}%"></div>
+            <div class="progress-fill" style="width: {{ pct }}%"></div>
           </div>
         </div>
         <button class="btn-joined" disabled>✅ 참여 중</button>

@@ -85,12 +85,13 @@ def challenge_page():
         logger.warning("챌린지 목록 조회 실패: %s", e)
         challenges = []
 
-    # 사용자 참여 중 챌린지 (FR-36)
+    # 사용자 챌린지 현황 — 참여 중(0) + 완료(1) 모두 조회 (FR-36)
+    # is_completed=1 을 제외하면 완료된 챌린지가 '참여하기'로 보여 리셋처럼 보이는 버그 방지
     try:
         with db() as cursor:
             cursor.execute(
-                "SELECT challenge_id, progress"
-                " FROM user_challenges WHERE user_id = %s AND is_completed = 0",
+                "SELECT challenge_id, progress, is_completed"
+                " FROM user_challenges WHERE user_id = %s",
                 (user_id,),
             )
             user_challenges = cursor.fetchall() or []
@@ -98,7 +99,8 @@ def challenge_page():
         logger.warning("사용자 챌린지 조회 실패: %s", e)
         user_challenges = []
 
-    joined_ids = {uc["challenge_id"] for uc in user_challenges}
+    joined_ids = {uc["challenge_id"] for uc in user_challenges if not uc["is_completed"]}
+    completed_ids = {uc["challenge_id"] for uc in user_challenges if uc["is_completed"]}
     progress_map = {uc["challenge_id"]: uc["progress"] for uc in user_challenges}
 
     # AI 추천 (FR-33) — 세션 캐시로 TTL 내 중복 LLM 호출 방지
@@ -108,6 +110,7 @@ def challenge_page():
         "challenge/index.html",
         challenges=challenges,
         joined_ids=joined_ids,
+        completed_ids=completed_ids,
         progress_map=progress_map,
         ai_recommendations=ai_recommendations,
         csrf_token=csrf_token,
