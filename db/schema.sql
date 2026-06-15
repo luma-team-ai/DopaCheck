@@ -82,11 +82,14 @@ CREATE TABLE IF NOT EXISTS user_challenges (
   started_at   DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
   completed_at DATETIME   NULL,
   CONSTRAINT fk_uc_user FOREIGN KEY (user_id) REFERENCES users(id),
-  CONSTRAINT fk_uc_challenge FOREIGN KEY (challenge_id) REFERENCES challenges(id)
+  CONSTRAINT fk_uc_challenge FOREIGN KEY (challenge_id) REFERENCES challenges(id),
+  INDEX idx_uc_user_challenge (user_id, challenge_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 활성(미완료) 동일 챌린지 중복 참여 차단(FR-35)은 MariaDB가 partial unique index를
 -- 지원하지 않으므로 앱 레벨에서 처리한다(challenge join 시 미완료 동일 challenge_id 존재 검증).
+-- idx_uc_user_challenge: SELECT … FOR UPDATE의 next-key lock이 올바른 범위에 걸리도록
+-- (user_id, challenge_id) 복합 인덱스를 명시한다(풀 스캔 시 gap lock 미작동 위험 방어).
 
 -- RLS 제거 — 모든 조회는 앱에서 WHERE user_id = session['user_id'] 로 스코프.
 --   랭킹(FR-29, FR-30) 전체 집계는 서버에서 직접 집계 쿼리로 처리(별도 정책 불필요).
