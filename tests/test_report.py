@@ -214,6 +214,30 @@ def test_clamp_score_None_및_비정상_입력():
     assert clamp_score("bad") == 0
 
 
+# ── report 진입 시 recalculate_score 호출 검증 (#75) ─────────────────────────
+
+def test_report_진입_시_recalculate_score_호출됨(logged_in_client):
+    """report 페이지 진입 시 recalculate_score가 정확히 1회 호출되어야 한다 (#75).
+
+    home.py·score.py와 동일 패턴으로 이번 주 점수를 재산출한 뒤 조회해야
+    진입 경로에 따른 점수 불일치(stale 0 문제)가 사라진다.
+    """
+    with patch("services.score_service.recalculate_score") as mock_recalc:
+        res = logged_in_client.get("/report")
+    assert res.status_code == 200
+    mock_recalc.assert_called_once()
+
+
+def test_report_recalculate_score_예외_발생해도_200(logged_in_client):
+    """recalculate_score가 예외를 던져도 report 페이지는 200을 반환해야 한다 (#75).
+
+    예외는 logger.warning으로 삼키고, 폴백으로 기존 점수(또는 0)를 표시한다.
+    """
+    with patch("services.score_service.recalculate_score", side_effect=RuntimeError("DB 오류")):
+        res = logged_in_client.get("/report")
+    assert res.status_code == 200
+
+
 # ── kst_bounds 타임존·경계 테스트 (created_at 누락 방지) ────────────────────
 
 from utils.week import kst_bounds

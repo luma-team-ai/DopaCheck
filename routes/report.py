@@ -174,6 +174,12 @@ def report_page():
     # '데이터 없음'과 'DB 오류'는 logger.warning으로 구분하며, 운영 중 로그를 모니터링할 것.
     this_delivery = aggregate_delivery(_fetch_delivery(user_id, this_start, this_end))
     this_time = aggregate_time(_fetch_time(user_id, this_start, this_end))
+    # 점수 재산출 트리거 — home/score와 동일 패턴(#75). 저번 주 점수에는 영향 없음.
+    try:
+        from services.score_service import recalculate_score
+        recalculate_score(user_id)
+    except Exception as exc:
+        logger.warning("도파민 점수 재계산 실패: %s", exc)
     this_score = _fetch_score(user_id, this_start)
 
     # ── 저번 주 데이터 집계 ───────────────────────────────────
