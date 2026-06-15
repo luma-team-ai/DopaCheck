@@ -1,10 +1,20 @@
 """분석 히스토리 (담당: 허남 — FR-21~25)."""
+import json
 import logging
 import uuid
 from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, jsonify, render_template, request, session
 
+from config import (
+    BOOK_HOURS,
+    CHICKEN_PRICE,
+    DEFAULT_HOURLY_WAGE,
+    GYM_MONTHLY_PRICE,
+    LECTURE_HOURS,
+    RUNNING_KCAL_PER_MIN,
+    WORKOUT_HOURS,
+)
 from utils.csrf import get_or_create_csrf_token, verify_csrf
 from utils.week import KST, kst_bounds, kst_today, week_bounds
 
@@ -200,6 +210,40 @@ def history_detail(record_id: str):
         return render_template("history/detail.html", record=None, record_type=record_type, csrf_token=get_or_create_csrf_token()), 404
 
     _enrich([row], record_type)
+
+    # FR-22: 상세 뷰 전용 — 환산 값을 라우트에서 계산해 template 하드코딩 제거
+    if record_type == "delivery":
+        # items는 DB에 JSON 문자열로 저장됨 → 파싱 필요
+        raw_items = row.get("items")
+        if isinstance(raw_items, str):
+            try:
+                row["items"] = json.loads(raw_items)
+            except (json.JSONDecodeError, TypeError):
+                row["items"] = []
+        elif not isinstance(raw_items, list):
+            row["items"] = []
+
+        price = int(row.get("total_price") or 0)
+        kcal  = int(row.get("total_calories") or 0)
+        row["conv_chicken"]     = round(price / CHICKEN_PRICE, 1)      if CHICKEN_PRICE      else 0.0
+        row["conv_gym"]         = round(price / GYM_MONTHLY_PRICE, 1)  if GYM_MONTHLY_PRICE  else 0.0
+        row["conv_running_min"] = round(kcal  / RUNNING_KCAL_PER_MIN, 1) if RUNNING_KCAL_PER_MIN else 0.0
+    else:
+        # time 환산: SNS 합산(책·강의·운동)과 게임(원짜리 취미)은 별도 계산
+        sns_min  = (
+            int(row.get("youtube_min")   or 0) +
+            int(row.get("instagram_min") or 0) +
+            int(row.get("tiktok_min")    or 0)
+        )
+        game_min = int(row.get("game_min") or 0)
+        hourly   = int(row.get("hourly_wage") or DEFAULT_HOURLY_WAGE)
+        sns_h    = sns_min  / 60
+        game_h   = game_min / 60
+        row["conv_book_n"]    = round(sns_h / BOOK_HOURS,    1) if BOOK_HOURS    else 0.0
+        row["conv_lecture_n"] = round(sns_h / LECTURE_HOURS, 1) if LECTURE_HOURS else 0.0
+        row["conv_workout_n"] = round(sns_h / WORKOUT_HOURS, 1) if WORKOUT_HOURS else 0.0
+        row["conv_game_cost"] = int(game_h * hourly)
+
     return render_template("history/detail.html", record=row, record_type=record_type, csrf_token=get_or_create_csrf_token())
 
 
