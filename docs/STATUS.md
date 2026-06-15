@@ -50,7 +50,8 @@
 ## 마지막 머지 PR
 
 ### 2026-06-15 배치 (정재봉 검수·머지)
-- **#127** 히스토리 상세 환산 항목 렌더 추가 (**#114 CLOSED**) — `detail.html`에 헬스장 개월·강의 개·운동 회 렌더(라우트는 #112가 이미 계산). 중복 stale PR **#121은 close**(옛 base+rebase 누락). 메타 검수 G1/G6 PASS, history 테스트 17 PASS
+- **#127** 히스토리 상세 환산 항목 렌더 추가 (**#114 CLOSED**) — `detail.html`에 헬스장 개월·강의 개·운동 회 렌더(라우트는 #112가 이미 계산). 메타 검수 G1/G6 PASS, history 테스트 17 PASS
+  - 참고: 중복 stale PR **#121**은 이후 작성자가 머지(c9949a5) — 3-way 머지라 실질 반영분은 `.env.example` REDIRECT_URI 4줄뿐, 최근 작업 되돌림 없음(테스트 138 PASS 확인)
 - **#125** user_challenges 복합 인덱스 운영 마이그레이션 003 추가 (**#123 CLOSED**) — `ALTER ... ADD INDEX IF NOT EXISTS idx_uc_user_challenge`. #120이 schema.sql만 바꿔 운영 미반영이던 것 보완. **운영 DB ALTER 수동 적용 필요**
 - **#120** user_challenges 복합 인덱스(schema.sql) — FOR UPDATE gap lock 보장(#113 후속)
 - **#106** 관리자 페이지 `/admin` 통계 대시보드 — admin_required 매요청 DB role 재검증 + 랭킹 이메일 마스킹 + 인가 테스트 4종(#106 P2 반영). code/security 인가 견고
