@@ -2,6 +2,35 @@
 
 > 마지막 갱신: 2026-06-15
 
+<a id="sprint"></a>
+## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
+
+> 발표까지 **약 2.5일**. **정합성·시연 안정화가 최우선, `/admin`은 조건부**(시간 남으면).
+> 여기는 "지금 각자 뭘 해야 하나" 사람용 보드 — **코드 단위 작업은 GitHub 이슈**, 사람용 요약은 이 표로 본다.
+> 우선순위: 🔴 P1(시연이 깨짐) > 🟡 P2 > ⚪ 조건부.
+
+| 담당 | 지금 할 일 | 우선 | 근거 |
+|------|-----------|------|------|
+| **오영석** (AI/챌린지) | ☐ **#73 챌린지 완료 처리** — `progress`/`completed_at`/`is_completed` 쓰기 경로 추가 → `challenge_bonus` 살리기 (분석 저장 시 달성 판정) | 🔴 P1 | 현재 쓰기 0건 → 보너스 항상 0, 점수 만점 불가 |
+| | ☐ **#74 챌린지 join race** — 중복검증 SELECT/INSERT 단일 트랜잭션·원자쿼리 (FR-35) | 🔴 P1 | TOCTOU |
+| | ☐ #24 `calorie.py` kcal 스키마 검증·`next()` StopIteration 방어 | 🟡 P2 | |
+| **김승현** (DB) | ☐ **`db/seed.sql` 20건** — 랭킹·percentile 시연 전제 데이터 삽입 | 🔴 P1 | FR-30, 미작성 |
+| | ☐ **`/admin` (조건부)** — `users.role` ALTER(default `user`) → `admin_required` 가드 → 로그인 리다이렉트(FR-0-3) → 통계 대시보드(FR-55~58). **#73 완료 후 챌린지 통계가 의미 생김** | ⚪ 조건부 | seed 끝낸 뒤 착수 |
+| **이은석** (서버/프론트) | ☐ **time `/analyze` CSRF 미전송 403 테스트**(#46후속, test_time skip 해제) | 🟡 P2 | 회귀 방어 부재 |
+| | ☐ 배포 안정화 + **모바일(Chrome/Safari) QA 주도** | 🟡 P2 | PRD §9 |
+| **허남** (히스토리) | ☐ **history Stitch 마이그레이션** — `base.html` 상속 + Stitch 토큰 전환(`style.css` 과도기 해소) | 🟡 P2 | 디자인 톤 혼재 |
+| | ☐ 통합테스트 참여 | 🟡 P2 | |
+| **김관영** (delivery) | ☐ **OCR 정확도 QA 주도** — 샘플 영수증 5종 파싱 점검 (구현은 완료) | 🟡 P2 | PRD §9 |
+| | ☐ **통합테스트 주도** — 업로드→OCR→저장→히스토리→점수 전체 흐름 | 🟡 P2 | |
+| **정재봉** (A/리포트) | ☐ **PRD Ver1.3 정합** — 모델명 `claude-haiku-4-5`, `DB_POOL_TIMEOUT` 추가, 챌린지 수용기준 [x]→[ ](#73 미구현 반영) | 🔴 P1 | 문서 거짓 표기 |
+| | ☑ ~~#76 종료~~ — #79로 이미 해소(score SUM+game), STATUS 반영 완료 | ✅ | — |
+| | ☐ 검수·PR 머지 오케스트레이션 | — | |
+
+**Day별 흐름**
+- **Day 1 (정합성)**: 오영석 #73 · 김승현 seed · 정재봉 PRD Ver1.3 정합
+- **Day 1.5~2 (신규/안정화)**: 김승현 `/admin`(조건부) · 오영석 #74 · 이은석 time CSRF 테스트 · 허남 history Stitch
+- **Day 2~2.5 (통합)**: 전원 통합테스트 · 데모 완주 · 모바일 QA (김관영·이은석 주도)
+
 ## 인프라
 
 | 항목 | 상태 | 담당 |
@@ -19,6 +48,12 @@
 
 ## 마지막 머지 PR
 
+- #94 `DB_POOL_TIMEOUT` env 문서화 (**#71 CLOSED**, luma200ok 작성→PR머신 머지) — `.env.example`·README에 `DB_POOL_TIMEOUT`(기본30, 풀 소진 대기 한도 초과 시 503) 반영. 메타 자체검수·G6 PASS
+- #92 커넥션 풀 bounded-timeout/503 (**#71 CLOSED**, luma200ok) — `db/client.py` `blocking=True` 무한대기 → `DB_POOL_TIMEOUT` 한도 후 503. gthread/eventlet 전환 대비 풀 고갈 안전화
+- #86 delivery Top App Bar 화면별 페이지 제목 표시 (**#80**, 김관영)
+- #90 마이페이지(`/mypage`) 화면 구현 + 기본 시급 설정 모달 (**FR-46~51**, 김승현) — 내 정보/이번주 점수/완료 챌린지 수/총 분석 횟수 표시 + `users.hourly_wage` 수정
+- #87 AI `extract_text` 헬퍼 추가 + 모델 상수 중앙화 (**#20·#59 P2 CLOSED**, 오영석) — `ai/utils.py` 공통화
+- #79 score 시간통계 평균→합계 + 게임 시간 포함 (**#76 P2 CLOSED**) — `routes/score.py` `SUM(youtube+instagram+tiktok+game)` (FR-31-1), 점수 산출값과 화면 표시 일치
 - #89 report 비교차트 단일 dataset + recalc import 정리 (**#54·#83 CLOSED**, 정재봉) — miniChart 2-dataset null분리→단일 dataset `[lastVal,thisVal]`+바별 색상배열(BAR_LAST/THIS 보존, 0/null 모호·grouped 빈공간 해소) · `routes/report.py` recalc 지연import→모듈 최상위(순환 없음) · `tests/test_report.py` patch경로 `routes.report.recalculate_score`로 정정. 메타 자체검수(템플릿+import 정리, 서비스·레포 무관)·G6 PASS, pytest 117 PASS. #54 잔여 1건 완료(CDN/SRI는 #67 기완료)
 - #81 CSRF DRY 통합 + 413 fallback + 세션쿠키 보안 (**#46/#42/#43/#44 해소**, Ketose333 작성→정재봉 사람검수 머지) — `history_delete`에 `verify_csrf()` 추가(P1: DELETE CSRF 누락) · `time.py` 로컬 CSRF 제거→공통 `utils/csrf.py` 통일(헤더 `X-CSRF-Token` OR 폼 `csrf_token` 둘 다 지원) · 413 핸들러 `BuildError`→'/' fallback · `SESSION_COOKIE_SECURE` 전용 env 분리(OR `FLASK_ENV=production`). code-reviewer P1 0 / security-reviewer P1 0, G6 PASS, pytest 115 PASS. **후속 P2**: time `/analyze` CSRF 미전송 403 테스트 부재(test_time 주요 케이스 skip 상태). 새 env `SESSION_COOKIE_SECURE` → `.env.example`·README 반영 완료
 - #82 report 진입 시 점수 재산출 호출 추가 (**#75 P2 CLOSED**, 타 세션 머지) — report만 `recalculate_score` 미호출로 점수 stale 불일치 해소
@@ -64,11 +99,11 @@
 | #73 챌린지 완료 처리 미구현 | **P1** `is_completed`/`completed_at`/`progress` 쓰기 경로 0건 → `challenge_bonus` 구조적 항상 0(만점 불가). 무결성검사 발견 → 오영석 |
 | #74 챌린지 join TOCTOU | **P1** 중복검증 SELECT/INSERT 트랜잭션 분리(FR-35 race 정밀화). 단일 트랜잭션/원자쿼리 필요 → 오영석. (기존 'FR-35 race 파킹'을 이 이슈로 승격) |
 | ~~#75 report 점수 재산출 누락~~ | ✅ **#82로 해소** — report 진입 시 `recalculate_score` 호출 추가 |
-| #76 score 시간지표 불일치 | **P2** score 화면 '평균 시간'이 game 제외+AVG → 점수용 SUM과 의미 불일치 → 김승현 |
+| ~~#76 score 시간지표 불일치~~ | ✅ **#79로 해소** — score 시간통계 game 포함 SUM으로 변경, 점수 산출값과 일치 (FR-31-1) |
 | ~~#44/#43/#42 (CSRF DRY·413·세션쿠키)~~ | ✅ **#81로 해소** — CSRF 전 도메인 `utils/csrf.py` 통일(challenge·delivery·time·history), 413 BuildError fallback, `SESSION_COOKIE_SECURE` env 분리 |
 | #46후속 time CSRF 테스트 | **P2** time `/analyze` CSRF 미전송 403 회귀 테스트 부재(test_time 주요 케이스 skip 상태) → 이은석 |
 | #24 챌린지 AI P2 잔존 | `calorie.py` kcal 스키마 검증·`next()` StopIteration 미처리 |
 | (FR-35 race → #74로 승격) | 무결성검사로 '두 트랜잭션 분리'까지 확인되어 전용 이슈 #74 등록 |
-| #71 풀 blocking 무한대기 | `blocking=True` 타임아웃 없음 — sync 워커 무해, gthread 전환 시 bounded-timeout/503 필요(#23 후속) |
+| ~~#71 풀 blocking 무한대기~~ | ✅ **#92·#94로 해소** — `DB_POOL_TIMEOUT`(기본30) bounded-timeout/503 적용, gthread 전환 안전화 |
 | #11 주차 타임존(KST) | report 적용 완료, 타 도메인은 `utils/week.py` 공통 유틸 사용 권장 |
 </content>
