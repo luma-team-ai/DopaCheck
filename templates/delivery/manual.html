@@ -123,6 +123,7 @@
         const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
         total += price * qty;
       });
+      total += parseFloat(document.getElementById('delivery-fee').value) || 0;
       totalDisplay.textContent = total.toLocaleString();
       return total;
     }
@@ -136,6 +137,7 @@
 
     // 첫 행 바인딩
     document.querySelectorAll('.form-row').forEach(bindRow);
+    document.getElementById('delivery-fee').addEventListener('input', recalc);
 
     addBtn.addEventListener('click', () => {
       const row = rowTemplate();
@@ -163,8 +165,9 @@
         alert('음식명을 1개 이상 입력해주세요.');
         return;
       }
+      const deliveryFee = parseFloat(document.getElementById('delivery-fee').value) || 0;
       document.getElementById('food-names-hidden').value = names.join(',');
-      document.getElementById('total-price-hidden').value = total;
+      document.getElementById('total-price-hidden').value = total + deliveryFee;
     });
   })();
 </script>
