@@ -387,6 +387,26 @@ def test_수동_입력_빈_음식명_거부(logged_in_client):
     assert "/delivery/manual" in res.headers.get("Location", "")
 
 
+def test_수동_입력_공백만_음식명_거부(logged_in_client):
+    """쉼표는 있으나 공백만 있는 음식명(" , ") → 빈 리스트로 거부, /delivery/manual 리다이렉트."""
+    form_data = {
+        "csrf_token": "test-csrf-token",
+        "manual_input": "1",
+        "food_names": "   ,   ",
+        "total_price": "5000",
+        "delivery_fee": "0",
+    }
+
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=form_data,
+        content_type="application/x-www-form-urlencoded",
+    )
+
+    assert res.status_code == 302
+    assert "/delivery/manual" in res.headers.get("Location", "")
+
+
 def test_수동_입력_음수_금액_거부(logged_in_client):
     """total_price 음수 제출 → flash error 후 /delivery/manual 리다이렉트."""
     form_data = {

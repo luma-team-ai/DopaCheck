@@ -196,6 +196,8 @@ def _handle_manual_input(user_id: int):
         flash("총 금액은 0원 이상이어야 합니다.", "error")
         return redirect(url_for("delivery.manual_page"))
 
+    # 배달비는 보조 메타데이터 — total_price(핵심 지출)와 달리 음수/비정수는
+    # 거부 대신 0으로 무음 보정한다(사용자 흐름 차단 최소화).
     try:
         delivery_fee = int(request.form.get("delivery_fee") or 0)
         if delivery_fee < 0:
