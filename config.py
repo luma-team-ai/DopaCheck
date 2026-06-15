@@ -23,6 +23,12 @@ DEFAULT_HOURLY_WAGE = 10_030    # 2026 최저시급 (원) — users.hourly_wage 
 AI_REQUEST_TIMEOUT = 15         # Anthropic API 타임아웃 (초)
 AI_RECOMMEND_CACHE_TTL = 3_600  # AI 추천 세션 캐시 TTL (초 — 1시간)
 
+# ── AI 모델 상수 (변경 시 이곳만 수정) ───────────────────
+MODEL_OCR       = "claude-haiku-4-5"
+MODEL_CALORIE   = "claude-haiku-4-5"
+MODEL_COMMENT   = "claude-haiku-4-5"
+MODEL_CHALLENGE = "claude-haiku-4-5"
+
 # ── 도파민 점수 공식 (FR-27) ─────────────────────────────
 SCORE_DELIVERY_WEIGHT = 0.4     # 배달 기여 40%
 SCORE_TIME_WEIGHT = 0.4         # 시간 기여 40%

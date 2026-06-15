@@ -2,7 +2,8 @@
 import base64
 import json
 
-from ai.utils import extract_json, get_client
+from ai.utils import extract_json, extract_text, get_client
+from config import MODEL_OCR
 
 
 def _detect_media_type(image_bytes: bytes) -> str:
@@ -44,7 +45,7 @@ def parse_receipt(image_bytes: bytes) -> dict:
     )
 
     response = get_client().messages.create(
-        model="claude-haiku-4-5",
+        model=MODEL_OCR,
         max_tokens=1024,
         messages=[{
             "role": "user",
@@ -61,7 +62,7 @@ def parse_receipt(image_bytes: bytes) -> dict:
             ],
         }],
     )
-    text = next(b.text for b in response.content if b.type == "text")
+    text = extract_text(response)
     try:
         result = json.loads(extract_json(text))
     except json.JSONDecodeError as e:

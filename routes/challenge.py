@@ -1,7 +1,6 @@
 """AI 챌린지 (담당: 오영석 — FR-32~38)."""
 import logging
 import time
-import uuid
 
 from flask import Blueprint, jsonify, render_template, session
 
@@ -223,8 +222,10 @@ def join(challenge_id: str):
 
     user_id = session.get("user_id")
 
-    # 길이·문자 검증 (파라미터 바인딩으로 SQL 인젝션은 차단됨)
-    if not challenge_id or len(challenge_id) > 36:
+    # 정수 검증 (challenges.id = bigint)
+    try:
+        challenge_id_int = int(challenge_id)
+    except (ValueError, TypeError):
         return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
 
     # 중복 참여 사전 체크 (FR-35)
@@ -246,9 +247,9 @@ def join(challenge_id: str):
     try:
         with db() as cursor:
             cursor.execute(
-                "INSERT INTO user_challenges (id, user_id, challenge_id, progress, is_completed)"
-                " VALUES (%s, %s, %s, 0, 0)",
-                (str(uuid.uuid4()), user_id, challenge_id),
+                "INSERT INTO user_challenges (user_id, challenge_id, progress, is_completed)"
+                " VALUES (%s, %s, 0, 0)",
+                (user_id, challenge_id_int),
             )
     except Exception as e:
         logger.warning("챌린지 참여 실패: %s", e)

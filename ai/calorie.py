@@ -1,7 +1,8 @@
 """칼로리 추론 (담당: 오영석 — FR-41)."""
 import json
 
-from ai.utils import extract_json, get_client
+from ai.utils import extract_json, extract_text, get_client
+from config import MODEL_CALORIE
 
 
 def estimate(items: list[str]) -> dict:
@@ -31,11 +32,11 @@ def estimate(items: list[str]) -> dict:
     )
 
     response = get_client().messages.create(
-        model="claude-haiku-4-5",
+        model=MODEL_CALORIE,
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = next(b.text for b in response.content if b.type == "text")
+    text = extract_text(response)
     try:
         calories = json.loads(extract_json(text))
     except json.JSONDecodeError as e:

@@ -1,7 +1,8 @@
 """공감 코멘트 생성 (담당: 오영석 — FR-42)."""
 import json
 
-from ai.utils import get_client
+from ai.utils import extract_text, get_client
+from config import MODEL_COMMENT
 
 _SYSTEM = (
     "당신은 공감 능력이 높은 생활 습관 AI 코치입니다. "
@@ -54,9 +55,9 @@ def generate(comment_type: str, context: dict) -> str:
     prompt = template.format(context=json.dumps(safe_context, ensure_ascii=False))
 
     response = get_client().messages.create(
-        model="claude-haiku-4-5",
+        model=MODEL_COMMENT,
         max_tokens=256,
         system=_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
     )
-    return next(b.text for b in response.content if b.type == "text").strip()
+    return extract_text(response).strip()
