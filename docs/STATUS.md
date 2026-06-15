@@ -19,6 +19,9 @@
 
 ## 마지막 머지 PR
 
+- #81 CSRF DRY 통합 + 413 fallback + 세션쿠키 보안 (**#46/#42/#43/#44 해소**, Ketose333 작성→정재봉 사람검수 머지) — `history_delete`에 `verify_csrf()` 추가(P1: DELETE CSRF 누락) · `time.py` 로컬 CSRF 제거→공통 `utils/csrf.py` 통일(헤더 `X-CSRF-Token` OR 폼 `csrf_token` 둘 다 지원) · 413 핸들러 `BuildError`→'/' fallback · `SESSION_COOKIE_SECURE` 전용 env 분리(OR `FLASK_ENV=production`). code-reviewer P1 0 / security-reviewer P1 0, G6 PASS, pytest 115 PASS. **후속 P2**: time `/analyze` CSRF 미전송 403 테스트 부재(test_time 주요 케이스 skip 상태). 새 env `SESSION_COOKIE_SECURE` → `.env.example`·README 반영 완료
+- #82 report 진입 시 점수 재산출 호출 추가 (**#75 P2 CLOSED**, 타 세션 머지) — report만 `recalculate_score` 미호출로 점수 stale 불일치 해소
+- #84 헤더 프로필 아바타 드롭다운(마이페이지·로그아웃) 추가 (타 세션 머지)
 - #77 delivery P2 3건 (**#55 CLOSED**, PR머신 생성→정재봉 사람검수 머지) — 업로드 오버레이 setInterval 정리(pageshow) · manual 폼 서버검증(빈 food_names·음수 total_price 거부) · `_stitch_head.html` Tailwind CDN 제거→정적 산출물. code-reviewer P1(z-[100]) **검증 결과 오탐**(빌드 내 실재+기존 코드), pytest 114 PASS. ⚠️ home/time/score CDN 잔존은 #67 후속(타 담당)
 - #72 DBUtils 커넥션 풀 도입 (**#23 CLOSED**, 정재봉) — `db/client.py` 요청마다 `pymysql.connect()`→`PooledDB` 풀 전환(503/고갈 방지). 모듈 싱글톤 지연초기화+`threading.Lock` DCL, `db()` 외부 계약 유지, `DB_POOL_SIZE`(기본5). FR-35 중복검증은 기구현이라 범위 제외. reviewer P1 2건(`int("")` 방어·`blocking` 무한대기)→픽스+**#71 분리**, 재검토 APPROVE, pytest 111 PASS
 - #70 홈 챌린지 집계를 `completed_at` 기준으로 통일 (**#69 P1 정합성 버그 CLOSED**, 정재봉) — `routes/home.py` 완료 집계가 `started_at`→`completed_at`로 score_service와 정합, `total`은 (시작 OR 완료) 합집합으로 확장해 completed ⊆ total 불변식 보장. code-reviewer P1 0건(초기 P1은 OR-COUNT 로직 정상 재분류), pytest 98 PASS
@@ -59,11 +62,10 @@
 |------|------|
 | #73 챌린지 완료 처리 미구현 | **P1** `is_completed`/`completed_at`/`progress` 쓰기 경로 0건 → `challenge_bonus` 구조적 항상 0(만점 불가). 무결성검사 발견 → 오영석 |
 | #74 챌린지 join TOCTOU | **P1** 중복검증 SELECT/INSERT 트랜잭션 분리(FR-35 race 정밀화). 단일 트랜잭션/원자쿼리 필요 → 오영석. (기존 'FR-35 race 파킹'을 이 이슈로 승격) |
-| #75 report 점수 재산출 누락 | **P2** report만 `recalculate_score` 미호출 → 경로별 점수 stale 불일치 → 정재봉 |
+| ~~#75 report 점수 재산출 누락~~ | ✅ **#82로 해소** — report 진입 시 `recalculate_score` 호출 추가 |
 | #76 score 시간지표 불일치 | **P2** score 화면 '평균 시간'이 game 제외+AVG → 점수용 SUM과 의미 불일치 → 김승현 |
-| #44 세션 쿠키 보안 | SameSite/Secure/HttpOnly 명시 설정 — ai:p2-followup |
-| #43 413 핸들러 | MAX_CONTENT_LENGTH 초과 시 413 응답 + UX — ai:p2-followup |
-| #42 CSRF DRY | challenge.py CSRF 로직을 utils/csrf.py로 통합 — ai:p2-followup |
+| ~~#44/#43/#42 (CSRF DRY·413·세션쿠키)~~ | ✅ **#81로 해소** — CSRF 전 도메인 `utils/csrf.py` 통일(challenge·delivery·time·history), 413 BuildError fallback, `SESSION_COOKIE_SECURE` env 분리 |
+| #46후속 time CSRF 테스트 | **P2** time `/analyze` CSRF 미전송 403 회귀 테스트 부재(test_time 주요 케이스 skip 상태) → 이은석 |
 | #24 챌린지 AI P2 잔존 | `calorie.py` kcal 스키마 검증·`next()` StopIteration 미처리 |
 | (FR-35 race → #74로 승격) | 무결성검사로 '두 트랜잭션 분리'까지 확인되어 전용 이슈 #74 등록 |
 | #71 풀 blocking 무한대기 | `blocking=True` 타임아웃 없음 — sync 워커 무해, gthread 전환 시 bounded-timeout/503 필요(#23 후속) |

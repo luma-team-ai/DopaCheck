@@ -157,6 +157,7 @@ chore: 의존성 추가
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `KAKAO_CLIENT_ID` | OAuth | 김승현 |
 | `ANTHROPIC_API_KEY` | Claude API | 오영석 |
 | `FLASK_SECRET_KEY` | 세션 암호화 | 김관영 |
+| `SESSION_COOKIE_SECURE` | 세션 쿠키 Secure 속성 — `true` 또는 `FLASK_ENV=production`이면 활성화(#46). 로컬은 `false` | 김관영 |
 
 ## 팀
 
