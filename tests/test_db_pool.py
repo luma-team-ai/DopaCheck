@@ -346,9 +346,13 @@ class TestResolvePoolTimeout:
         mock_pool.connection.side_effect = TooManyConnections()
         client = _get_client()
 
-        # DB_POOL_TIMEOUT=1 로 캐싱한 뒤 _get_connection() 호출
+        # 1) DB_POOL_TIMEOUT=1 로 먼저 캐싱
         with patch.dict(os.environ, {**_db_env(), "DB_POOL_TIMEOUT": "1"}, clear=False):
+            assert client._resolve_pool_timeout() == 1.0
+
+        # 2) env를 999로 바꿔도 _get_connection()은 캐시값(1초)을 사용해야 한다
+        #    (매 호출 env 재평가가 아님을 증명 — 999가 아닌 1초로 타임아웃)
+        with patch.dict(os.environ, {**_db_env(), "DB_POOL_TIMEOUT": "999"}, clear=False):
             with patch("db.client.PooledDB", return_value=mock_pool):
-                # timeout=None(인자 미전달) → 캐시값 1초 적용 → PoolExhaustedError 발생 확인
                 with pytest.raises(PoolExhaustedError, match="1초"):
-                    client._get_connection(interval=0.0)  # timeout 인자 없음
+                    client._get_connection(interval=0.0)  # timeout 인자 없음 → 캐시값
