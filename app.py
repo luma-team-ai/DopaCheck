@@ -6,7 +6,7 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, session, url_for
+from flask import Flask, flash, redirect, send_from_directory, session, url_for
 from werkzeug.routing import BuildError
 
 load_dotenv()
@@ -63,6 +63,15 @@ app.register_blueprint(admin_bp)
 if os.environ.get("FLASK_ENV") == "development":
     from routes.dev_only import dev_bp
     app.register_blueprint(dev_bp)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, "static", "images"),
+        "favicon.svg",
+        mimetype="image/svg+xml",
+    )
 
 
 @app.route("/")

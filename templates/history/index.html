@@ -12,30 +12,24 @@
 {% endblock %}
 
 {% block header_right %}
-<span class="material-symbols-outlined text-on-surface-variant">filter_list</span>
+<span class="material-symbols-outlined text-on-surface-variant">tune</span>
 {% endblock %}
 
 {% block content %}
 
-<!-- 기간 + 유형 필터 칩 (FR-24) -->
+<!-- 통합 필터 칩 (FR-24) -->
 <section class="flex gap-2 overflow-x-auto pb-5 no-scrollbar -mx-1 px-1">
-  {% set periods = [('all','전체'), ('week','이번 주'), ('month','이번 달')] %}
-  {% set types = [('all','전체'), ('delivery','배달'), ('time','시간')] %}
-
-  {% for val, label in periods %}
-  <a href="{{ url_for('history.history_list', period=val, type_filter=type_filter) }}"
+  {% set chips = [
+    ('all',   'all',      '전체'),
+    ('week',  'all',      '이번 주'),
+    ('month', 'all',      '이번 달'),
+    ('all',   'delivery', '배달'),
+    ('all',   'time',     '시간'),
+  ] %}
+  {% for p, t, label in chips %}
+  <a href="{{ url_for('history.history_list', period=p, type_filter=t) }}"
      class="px-5 py-2 rounded-full whitespace-nowrap text-[12px] font-semibold tracking-wider transition-all active:scale-95
-            {% if period == val %}bg-primary-container text-on-primary-container{% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
-    {{ label }}
-  </a>
-  {% endfor %}
-
-  <div class="w-px bg-outline-variant self-stretch mx-1"></div>
-
-  {% for val, label in types %}
-  <a href="{{ url_for('history.history_list', period=period, type_filter=val) }}"
-     class="px-5 py-2 rounded-full whitespace-nowrap text-[12px] font-semibold tracking-wider transition-all active:scale-95
-            {% if type_filter == val %}bg-secondary-container text-on-secondary-container{% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+            {% if period == p and type_filter == t %}bg-primary-container text-on-primary-container{% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
     {{ label }}
   </a>
   {% endfor %}

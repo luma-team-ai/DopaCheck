@@ -36,10 +36,10 @@ def estimate(items: list[str]) -> dict:
         max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = extract_text(response)
     try:
+        text = extract_text(response)
         calories = json.loads(extract_json(text))
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, ValueError) as e:
         raise ValueError(f"칼로리 추론 응답 파싱 실패: {e}") from e
     total_kcal = sum(item.get("kcal", 0) for item in calories)
 

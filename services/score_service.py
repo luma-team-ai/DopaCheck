@@ -34,7 +34,50 @@ def recalculate_score(user_id: int) -> None:
         )
         time_total_min = cursor.fetchone()["sum_min"] or 0
 
-        # 이번 주 완료한 챌린지 수 집계
+        # 이번 주 배달 횟수 (챌린지 progress용 — 소비금액이 아닌 건수)
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM delivery_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+            (user_id, gte_at, lt_at)
+        )
+        delivery_count = cursor.fetchone()["cnt"] or 0
+
+        # ── 챌린지 진행도 갱신 + 달성 판정 (FR-36~38, #73) ─────────────────────────
+        cursor.execute(
+            "SELECT uc.id, c.target_type, c.target_value"
+            " FROM user_challenges uc JOIN challenges c ON c.id = uc.challenge_id"
+            " WHERE uc.user_id = %s AND uc.is_completed = 0",
+            (user_id,)
+        )
+        active_challenges = cursor.fetchall() or []
+        time_hours = time_total_min / 60
+
+        for ch in active_challenges:
+            tt = ch["target_type"]
+            tv = ch["target_value"] or 1
+            if tt == "delivery":
+                progress = delivery_count
+                done = delivery_count >= tv
+            elif tt == "time":
+                progress = int(time_hours)
+                done = time_hours >= tv
+            else:  # "both"
+                progress = min(delivery_count, int(time_hours))
+                done = delivery_count >= tv and time_hours >= tv
+
+            if done:
+                cursor.execute(
+                    "UPDATE user_challenges"
+                    " SET progress = %s, is_completed = 1, completed_at = NOW()"
+                    " WHERE id = %s AND is_completed = 0",
+                    (tv, ch["id"])
+                )
+            else:
+                cursor.execute(
+                    "UPDATE user_challenges SET progress = %s WHERE id = %s AND is_completed = 0",
+                    (progress, ch["id"])
+                )
+
+        # 이번 주 완료한 챌린지 수 집계 (진행도 갱신 후)
         cursor.execute(
             "SELECT COUNT(*) as comp_count FROM user_challenges WHERE user_id = %s AND is_completed = 1 AND completed_at >= %s AND completed_at < %s",
             (user_id, gte_at, lt_at)

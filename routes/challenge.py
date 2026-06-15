@@ -222,30 +222,27 @@ def join(challenge_id: str):
 
     user_id = session.get("user_id")
 
-    # 정수 검증 (challenges.id = bigint)
+    # 정수 검증 + 양수 범위 체크 (challenges.id = bigint, #88)
     try:
         challenge_id_int = int(challenge_id)
     except (ValueError, TypeError):
         return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
+    if challenge_id_int <= 0:
+        return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
 
-    # 중복 참여 사전 체크 (FR-35)
+    # 중복 참여 체크 + INSERT를 단일 트랜잭션으로 원자화 (FR-35)
+    # FOR UPDATE: InnoDB REPEATABLE READ에서 next-key lock(행+gap)을 획득해
+    # 동시 요청이 모두 '없음'을 보고 INSERT하는 TOCTOU를 차단한다. (#74 #105)
     try:
         with db() as cursor:
             cursor.execute(
                 "SELECT id FROM user_challenges"
-                " WHERE user_id = %s AND challenge_id = %s AND is_completed = 0",
-                (user_id, challenge_id),
+                " WHERE user_id = %s AND challenge_id = %s AND is_completed = 0"
+                " FOR UPDATE",
+                (user_id, challenge_id_int),
             )
-            existing = cursor.fetchone()
-    except Exception as e:
-        logger.warning("챌린지 중복 체크 실패: %s", e)
-        return jsonify({"error": "서버 오류가 발생했습니다."}), 503
-
-    if existing:
-        return jsonify({"error": "이미 참여 중인 챌린지입니다."}), 409
-
-    try:
-        with db() as cursor:
+            if cursor.fetchone():
+                return jsonify({"error": "이미 참여 중인 챌린지입니다."}), 409
             cursor.execute(
                 "INSERT INTO user_challenges (user_id, challenge_id, progress, is_completed)"
                 " VALUES (%s, %s, 0, 0)",

@@ -1,8 +1,22 @@
 # PRD — 도파민 대리 만족 (Dopamine Check)
 
 > AI 심화 과정 팀 프로젝트 | 6인 팀 | 개발 기간: 6~7일  
-> 작성일: 2026-06-11 (Ver1.1) / 갱신일: 2026-06-15 (Ver1.2)  
+> 작성일: 2026-06-11 (Ver1.1) / 갱신일: 2026-06-15 (Ver1.3)  
 > 팀원: 김승현(DB담당), 김관영(Flask/백엔드), 이은석(서버세팅/프론트), 정재봉(리포트), 허남(히스토리), 오영석(AI모듈/챌린지)
+>
+> 📋 진행 현황·팀원별 할 일은 [docs/STATUS.md](STATUS.md) 참조
+
+---
+
+## 0-1. Ver1.3 변경 요약 (2026-06-15 — 실제 코드 정합)
+
+Ver1.2 문서와 실제 구현 간 불일치를 코드 기준으로 정정했다.
+
+- **AI 모델명 정정**: `claude-sonnet-4-20250514` → 실제 `claude-haiku-4-5` (`config.py` 기준, OCR·칼로리·코멘트·챌린지 전부 동일 모델)
+- **`DB_POOL_TIMEOUT` 환경변수 추가**: 커넥션 풀 소진 대기 한도(초, 기본 30) 초과 시 503 반환 (#71→#92·#94). gthread/eventlet 워커 전환 대비 무한대기 제거
+- **챌린지 달성/보너스 상태 정정**: FR-38(달성 시 +5점) 및 §8 수용기준을 **미구현(#73)** 으로 표기. `is_completed`/`completed_at`/`progress` 쓰기 경로가 없어 `challenge_bonus`가 구조적으로 항상 0 — 발표 전 구현 필요
+- **score 시간통계(FR-31-1) 구현 확인**: 코드상 이미 game 포함 주간 SUM 반영(`routes/score.py`, #79). Ver1.2 표기가 정확함을 확인
+- **PRD 파일을 repo로 이동**: `docs/PRD.md`로 편입(버전관리·팀 공유)
 
 ---
 
@@ -189,7 +203,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - FR-35: 동일 챌린지는 활성 상태에서 중복 참여 불가하다.
 - FR-36: 시스템은 챌린지 달성률 프로그레스 바를 표시해야 한다.
 - FR-37: 챌린지 달성 판정은 분석 결과 저장 시 실시간 트리거 방식으로 처리한다. **(Ver1.2: 홈 챌린지 집계는 `completed_at` 기준으로 통일)**
-- FR-38: 챌린지 달성 시 도파민 점수에 +5점 보너스가 반영되어야 한다.
+- FR-38: 챌린지 달성 시 도파민 점수에 +5점 보너스가 반영되어야 한다. **(Ver1.3: 미구현 #73 — `is_completed`/`completed_at`/`progress` 쓰기 경로 추가 필요, 현재 `challenge_bonus` 구조적 0)**
 
 ### 마이페이지 (`/mypage` — Ver1.2 신규, 김승현)
 - FR-46: 사용자는 마이페이지에서 닉네임, 이메일(카카오 소셜 회원은 "카카오 소셜 회원"으로 표시), 가입일을 조회할 수 있어야 한다.
@@ -269,7 +283,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 ### 챌린지
 - [x] Given 히스토리 데이터가 1건 이상 있을 때, When 챌린지 페이지에 접속하면, Then AI 맞춤 추천 챌린지가 표시된다.
 - [x] Given 동일 챌린지가 이미 활성 상태일 때, When 다시 참여를 시도하면, Then 중복 참여가 차단된다.
-- [x] Given 챌린지를 달성하면, Then 도파민 점수에 +5점 보너스가 반영된다.
+- [ ] Given 챌린지를 달성하면, Then 도파민 점수에 +5점 보너스가 반영된다. **(Ver1.3: 미구현 — #73, 완료 쓰기 경로 부재로 `challenge_bonus` 항상 0)**
 
 ### 마이페이지 (Ver1.2 신규)
 - [x] Given 로그인한 사용자가, When 헤더의 프로필 아바타를 클릭하면, Then 마이페이지·로그아웃 드롭다운이 표시된다.
@@ -615,7 +629,7 @@ Flask App (Cloudtype)
        │               (HTTPONLY, SAMESITE=Lax, SECURE는 SESSION_COOKIE_SECURE/FLASK_ENV로 분리 — Ver1.2)
        │
        ├─── DB: MariaDB (Cloudtype)
-       │         ├── DBUtils.PooledDB 커넥션 풀 (DB_POOL_SIZE) — Ver1.2
+       │         ├── DBUtils.PooledDB 커넥션 풀 (DB_POOL_SIZE / DB_POOL_TIMEOUT→503) — Ver1.2~1.3
        │         └── user_id 필터로 사용자별 데이터 격리
        │
        ├─── 프론트: Tailwind CSS (Play CDN → PostCSS 빌드 전환 — Ver1.2)
@@ -627,7 +641,7 @@ Flask App (Cloudtype)
                          ├── POST /score (recalculate_score로 오케스트레이션)
                          └── POST /challenge
                                   │
-                                  └── Claude API (claude-sonnet-4-20250514)
+                                  └── Claude API (claude-haiku-4-5 — config.py)
 ```
 
 ### 배포 구성
@@ -639,7 +653,7 @@ Flask App (Cloudtype)
 | DB | MariaDB (Cloudtype) | 김승현 |
 | AI 모듈 | Flask 내장 (ai/ 패키지) | 오영석 |
 
-### 환경변수 목록 *(Ver1.2: DB_POOL_SIZE, SESSION_COOKIE_SECURE 추가)*
+### 환경변수 목록 *(Ver1.2: DB_POOL_SIZE, SESSION_COOKIE_SECURE 추가 / Ver1.3: DB_POOL_TIMEOUT 추가)*
 
 | 변수명 | 설명 | 관리자 |
 |--------|------|--------|
@@ -649,6 +663,7 @@ Flask App (Cloudtype)
 | `DB_USER` | DB 사용자명 | 김승현 |
 | `DB_PASSWORD` | DB 비밀번호 | 김승현 |
 | `DB_POOL_SIZE` | (Ver1.2) DB 커넥션 풀 최대 크기, 미설정 시 5 | 김승현 |
+| `DB_POOL_TIMEOUT` | (Ver1.3) 풀 소진 시 커넥션 대기 한도(초), 미설정 시 30 — 초과 시 503 반환(#71) | 정재봉 |
 | `GOOGLE_CLIENT_ID` | Google OAuth 클라이언트 ID | 김승현 |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth 시크릿 | 김승현 |
 | `KAKAO_CLIENT_ID` | Kakao OAuth 클라이언트 ID (scope: profile_image 포함, Ver1.2) | 김승현 |
