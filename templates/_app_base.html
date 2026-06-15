@@ -16,6 +16,7 @@
   <div class="bg-orb w-[500px] h-[500px] bg-secondary bottom-[-10%] right-[-10%]" style="animation-delay: -5s;"></div>
 
   <!-- Top App Bar -->
+  {% set page_title %}{% block page_title %}{% endblock %}{% endset %}
   {% include "components/header.html" %}
 
   <!-- Main Content -->
