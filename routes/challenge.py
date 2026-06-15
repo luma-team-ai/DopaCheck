@@ -222,12 +222,10 @@ def join(challenge_id: str):
 
     user_id = session.get("user_id")
 
-    # 정수 검증 + 양수 범위 체크 (challenges.id = bigint, #88)
-    try:
-        challenge_id_int = int(challenge_id)
-    except (ValueError, TypeError):
-        return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
-    if challenge_id_int <= 0:
+    # challenges.id = CHAR(36) UUID (실DB 스키마와 일치) — 형식만 검증하고
+    # 실제 존재 여부는 INSERT 시 FK 제약(fk_uc_challenge)이 보장한다.
+    challenge_id = (challenge_id or "").strip()
+    if not challenge_id or len(challenge_id) > 36:
         return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
 
     # 중복 참여 체크 + INSERT를 단일 트랜잭션으로 원자화 (FR-35)
@@ -239,14 +237,14 @@ def join(challenge_id: str):
                 "SELECT id FROM user_challenges"
                 " WHERE user_id = %s AND challenge_id = %s AND is_completed = 0"
                 " FOR UPDATE",
-                (user_id, challenge_id_int),
+                (user_id, challenge_id),
             )
             if cursor.fetchone():
                 return jsonify({"error": "이미 참여 중인 챌린지입니다."}), 409
             cursor.execute(
                 "INSERT INTO user_challenges (user_id, challenge_id, progress, is_completed)"
                 " VALUES (%s, %s, 0, 0)",
-                (user_id, challenge_id_int),
+                (user_id, challenge_id),
             )
     except Exception as e:
         logger.warning("챌린지 참여 실패: %s", e)
