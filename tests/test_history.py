@@ -131,12 +131,16 @@ def test_상세_조회_없는_기록(logged_in_client):
     assert res.status_code == 404
 
 
+_CSRF_HEADERS = {"X-CSRF-Token": "test-csrf-token"}
+
+
 def test_기록_삭제_성공(logged_in_client):
     """FR-23: 본인 기록 삭제 시 204 No Content 응답."""
-    # select(존재) → delete 순으로 fetchone 1회 호출
     cursor = _make_cursor(fetchone={"id": REC_DELIVERY})
     with _patch_db(cursor):
-        res = logged_in_client.delete(f"/history/{REC_DELIVERY}?type=delivery")
+        res = logged_in_client.delete(
+            f"/history/{REC_DELIVERY}?type=delivery", headers=_CSRF_HEADERS
+        )
     assert res.status_code == 204
     assert res.data == b""
 
@@ -145,8 +149,16 @@ def test_기록_삭제_타인_차단(logged_in_client):
     """FR-23: 타인 기록 삭제 시도 시 404로 차단된다."""
     cursor = _make_cursor(fetchone=None)
     with _patch_db(cursor):
-        res = logged_in_client.delete(f"/history/{REC_MISSING}?type=delivery")
+        res = logged_in_client.delete(
+            f"/history/{REC_MISSING}?type=delivery", headers=_CSRF_HEADERS
+        )
     assert res.status_code == 404
+
+
+def test_삭제_csrf_미전송_403(logged_in_client):
+    """CSRF 토큰 없는 DELETE 요청은 403으로 차단된다."""
+    res = logged_in_client.delete(f"/history/{REC_DELIVERY}?type=delivery")
+    assert res.status_code == 403
 
 
 def test_상세_잘못된_uuid_400(logged_in_client):
@@ -157,7 +169,9 @@ def test_상세_잘못된_uuid_400(logged_in_client):
 
 def test_삭제_잘못된_uuid_400(logged_in_client):
     """P2: UUID 형식이 아닌 record_id 삭제 시도는 400으로 차단된다."""
-    res = logged_in_client.delete("/history/not-a-uuid-value?type=delivery")
+    res = logged_in_client.delete(
+        "/history/not-a-uuid-value?type=delivery", headers=_CSRF_HEADERS
+    )
     assert res.status_code == 400
 
 
@@ -165,7 +179,9 @@ def test_삭제_쿼리에_user_id_필터_포함(logged_in_client):
     """P2(IDOR): select·delete 쿼리 모두 user_id 필터 + 세션 user_id 바인딩."""
     cursor = _make_cursor(fetchone={"id": REC_DELIVERY})
     with _patch_db(cursor):
-        res = logged_in_client.delete(f"/history/{REC_DELIVERY}?type=delivery")
+        res = logged_in_client.delete(
+            f"/history/{REC_DELIVERY}?type=delivery", headers=_CSRF_HEADERS
+        )
 
     assert res.status_code == 204
     # select + delete 두 execute 모두 user_id 필터와 세션 user_id 바인딩
