@@ -403,16 +403,18 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 
 > `(user_id, week_start)` UNIQUE 제약 — 주차별 1개 레코드 upsert (`services/score_service.recalculate_score`)
 
-**challenges**
+**challenges** *(Ver1.3: id를 BIGINT AUTO_INCREMENT로 정정 — #115, title UNIQUE 제약 추가 — #97)*
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| id | CHAR(36) PK (UUID) | |
-| title | VARCHAR(255) | 챌린지 제목 |
+| id | BIGINT PK AUTO_INCREMENT | 운영 DB 레거시 정수 PK 및 `routes/challenge.py`의 `int(challenge_id)` 전제와 일치 (#115) |
+| title | VARCHAR(255) UNIQUE | 챌린지 제목 — 재시드 시 UPSERT 기준 (#97) |
 | description | TEXT | 상세 설명 |
 | target_type | VARCHAR(20) | `delivery` / `time` / `both` |
 | target_value | INT | 목표 수치 |
 | is_ai_generated | TINYINT(1) | AI 추천 여부, 기본값 0 |
+
+> 기본 챌린지 7종은 `db/seed.sql`에서 `title` 기준 `ON DUPLICATE KEY UPDATE`로 UPSERT (#97)
 
 **user_challenges**
 
@@ -420,7 +422,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 |------|------|------|
 | id | CHAR(36) PK (UUID) | |
 | user_id | BIGINT FK → users.id | 데이터 접근 필터 기준 컬럼 |
-| challenge_id | CHAR(36) FK → challenges | |
+| challenge_id | BIGINT FK → challenges.id | challenges.id 타입 변경에 따라 BIGINT로 정정 (Ver1.3, #115) |
 | progress | INT | 현재 달성값 |
 | is_completed | TINYINT(1) | 달성 여부, 기본값 0 |
 | started_at | DATETIME | 참여 시작일 |
