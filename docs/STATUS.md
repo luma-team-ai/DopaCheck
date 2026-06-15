@@ -50,6 +50,7 @@
 ## 마지막 머지 PR
 
 ### 2026-06-15 배치 (정재봉 검수·머지)
+- **#140** 리포트·챌린지·히스토리 레이아웃 공통(_app_base) 통일 (**#136 CLOSED**) — base.html 상속(자체 헤더·하단탭바 없음) → `_app_base.html`(공통 header+footer 탭바)로 전환. `_app_base` active_tab을 `default('delivery')`로 바꿔 라우트별 탭 강조 가능. report/challenge active_tab 전달, history(목록+상세) page_title 이전 + detail 삭제·뒤로가기를 본문 액션바로 이전(기능 보존). 브라우저 검증(4화면 헤더+탭바, 배달 회귀 없음, 상세 삭제 동작), worktree 전체 138 PASS. code-reviewer P1 0(P2/P3→후속 **#141**). G6 PASS. (작성 luma200ok→정재봉 머지)
 - **#135** 챌린지 참여 400 복구 — challenges.id를 UUID(char36)로 처리 (**#133 CLOSED**) — **#119가 schema·코드를 BIGINT로 바꿨으나 운영 DB는 char(36) 그대로**라 모든 챌린지 '참여하기'가 400('잘못된 챌린지 ID') 전면 불능이던 회귀를 복구. `challenge.py` join `int()` 제거→UUID 문자열 검증(존재는 FK 보장), schema.sql CHAR(36) 복원. **운영 DB는 이미 char(36)→코드 pull만으로 복구(DB 작업 불필요)**. 브라우저 재현 201+DB INSERT 확인, 전체 138 PASS. code-reviewer P1 0(P2 3건→후속 **#134**). 메타 자체검수 G6 PASS
 - **#132** `_resolve_pool_timeout` 동시성 테스트 캐시 격리 명시 (**#126 CLOSED**) — `test_concurrent_resolve_initializes_once` 진입 시 `_pool_timeout=None` 명시 초기화. autouse `reset_pool` fixture(#99)가 이미 리셋해 PR머신 지적은 실질 오탐이나, fixture 순서 비의존으로 견고화. 메타 자체검수 G1/G6 PASS, test_db_pool 24/24 PASS
 - **#127** 히스토리 상세 환산 항목 렌더 추가 (**#114 CLOSED**) — `detail.html`에 헬스장 개월·강의 개·운동 회 렌더(라우트는 #112가 이미 계산). 메타 검수 G1/G6 PASS, history 테스트 17 PASS
