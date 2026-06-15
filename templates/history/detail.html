@@ -99,6 +99,12 @@
         <p class="text-[11px] text-on-surface-variant mt-1">치킨 마리</p>
       </div>
       <div class="bg-surface-container rounded-lg p-3 text-center">
+        <p class="text-2xl font-extrabold text-tertiary" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          {{ "%.1f"|format(record.conv_gym) }}
+        </p>
+        <p class="text-[11px] text-on-surface-variant mt-1">헬스장 개월</p>
+      </div>
+      <div class="col-span-2 bg-surface-container rounded-lg p-3 text-center">
         <p class="text-2xl font-extrabold text-primary" style="font-family:'Plus Jakarta Sans',sans-serif;">
           {{ record.conv_running_min }}
         </p>
@@ -184,7 +190,19 @@
         <p class="text-[11px] text-on-surface-variant mt-1">책 권</p>
       </div>
       <div class="bg-surface-container rounded-lg p-3 text-center">
+        <p class="text-2xl font-extrabold text-tertiary" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          {{ "%.1f"|format(record.conv_lecture_n) }}
+        </p>
+        <p class="text-[11px] text-on-surface-variant mt-1">강의 개</p>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center">
         <p class="text-2xl font-extrabold text-secondary" style="font-family:'Plus Jakarta Sans',sans-serif;">
+          {{ "%.1f"|format(record.conv_workout_n) }}
+        </p>
+        <p class="text-[11px] text-on-surface-variant mt-1">운동 회</p>
+      </div>
+      <div class="bg-surface-container rounded-lg p-3 text-center">
+        <p class="text-xl font-extrabold text-on-secondary-container" style="font-family:'Plus Jakarta Sans',sans-serif;">
           {{ "{:,}".format(record.conv_game_cost) }}
         </p>
         <p class="text-[11px] text-on-surface-variant mt-1">원짜리 취미</p>
