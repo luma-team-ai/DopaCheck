@@ -367,8 +367,8 @@ def test_user_id_없으면_401(app):
         assert exc_info.value.code == 401
 
 
-def test_수동_입력_빈_음식명(logged_in_client):
-    """수동 입력 시 음식명 없어도 칼로리 0으로 result.html 렌더링."""
+def test_수동_입력_빈_음식명_거부(logged_in_client):
+    """수동 입력 시 음식명이 없으면 flash error 후 /delivery/manual 로 리다이렉트."""
     form_data = {
         "csrf_token": "test-csrf-token",
         "manual_input": "1",
@@ -377,16 +377,71 @@ def test_수동_입력_빈_음식명(logged_in_client):
         "delivery_fee": "0",
     }
 
-    with (
-        patch("routes.delivery.ai_calorie.estimate", return_value={"success": True, "calories": [], "total_kcal": 0}),
-        patch("routes.delivery.ai_comment.generate", return_value=""),
-        patch("routes.delivery.db", _make_db_mock()),
-        patch("services.score_service.recalculate_score", side_effect=NotImplementedError),
-    ):
-        res = logged_in_client.post(
-            "/delivery/analyze",
-            data=form_data,
-            content_type="application/x-www-form-urlencoded",
-        )
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=form_data,
+        content_type="application/x-www-form-urlencoded",
+    )
 
-    assert res.status_code == 200
+    assert res.status_code == 302
+    assert "/delivery/manual" in res.headers.get("Location", "")
+
+
+def test_수동_입력_공백만_음식명_거부(logged_in_client):
+    """쉼표는 있으나 공백만 있는 음식명(" , ") → 빈 리스트로 거부, /delivery/manual 리다이렉트."""
+    form_data = {
+        "csrf_token": "test-csrf-token",
+        "manual_input": "1",
+        "food_names": "   ,   ",
+        "total_price": "5000",
+        "delivery_fee": "0",
+    }
+
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=form_data,
+        content_type="application/x-www-form-urlencoded",
+    )
+
+    assert res.status_code == 302
+    assert "/delivery/manual" in res.headers.get("Location", "")
+
+
+def test_수동_입력_음수_금액_거부(logged_in_client):
+    """total_price 음수 제출 → flash error 후 /delivery/manual 리다이렉트."""
+    form_data = {
+        "csrf_token": "test-csrf-token",
+        "manual_input": "1",
+        "food_names": "후라이드치킨",
+        "total_price": "-1000",
+        "delivery_fee": "0",
+    }
+
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=form_data,
+        content_type="application/x-www-form-urlencoded",
+    )
+
+    assert res.status_code == 302
+    assert "/delivery/manual" in res.headers.get("Location", "")
+
+
+def test_수동_입력_비정수_금액_거부(logged_in_client):
+    """total_price 비정수("abc") 제출 → flash error 후 /delivery/manual 리다이렉트."""
+    form_data = {
+        "csrf_token": "test-csrf-token",
+        "manual_input": "1",
+        "food_names": "후라이드치킨",
+        "total_price": "abc",
+        "delivery_fee": "0",
+    }
+
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=form_data,
+        content_type="application/x-www-form-urlencoded",
+    )
+
+    assert res.status_code == 302
+    assert "/delivery/manual" in res.headers.get("Location", "")
