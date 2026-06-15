@@ -26,6 +26,11 @@ bounded-timeout (#71):
     - _get_connection()에서 DB_POOL_TIMEOUT(기본 30초) 내 재시도 루프를 수행한다.
     - 타임아웃 초과 시 PoolExhaustedError(RuntimeError) 발생 → app.py에서 503으로 매핑.
     - sync 워커에선 풀이 소진되지 않으므로 첫 시도에서 항상 성공(동작 동일).
+
+pool-timeout 캐싱 (#93):
+    - DB_POOL_TIMEOUT 환경변수를 요청마다 재평가하지 않고 최초 1회만 읽어 캐싱한다.
+    - DB_POOL_SIZE가 _build_pool()에서 1회 고정되는 것과 일관된 정책.
+    - import 시 즉시 읽지 않고(lazy) _resolve_pool_timeout() 최초 호출 시 확정된다.
 """
 from __future__ import annotations
 
@@ -62,6 +67,26 @@ def _env(key: str) -> str:
 # --------------------------------------------------------------------------- #
 _pool: PooledDB | None = None
 _pool_lock = threading.Lock()
+
+# --------------------------------------------------------------------------- #
+# 타임아웃 캐시 — 지연 1회 읽기 (#93)
+# --------------------------------------------------------------------------- #
+# _pool_timeout: None이면 아직 미결정. _resolve_pool_timeout() 최초 호출 시 확정.
+# 테스트 간 오염 방지를 위해 reset_pool 픽스처에서 None으로 리셋한다.
+_pool_timeout: float | None = None
+
+
+def _resolve_pool_timeout() -> float:
+    """DB_POOL_TIMEOUT(초)을 1회만 읽어 캐싱한다. 미설정 시 기본 30. (#93)
+
+    import 시 즉시 읽지 않고(lazy) 최초 호출 시 값을 확정한다.
+    이후 호출은 캐시된 값을 그대로 반환 — env 재평가 없음.
+    빈 문자열("") 방어: `or "30"` 으로 int("") ValueError 를 방지한다.
+    """
+    global _pool_timeout
+    if _pool_timeout is None:
+        _pool_timeout = float(os.environ.get("DB_POOL_TIMEOUT") or "30")
+    return _pool_timeout
 
 
 def _get_pool() -> PooledDB:
@@ -117,13 +142,14 @@ def _get_connection(timeout: float | None = None, interval: float = _POOL_RETRY_
     풀 커넥션이 영구 점유돼 누수되므로, 호출자는 항상 db() 컨텍스트매니저를 사용할 것.
 
     풀 소진(TooManyConnections) 시 bounded 재시도 루프를 수행한다 (#71):
-    - timeout: 최대 대기 시간(초). None 이면 환경변수 DB_POOL_TIMEOUT(기본 30초) 사용.
+    - timeout: 최대 대기 시간(초). None 이면 _resolve_pool_timeout()(#93 캐싱) 값 사용.
+      timeout= 인자를 명시하면 캐시를 무시하고 그 값으로 동작(테스트 주입 경로 유지).
     - interval: 재시도 폴링 간격(초). 기본 _POOL_RETRY_INTERVAL(50ms).
     - timeout 초과 시 PoolExhaustedError 발생.
     - sync 워커에선 첫 시도에서 항상 성공 → sleep/timeout 경로를 타지 않음.
     """
     if timeout is None:
-        timeout = float(os.environ.get("DB_POOL_TIMEOUT") or "30")
+        timeout = _resolve_pool_timeout()  # 1회 캐싱 (#93); env 매 호출 재평가 제거
 
     deadline = time.monotonic() + timeout
     while True:

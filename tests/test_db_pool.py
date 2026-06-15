@@ -1,9 +1,10 @@
-"""커넥션 풀 단위 테스트 (#23, #71).
+"""커넥션 풀 단위 테스트 (#23, #71, #93).
 
 실제 네트워크 접속 없이 _get_pool() 싱글톤 동작과
 PooledDB 생성 인자를 검증한다.
 
 #71 추가: bounded-timeout / PoolExhaustedError 동작 검증.
+#93 추가: DB_POOL_TIMEOUT lazy 1회 캐싱(_resolve_pool_timeout) 동작 검증.
 """
 from __future__ import annotations
 
@@ -19,15 +20,18 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def reset_pool():
-    """각 테스트 전후에 db.client._pool을 None으로 초기화한다.
+    """각 테스트 전후에 db.client._pool 및 _pool_timeout을 None으로 초기화한다.
 
     _pool이 mock 객체로 남으면 이후 테스트(report 등)가 실제 DB 대신
     MagicMock에서 커넥션을 받아 TypeError를 일으키므로 반드시 정리해야 한다.
+    _pool_timeout 캐시(#93)도 함께 리셋해 env patch 테스트가 서로 오염되지 않도록 한다.
     """
     import db.client as client_mod
     client_mod._pool = None
+    client_mod._pool_timeout = None
     yield
     client_mod._pool = None
+    client_mod._pool_timeout = None
 
 
 # --------------------------------------------------------------------------- #
@@ -271,3 +275,84 @@ class TestBoundedTimeout:
             body, status = response
             assert status == 503
             assert "혼잡" in body
+
+
+# --------------------------------------------------------------------------- #
+# 테스트: _resolve_pool_timeout() 캐싱 동작 (#93)
+# --------------------------------------------------------------------------- #
+
+class TestResolvePoolTimeout:
+    """_resolve_pool_timeout()이 env를 1회만 읽어 캐싱하는지 검증 (#93)."""
+
+    def test_default_is_30_when_env_not_set(self):
+        """DB_POOL_TIMEOUT 미설정 시 기본값 30.0을 반환해야 한다."""
+        client = _get_client()
+
+        # DB_POOL_TIMEOUT이 환경에 없도록 명시적으로 제거 후 확인
+        env_without_timeout = {k: v for k, v in os.environ.items() if k != "DB_POOL_TIMEOUT"}
+        with patch.dict(os.environ, env_without_timeout, clear=True):
+            result = client._resolve_pool_timeout()
+
+        assert result == 30.0
+
+    def test_reads_env_value_when_set(self):
+        """DB_POOL_TIMEOUT=60 설정 시 60.0을 반환해야 한다."""
+        client = _get_client()
+
+        with patch.dict(os.environ, {"DB_POOL_TIMEOUT": "60"}, clear=False):
+            result = client._resolve_pool_timeout()
+
+        assert result == 60.0
+
+    def test_empty_env_falls_back_to_30(self):
+        """DB_POOL_TIMEOUT="" 빈 값이어도 기본 30.0으로 동작해야 한다."""
+        client = _get_client()
+
+        with patch.dict(os.environ, {"DB_POOL_TIMEOUT": ""}, clear=False):
+            result = client._resolve_pool_timeout()
+
+        assert result == 30.0
+
+    def test_caches_value_on_first_call(self):
+        """두 번 호출해도 env를 1회만 읽어 첫 번째 값으로 고정돼야 한다 (#93).
+
+        첫 호출에서 DB_POOL_TIMEOUT=45로 캐싱한 뒤,
+        env를 20으로 바꿔도 두 번째 호출은 여전히 45를 반환해야 한다.
+        """
+        client = _get_client()
+
+        # 첫 호출: 45로 캐싱
+        with patch.dict(os.environ, {"DB_POOL_TIMEOUT": "45"}, clear=False):
+            first = client._resolve_pool_timeout()
+
+        assert first == 45.0
+        # 캐시가 살아있는 상태에서 env를 변경해도 캐시 값이 유지돼야 함
+        with patch.dict(os.environ, {"DB_POOL_TIMEOUT": "20"}, clear=False):
+            second = client._resolve_pool_timeout()
+
+        assert second == 45.0, "캐싱 후 env 변경이 두 번째 호출 결과에 영향을 주면 안 된다"
+
+    def test_cache_is_none_before_first_call(self):
+        """_pool_timeout 캐시 변수가 None으로 시작해야 한다(import-time 즉시 읽기 금지)."""
+        client = _get_client()
+        assert client._pool_timeout is None
+
+    def test_get_connection_uses_cached_timeout_when_no_arg(self):
+        """timeout= 인자 없이 _get_connection() 호출 시 _resolve_pool_timeout() 캐시값을 사용해야 한다."""
+        from dbutils.pooled_db import TooManyConnections
+        from db.client import PoolExhaustedError
+
+        mock_pool = MagicMock()
+        mock_pool.connection.side_effect = TooManyConnections()
+        client = _get_client()
+
+        # 1) DB_POOL_TIMEOUT=1 로 먼저 캐싱
+        with patch.dict(os.environ, {**_db_env(), "DB_POOL_TIMEOUT": "1"}, clear=False):
+            assert client._resolve_pool_timeout() == 1.0
+
+        # 2) env를 999로 바꿔도 _get_connection()은 캐시값(1초)을 사용해야 한다
+        #    (매 호출 env 재평가가 아님을 증명 — 999가 아닌 1초로 타임아웃)
+        with patch.dict(os.environ, {**_db_env(), "DB_POOL_TIMEOUT": "999"}, clear=False):
+            with patch("db.client.PooledDB", return_value=mock_pool):
+                with pytest.raises(PoolExhaustedError, match="1초"):
+                    client._get_connection(interval=0.0)  # timeout 인자 없음 → 캐시값
