@@ -5,31 +5,31 @@
 <a id="sprint"></a>
 ## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
 
-> 발표까지 **약 2.5일**. **정합성·시연 안정화가 최우선, `/admin`은 조건부**(시간 남으면).
+> 발표까지 **약 2.5일**. P1 정합성·신규 기능은 **대부분 완료**, 남은 건 **시연 데이터·통합/모바일 QA·회귀 테스트**.
 > 여기는 "지금 각자 뭘 해야 하나" 사람용 보드 — **코드 단위 작업은 GitHub 이슈**, 사람용 요약은 이 표로 본다.
 > 우선순위: 🔴 P1(시연이 깨짐) > 🟡 P2 > ⚪ 조건부.
 
-| 담당 | 지금 할 일 | 우선 | 근거 |
-|------|-----------|------|------|
-| **오영석** (AI/챌린지) | ☐ **#73 챌린지 완료 처리** — `progress`/`completed_at`/`is_completed` 쓰기 경로 추가 → `challenge_bonus` 살리기 (분석 저장 시 달성 판정) | 🔴 P1 | 현재 쓰기 0건 → 보너스 항상 0, 점수 만점 불가 |
-| | ☐ **#74 챌린지 join race** — 중복검증 SELECT/INSERT 단일 트랜잭션·원자쿼리 (FR-35) | 🔴 P1 | TOCTOU |
-| | ☐ #24 `calorie.py` kcal 스키마 검증·`next()` StopIteration 방어 | 🟡 P2 | |
-| **김승현** (DB) | ☐ **`db/seed.sql` 20건** — 랭킹·percentile 시연 전제 데이터 삽입 | 🔴 P1 | FR-30, 미작성 |
-| | ☐ **`/admin` (조건부)** — `users.role` ALTER(default `user`) → `admin_required` 가드 → 로그인 리다이렉트(FR-0-3) → 통계 대시보드(FR-55~58). **#73 완료 후 챌린지 통계가 의미 생김** | ⚪ 조건부 | seed 끝낸 뒤 착수 |
-| **이은석** (서버/프론트) | ☐ **time `/analyze` CSRF 미전송 403 테스트**(#46후속, test_time skip 해제) | 🟡 P2 | 회귀 방어 부재 |
-| | ☐ 배포 안정화 + **모바일(Chrome/Safari) QA 주도** | 🟡 P2 | PRD §9 |
-| **허남** (히스토리) | ☐ **history Stitch 마이그레이션** — `base.html` 상속 + Stitch 토큰 전환(`style.css` 과도기 해소) | 🟡 P2 | 디자인 톤 혼재 |
-| | ☐ 통합테스트 참여 | 🟡 P2 | |
-| **김관영** (delivery) | ☐ **OCR 정확도 QA 주도** — 샘플 영수증 5종 파싱 점검 (구현은 완료) | 🟡 P2 | PRD §9 |
-| | ☐ **통합테스트 주도** — 업로드→OCR→저장→히스토리→점수 전체 흐름 | 🟡 P2 | |
-| **정재봉** (A/리포트) | ☐ **PRD Ver1.3 정합** — 모델명 `claude-haiku-4-5`, `DB_POOL_TIMEOUT` 추가, 챌린지 수용기준 [x]→[ ](#73 미구현 반영) | 🔴 P1 | 문서 거짓 표기 |
-| | ☑ ~~#76 종료~~ — #79로 이미 해소(score SUM+game), STATUS 반영 완료 | ✅ | — |
-| | ☐ 검수·PR 머지 오케스트레이션 | — | |
+### ✅ 완료된 역할 항목 (2026-06-15 기준)
+- **오영석**: #73 챌린지 완료 처리 ✅ · #74 join TOCTOU ✅ · #24 calorie 방어 ✅ (모두 CLOSED)
+- **김승현**: `/admin` 통계 대시보드 ✅ (#106, 역할 재검증·이메일 마스킹 포함)
+- **허남**: history·challenge **Stitch 마이그레이션 ✅** (`base.html` 상속, `style.css` 페이지 잔존 0) · 히스토리 상세 환산 항목 ✅ (#114→#127)
+- **정재봉**: PRD Ver1.3 정합 ✅ (#109) · #76 score 시간지표 ✅ (#79) · 검수·머지 오케스트레이션(상시)
 
-**Day별 흐름**
-- **Day 1 (정합성)**: 오영석 #73 · 김승현 seed · 정재봉 PRD Ver1.3 정합
-- **Day 1.5~2 (신규/안정화)**: 김승현 `/admin`(조건부) · 오영석 #74 · 이은석 time CSRF 테스트 · 허남 history Stitch
-- **Day 2~2.5 (통합)**: 전원 통합테스트 · 데모 완주 · 모바일 QA (김관영·이은석 주도)
+### ☐ 남은 작업 — 역할별 이슈 분배
+
+| 담당 | 남은 일 (이슈) | 우선 | 근거 |
+|------|---------------|------|------|
+| **김승현** (DB) | ☐ **#131 랭킹/percentile 시연 더미 20건** — `db/seed.sql` 확장(users·records·scores) | 🔴 P1 | admin 랭킹·분포 화면 빈 상태, 시연 전제 |
+| **이은석** (서버/프론트) | ☐ **#128 time `/analyze` CSRF 403 회귀 테스트** (test_time skip 해제) | 🟡 P2 | 회귀 방어 부재 |
+| | ☐ **#130 모바일(Chrome/Safari) QA + 배포 안정화** | 🟡 P2 | PRD §9 |
+| **김관영** (delivery) | ☐ **#129 통합 테스트 + OCR 정확도 QA 주도** — 업로드→OCR→저장→히스토리→점수 + 영수증 5종 | 🟡 P2 | PRD §9 |
+| **오영석** (AI/챌린지) | ☐ **#60 챌린지 AI 비용절감·ID 검증 P2** (PR머신 후속) | 🟡 P2 | #59 후속 |
+| **정재봉** (A/메타) | ☐ 통합 검수·PR 머지 오케스트레이션 · #126 풀 타임아웃 DCL P2 검토 | — | 상시 |
+
+**Day별 흐름 (잔여)**
+- **Day 1 (시연 데이터)**: 김승현 #131 seed 20건
+- **Day 1.5~2 (안정화)**: 이은석 #128 CSRF 테스트 · 오영석 #60 챌린지 P2
+- **Day 2~2.5 (통합)**: 김관영 #129 통합테스트·OCR QA · 이은석 #130 모바일 QA (전원 데모 완주)
 
 ## 인프라
 
@@ -43,10 +43,20 @@
 | **Stitch 디자인 기준 정립** (`base.html` 공통 디자인 시스템 — 팀원 상속 기준) | ✅ 완료 (#51) | 정재봉 |
 | Tailwind Play CDN → PostCSS 빌드 전환 (`static/css/tailwind.css` 산출물 커밋, SRI 해소) | ✅ 완료 (#67) | 정재봉 |
 | Google / Kakao OAuth 연동 (#16→#38 머지) | ✅ 완료 | 김승현 |
-| MariaDB 인스턴스 프로비저닝 + 스키마 적용 | ⬜ 대기 | 김승현 |
-| 시드 더미 데이터 20건 | ⬜ 대기 | 김승현 |
+| MariaDB 인스턴스 프로비저닝 + 스키마 적용 | ✅ 완료 (Cloudtype) | 김승현 |
+| 시드 더미 데이터 20건 (랭킹/percentile 시연) | ⬜ 대기 (**#131**) | 김승현 |
+| 운영 마이그레이션 001~003 (role·challenges dedup·uc index) | ✅ 파일 머지 (운영 ALTER 적용 필요) | 김승현/정재봉 |
 
 ## 마지막 머지 PR
+
+### 2026-06-15 배치 (정재봉 검수·머지)
+- **#127** 히스토리 상세 환산 항목 렌더 추가 (**#114 CLOSED**) — `detail.html`에 헬스장 개월·강의 개·운동 회 렌더(라우트는 #112가 이미 계산). 중복 stale PR **#121은 close**(옛 base+rebase 누락). 메타 검수 G1/G6 PASS, history 테스트 17 PASS
+- **#125** user_challenges 복합 인덱스 운영 마이그레이션 003 추가 (**#123 CLOSED**) — `ALTER ... ADD INDEX IF NOT EXISTS idx_uc_user_challenge`. #120이 schema.sql만 바꿔 운영 미반영이던 것 보완. **운영 DB ALTER 수동 적용 필요**
+- **#120** user_challenges 복합 인덱스(schema.sql) — FOR UPDATE gap lock 보장(#113 후속)
+- **#106** 관리자 페이지 `/admin` 통계 대시보드 — admin_required 매요청 DB role 재검증 + 랭킹 이메일 마스킹 + 인가 테스트 4종(#106 P2 반영). code/security 인가 견고
+- **#119** challenges/user_challenges id 타입 BIGINT AUTO_INCREMENT 정정 (**#115**) · **#122** PRD 스키마 정정 반영
+- **#110** challenges 시드 중복(14→7) 제거 + title UNIQUE (**#97**) · **#103** 챌린지 TOCTOU 원자화·달성판정 (#73#74#88) · **#111** 챌린지 join FOR UPDATE
+- **#124** `_resolve_pool_timeout` DCL 적용(#102) · **#116** 배달 빈파일 검증·수동입력 배달비 제외(#98#100) · **#117** SVG 파비콘 · **#109** PRD Ver1.3 정합
 
 - #94 `DB_POOL_TIMEOUT` env 문서화 (**#71 CLOSED**, luma200ok 작성→PR머신 머지) — `.env.example`·README에 `DB_POOL_TIMEOUT`(기본30, 풀 소진 대기 한도 초과 시 503) 반영. 메타 자체검수·G6 PASS
 - #92 커넥션 풀 bounded-timeout/503 (**#71 CLOSED**, luma200ok) — `db/client.py` `blocking=True` 무한대기 → `DB_POOL_TIMEOUT` 한도 후 503. gthread/eventlet 전환 대비 풀 고갈 안전화
@@ -85,9 +95,9 @@
 - [x] /challenge + ai/ (오영석, #28·#32) · [x] /delivery (김관영, #35·#41·#53) · [x] 소셜 로그인 (김승현, #38)
 - [x] /time (이은석, #52 머지) · [x] /score (김승현, #50·#65 — 점수식 #48 공식 통일 완료)
 
-### Stitch 디자인 마이그레이션 (base.html 기준 → 각 페이지 적용)
+### Stitch 디자인 마이그레이션 (base.html 기준 → 각 페이지 적용) — ✅ 전 페이지 완료
 - [x] login (#39) · [x] report (#51) · [x] delivery (#53) · [x] score (#50) · [x] time (#52)
-- [ ] history · challenge — 각 담당이 `base.html` 상속 + Stitch 토큰으로 전환 (과도기 `style.css` 공존 중)
+- [x] history · [x] challenge — `base.html` 상속 전환 완료(페이지 템플릿 `style.css` 직접참조 0)
 
 ### P2 (통합 — Day 5~6)
 - [ ] 전체 흐름 통합 테스트 · 데모 시나리오 완주 · 모바일 QA (Stitch 톤 혼재 페이지 시각 점검 포함)
@@ -96,8 +106,13 @@
 
 | 이슈 | 내용 |
 |------|------|
-| #73 챌린지 완료 처리 미구현 | **P1** `is_completed`/`completed_at`/`progress` 쓰기 경로 0건 → `challenge_bonus` 구조적 항상 0(만점 불가). 무결성검사 발견 → 오영석 |
-| #74 챌린지 join TOCTOU | **P1** 중복검증 SELECT/INSERT 트랜잭션 분리(FR-35 race 정밀화). 단일 트랜잭션/원자쿼리 필요 → 오영석. (기존 'FR-35 race 파킹'을 이 이슈로 승격) |
+| ~~#73 챌린지 완료 처리 미구현~~ | ✅ **#103으로 해소** — 달성 판정·`is_completed`/`completed_at`/`progress` 쓰기 경로 구현, `challenge_bonus` 정상화 |
+| ~~#74 챌린지 join TOCTOU~~ | ✅ **#103·#111·#120/#125로 해소** — join SELECT FOR UPDATE 원자화 + `(user_id,challenge_id)` 복합 인덱스(운영 003 적용 필요) |
+| #131 랭킹 시연 더미 20건 | **P1** seed.sql에 랭킹/percentile 시연 데이터 미작성 → admin 화면 빈 상태 → 김승현 |
+| #128 time CSRF 403 테스트 | **P2** time `/analyze` CSRF 미전송 403 회귀 테스트 부재(test_time skip) → 이은석 |
+| #129 통합테스트·OCR QA | **P2** 전체 흐름 통합 + 영수증 5종 OCR 정확도 점검 → 김관영 |
+| #130 모바일 QA·배포 안정화 | **P2** Chrome/Safari 모바일 시각/동작 QA + 배포 점검 → 이은석 |
+| 운영 마이그레이션 적용 | 001~003 파일은 머지됨. **운영 Cloudtype DB에 ALTER 수동 실행 필요**(특히 003 인덱스 → #113 TOCTOU 발효 조건) |
 | ~~#75 report 점수 재산출 누락~~ | ✅ **#82로 해소** — report 진입 시 `recalculate_score` 호출 추가 |
 | ~~#76 score 시간지표 불일치~~ | ✅ **#79로 해소** — score 시간통계 game 포함 SUM으로 변경, 점수 산출값과 일치 (FR-31-1) |
 | ~~#44/#43/#42 (CSRF DRY·413·세션쿠키)~~ | ✅ **#81로 해소** — CSRF 전 도메인 `utils/csrf.py` 통일(challenge·delivery·time·history), 413 BuildError fallback, `SESSION_COOKIE_SECURE` env 분리 |
