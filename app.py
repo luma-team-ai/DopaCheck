@@ -21,6 +21,7 @@ from routes.mypage import mypage_bp
 from routes.report import report_bp
 from routes.score import score_bp
 from routes.time import time_bp
+from routes.admin import admin_bp
 
 app = Flask(__name__)
 app.secret_key = os.environ["FLASK_SECRET_KEY"]
@@ -56,6 +57,7 @@ app.register_blueprint(history_bp)
 app.register_blueprint(score_bp)
 app.register_blueprint(challenge_bp)
 app.register_blueprint(mypage_bp)
+app.register_blueprint(admin_bp)
 
 # P1 수정: dev_login은 FLASK_ENV=development일 때만 등록 (운영 오인 설정 시 이중 방어)
 if os.environ.get("FLASK_ENV") == "development":

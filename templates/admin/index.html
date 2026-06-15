@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>DopaCheck Admin Dashboard</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=PlusJakartaSans:wght@100..900&display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-secondary-container": "#ff95b4",
+            "tertiary-container": "#bb5a00",
+            "secondary-container": "#8c0a46",
+            "secondary-fixed": "#ffd9e1",
+            "primary-fixed": "#e3dfff",
+            "on-error": "#690005",
+            "inverse-surface": "#e5e0ee",
+            "surface-dim": "#13121c",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "surface-variant": "#35343e",
+            "on-error-container": "#ffdad6",
+            "tertiary": "#ffb689",
+            "surface": "#13121c",
+            "on-surface-variant": "#c8c4d8",
+            "tertiary-fixed-dim": "#ffb689",
+            "on-tertiary": "#512300",
+            "tertiary-fixed": "#ffdbc8",
+            "on-secondary": "#650030",
+            "surface-container-low": "#1b1a24",
+            "primary": "#c5c0ff",
+            "error-container": "#93000a",
+            "on-tertiary-fixed-variant": "#743500",
+            "on-primary-container": "#fffdff",
+            "surface-bright": "#393842",
+            "primary-fixed-dim": "#c5c0ff",
+            "outline-variant": "#474555",
+            "inverse-on-surface": "#302f39",
+            "outline": "#918ea1",
+            "on-primary": "#2500a2",
+            "surface-container-highest": "#35343e",
+            "on-tertiary-container": "#fffdff",
+            "surface-container": "#1f1f28",
+            "primary-container": "#6b5bff",
+            "error": "#ffb4ab",
+            "inverse-primary": "#5340e7",
+            "surface-tint": "#c5c0ff",
+            "on-tertiary-fixed": "#311300",
+            "surface-container-lowest": "#0e0d16",
+            "background": "#13121c",
+            "secondary": "#ffb1c5",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-surface": "#e5e0ee",
+            "secondary-fixed-dim": "#ffb1c5",
+            "surface-container-high": "#2a2933",
+            "on-secondary-fixed": "#3f001b",
+            "on-primary-fixed": "#140067",
+            "on-background": "#e5e0ee"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "container-padding": "20px",
+            "card-padding": "24px",
+            "unit": "4px",
+            "stack-gap": "16px",
+            "section-gap": "40px"
+          },
+          "fontFamily": {
+            "sans": ["Pretendard", "Inter", "sans-serif"],
+            "hero-num-md": ["PlusJakartaSans"],
+            "label-caps": ["Inter"],
+            "display-lg-mobile": ["PlusJakartaSans"],
+            "body-lg": ["Inter"],
+            "title-md": ["Inter"],
+            "hero-num": ["PlusJakartaSans"],
+            "display-lg": ["PlusJakartaSans"]
+          },
+          "fontSize": {
+            "hero-num-md": ["56px", {"lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+            "label-caps": ["12px", {"lineHeight": "100%", "letterSpacing": "0.05em", "fontWeight": "600"}],
+            "display-lg-mobile": ["28px", {"lineHeight": "130%", "fontWeight": "700"}],
+            "body-lg": ["16px", {"lineHeight": "160%", "fontWeight": "400"}],
+            "title-md": ["20px", {"lineHeight": "150%", "fontWeight": "600"}],
+            "hero-num": ["96px", {"lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+            "display-lg": ["32px", {"lineHeight": "130%", "fontWeight": "700"}]
+          }
+        },
+      },
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0A0A0F;
+      font-family: 'Pretendard', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: max(884px, 100dvh);
+    }
+    .glass-card {
+      background: rgba(20, 20, 28, 0.7);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      border-radius: 24px;
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #c5c0ff 0%, #5340e7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .gradient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      opacity: 0.15;
+      pointer-events: none;
+    }
+    .orb-primary {
+      width: 300px;
+      height: 300px;
+      background: #6b5bff;
+      top: 10%;
+      left: -50px;
+      animation: pulse 8s infinite alternate;
+    }
+    .orb-tertiary {
+      width: 250px;
+      height: 250px;
+      background: #2fe0a6;
+      bottom: 20%;
+      right: -50px;
+      animation: pulse 12s infinite alternate-reverse;
+    }
+    @keyframes pulse {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(20px, 30px) scale(1.1); }
+    }
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.35s;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+  </style>
+</head>
+<body class="text-on-surface">
+  <!-- Atmospheric Background Elements -->
+  <div class="gradient-orb orb-primary"></div>
+  <div class="gradient-orb orb-tertiary"></div>
+
+  <!-- Top App Bar -->
+  {% include "components/header.html" %}
+
+  <!-- Main Content Canvas -->
+  <main class="pt-24 pb-12 px-container-padding flex flex-col gap-6 max-w-[480px] mx-auto">
+    
+    <!-- Section 1: 사용자 현황 -->
+    <section>
+      <h2 class="text-on-surface-variant font-label-caps text-label-caps mb-4 uppercase tracking-widest px-1">사용자 현황</h2>
+      <div class="grid grid-cols-2 gap-4">
+        <!-- 전체 가입자 -->
+        <div class="glass-card p-card-padding flex flex-col gap-2">
+          <div class="flex justify-between items-start">
+            <span class="text-on-surface-variant text-sm font-medium">전체 가입자</span>
+            <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">group</span>
+          </div>
+          <div class="flex items-baseline gap-1 mt-2">
+            <span class="font-hero-num-md text-3xl gradient-text font-bold">{{ "{:,}".format(total_users) }}</span>
+            <span class="text-on-surface-variant text-xs">명</span>
+          </div>
+        </div>
+        <!-- 활성 사용자 (최근 7일) -->
+        <div class="glass-card p-card-padding flex flex-col gap-2">
+          <div class="flex justify-between items-start">
+            <span class="text-on-surface-variant text-sm font-medium">활성 사용자</span>
+            <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">person_check</span>
+          </div>
+          <div class="flex flex-col gap-1 mt-2">
+            <div class="flex items-baseline gap-1">
+              <span class="font-hero-num-md text-3xl gradient-text font-bold">{{ "{:,}".format(active_users) }}</span>
+              <span class="text-on-surface-variant text-xs">명</span>
+            </div>
+            <span class="text-[#2fe0a6] text-[11px] font-bold">최근 7일 기준</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: 분석 통계 -->
+    <section>
+      <h2 class="text-on-surface-variant font-label-caps text-label-caps mb-4 uppercase tracking-widest px-1">분석 통계</h2>
+      <div class="glass-card p-card-padding">
+        <div class="grid grid-cols-2 gap-y-6 gap-x-4">
+          <div class="flex flex-col gap-1">
+            <span class="text-on-surface-variant text-xs font-medium">배달 분석 건수</span>
+            <span class="text-on-secondary-container font-bold text-lg">{{ "{:,}".format(delivery_count) }}건</span>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="text-on-surface-variant text-xs font-medium">시간 분석 건수</span>
+            <span class="text-primary font-bold text-lg">{{ "{:,}".format(time_count) }}건</span>
+          </div>
+          <div class="flex flex-col gap-1 col-span-2 border-t border-outline-variant/10 pt-4 flex justify-between">
+            <div class="flex justify-between items-center w-full">
+              <span class="text-on-surface-variant text-xs font-medium">총 배달 지출 금액</span>
+              <span class="text-on-secondary-container font-bold text-lg">{{ "{:,}".format(total_price) }}원</span>
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 col-span-2 border-t border-outline-variant/10 pt-4 flex justify-between">
+            <div class="flex justify-between items-center w-full">
+              <span class="text-on-surface-variant text-xs font-medium">총 SNS/게임 기록 시간</span>
+              <span class="text-primary font-bold text-lg">{{ "{:,}".format(total_hours) }}시간</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: 도파민 점수 분포 -->
+    <section>
+      <h2 class="text-on-surface-variant font-label-caps text-label-caps mb-4 uppercase tracking-widest px-1">도파민 점수 분포</h2>
+      <div class="glass-card p-card-padding">
+        <div class="flex justify-between mb-8 items-end">
+          <div class="flex flex-col">
+            <span class="text-on-surface-variant text-xs font-medium">평균 점수</span>
+            <span class="text-3xl font-bold gradient-text">{{ avg_score }}점</span>
+          </div>
+          <div class="flex gap-4">
+            <div class="flex flex-col items-end">
+              <span class="text-on-surface-variant text-[10px]">최고</span>
+              <span class="text-[#2fe0a6] font-bold text-sm">{{ max_score }}</span>
+            </div>
+            <div class="flex flex-col items-end">
+              <span class="text-on-surface-variant text-[10px]">최저</span>
+              <span class="text-on-secondary-container font-bold text-sm">{{ min_score }}</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Chart Area -->
+        <div class="flex items-end justify-between h-32 gap-3 mb-2 px-2">
+          <!-- 0-20 -->
+          <div style="height: {{ h1 }}%" class="w-full bg-gradient-to-t from-primary/20 to-primary rounded-t-lg transition-all duration-700 relative group cursor-pointer">
+            <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">{{ g1 }}</span>
+          </div>
+          <!-- 21-40 -->
+          <div style="height: {{ h2 }}%" class="w-full bg-gradient-to-t from-primary/20 to-primary rounded-t-lg transition-all duration-700 relative group cursor-pointer">
+            <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">{{ g2 }}</span>
+          </div>
+          <!-- 41-60 -->
+          <div style="height: {{ h3 }}%" class="w-full bg-gradient-to-t from-primary/20 to-primary rounded-t-lg transition-all duration-700 relative group cursor-pointer">
+            <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">{{ g3 }}</span>
+          </div>
+          <!-- 61-80 -->
+          <div style="height: {{ h4 }}%" class="w-full bg-gradient-to-t from-primary/20 to-primary rounded-t-lg transition-all duration-700 relative group cursor-pointer">
+            <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">{{ g4 }}</span>
+          </div>
+          <!-- 81-100 -->
+          <div style="height: {{ h5 }}%" class="w-full bg-gradient-to-t from-primary/20 to-primary rounded-t-lg transition-all duration-700 relative group cursor-pointer">
+            <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] text-primary font-bold opacity-0 group-hover:opacity-100 transition-opacity">{{ g5 }}</span>
+          </div>
+        </div>
+        <div class="flex justify-between text-[10px] text-on-surface-variant px-1 font-medium">
+          <span>0-20</span>
+          <span>21-40</span>
+          <span>41-60</span>
+          <span>61-80</span>
+          <span>81-100</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 4: 점수 랭킹 TOP 5 -->
+    <section>
+      <div class="flex justify-between items-center mb-4 px-1">
+        <h2 class="text-on-surface-variant font-label-caps text-label-caps uppercase tracking-widest">점수 랭킹 TOP 5 (최고점 기준)</h2>
+      </div>
+      <div class="glass-card overflow-hidden">
+        <div class="flex flex-col divide-y divide-outline-variant/20">
+          {% if ranking_list %}
+            {% for row in ranking_list %}
+              <div class="flex items-center justify-between p-4 {% if loop.index == 1 %}bg-primary/5{% endif %}">
+                <div class="flex items-center gap-4">
+                  <span class="font-bold text-xl gradient-text italic w-6">{{ loop.index }}</span>
+                  <div class="w-10 h-10 rounded-full {% if loop.index == 1 %}bg-primary/20 border border-primary/30 text-primary{% else %}bg-surface-variant text-on-surface-variant{% endif %} flex items-center justify-center font-bold">
+                    {{ (row.nickname or '유')[0] }}
+                  </div>
+                  <div class="flex flex-col">
+                    <span class="text-sm font-semibold">{{ row.nickname }}</span>
+                    <span class="text-[10px] text-on-surface-variant/60">{{ row.email }}</span>
+                  </div>
+                </div>
+                <span class="text-primary font-bold">{{ row.top_score }}점</span>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="p-6 text-center text-on-surface-variant text-sm">
+              순위 데이터가 아직 존재하지 않습니다.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5: 챌린지 통계 -->
+    <section>
+      <h2 class="text-on-surface-variant font-label-caps text-label-caps mb-4 uppercase tracking-widest px-1">챌린지 통계</h2>
+      <div class="glass-card p-card-padding flex items-center gap-8">
+        <!-- Circular Progress -->
+        <div class="relative w-[120px] h-[120px] flex-shrink-0">
+          <svg class="w-full h-full" viewbox="0 0 100 100">
+            <!-- Background Circle -->
+            <circle cx="50" cy="50" fill="transparent" r="45" stroke="rgba(255,255,255,0.05)" stroke-width="8"></circle>
+            <!-- Progress Circle -->
+            <circle class="progress-ring-circle" cx="50" cy="50" fill="transparent" r="45" stroke="url(#gradient-ring)" stroke-dasharray="282.7" stroke-dashoffset="{{ dashoffset }}" stroke-linecap="round" stroke-width="8"></circle>
+            <defs>
+              <linearGradient id="gradient-ring" x1="0%" x2="100%" y1="0%" y2="100%">
+                <stop offset="0%" stop-color="#c5c0ff"></stop>
+                <stop offset="100%" stop-color="#2fe0a6"></stop>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-2xl font-bold text-white leading-none">{{ completion_rate }}%</span>
+            <span class="text-[9px] text-on-surface-variant mt-1 uppercase">완료율</span>
+          </div>
+        </div>
+        
+        <!-- Text Stats -->
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col">
+            <span class="text-[10px] text-on-surface-variant">전체 참여 건수</span>
+            <span class="text-lg font-bold text-on-surface">{{ "{:,}".format(challenge_total) }}건</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="text-[10px] text-on-surface-variant">완료된 챌린지</span>
+            <span class="text-lg font-bold text-[#2fe0a6]">{{ "{:,}".format(challenge_completed) }}건</span>
+          </div>
+          <div class="mt-1">
+            <span class="bg-[#2fe0a6]/10 text-[#2fe0a6] text-[10px] px-2 py-0.5 rounded-full font-bold">도파민 챌린지 킵고잉 🚀</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Micro-interaction for chart bars
+    document.addEventListener('DOMContentLoaded', () => {
+      const bars = document.querySelectorAll('.rounded-t-lg');
+      bars.forEach((bar, index) => {
+        const finalHeight = bar.style.height;
+        bar.style.height = '0%';
+        setTimeout(() => {
+          bar.style.height = finalHeight;
+        }, 100 * index);
+      });
+    });
+
+    // Simulating a hover effect for glass cards
+    const cards = document.querySelectorAll('.glass-card');
+    cards.forEach(card => {
+      card.addEventListener('touchstart', () => {
+        card.style.transform = 'scale(0.98)';
+        card.style.transition = 'transform 0.15s ease';
+      });
+      card.addEventListener('touchend', () => {
+        card.style.transform = 'scale(1)';
+      });
+    });
+  </script>
+</body>
+</html>
