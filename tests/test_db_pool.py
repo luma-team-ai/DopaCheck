@@ -346,6 +346,10 @@ class TestResolvePoolTimeout:
         import threading
 
         client = _get_client()
+        # 캐시 격리(#126): autouse reset_pool fixture가 이미 _pool_timeout=None으로
+        # 리셋하지만, 본 테스트는 fixture 실행 순서에 의존하지 않도록 진입 시점에
+        # 캐시가 비어 있음을 명시 보장한다(선행 테스트가 채운 값으로 인한 거짓 통과/실패 방지).
+        client._pool_timeout = None
         results = []
         barrier = threading.Barrier(2)
 
