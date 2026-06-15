@@ -12,7 +12,7 @@ def _fake_db():
     2. COUNT(*) 전체 유저 수 → {"cnt": ...}
     3. COUNT(*) 나보다 높은 유저 수 → {"cnt": ...}
     4. dopamine_scores SELECT (지난주 점수)
-    5. AVG(...) 시간 통계 → {"avg_min": ...}
+    5. SUM(...) 시간 통계 → {"sum_min": ...}
     """
     cursor = MagicMock()
     cursor.fetchone.side_effect = [
@@ -20,7 +20,7 @@ def _fake_db():
         {"cnt": 20},   # 전체 유저 수
         {"cnt": 5},    # 나보다 점수 높은 유저 수
         {"score": 65},  # 지난주 점수
-        {"avg_min": 120},  # 이번 주 평균 사용 시간(분)
+        {"sum_min": 120},  # 이번 주 시간 사용 총합(분)
     ]
     yield cursor
 
