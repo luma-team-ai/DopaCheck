@@ -279,10 +279,11 @@
       </p>
       
       <form action="{{ url_for('mypage.update_wage') }}" method="POST" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <div class="space-y-2">
           <label for="hourly_wage" class="font-label-md text-label-md text-on-surface-variant font-medium">시급 입력 (원)</label>
           <div class="relative flex items-center">
-            <input type="number" name="hourly_wage" id="hourly_wage" required min="0" value="{{ user.hourly_wage }}" class="w-full h-[48px] bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-semibold">
+            <input type="number" name="hourly_wage" id="hourly_wage" required min="0" max="1000000" value="{{ user.hourly_wage }}" class="w-full h-[48px] bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-semibold">
             <span class="absolute right-4 font-label-md text-label-md text-on-surface-variant">원</span>
           </div>
         </div>
