@@ -19,6 +19,7 @@
 
 ## 마지막 머지 PR
 
+- #89 report 비교차트 단일 dataset + recalc import 정리 (**#54·#83 CLOSED**, 정재봉) — miniChart 2-dataset null분리→단일 dataset `[lastVal,thisVal]`+바별 색상배열(BAR_LAST/THIS 보존, 0/null 모호·grouped 빈공간 해소) · `routes/report.py` recalc 지연import→모듈 최상위(순환 없음) · `tests/test_report.py` patch경로 `routes.report.recalculate_score`로 정정. 메타 자체검수(템플릿+import 정리, 서비스·레포 무관)·G6 PASS, pytest 117 PASS. #54 잔여 1건 완료(CDN/SRI는 #67 기완료)
 - #81 CSRF DRY 통합 + 413 fallback + 세션쿠키 보안 (**#46/#42/#43/#44 해소**, Ketose333 작성→정재봉 사람검수 머지) — `history_delete`에 `verify_csrf()` 추가(P1: DELETE CSRF 누락) · `time.py` 로컬 CSRF 제거→공통 `utils/csrf.py` 통일(헤더 `X-CSRF-Token` OR 폼 `csrf_token` 둘 다 지원) · 413 핸들러 `BuildError`→'/' fallback · `SESSION_COOKIE_SECURE` 전용 env 분리(OR `FLASK_ENV=production`). code-reviewer P1 0 / security-reviewer P1 0, G6 PASS, pytest 115 PASS. **후속 P2**: time `/analyze` CSRF 미전송 403 테스트 부재(test_time 주요 케이스 skip 상태). 새 env `SESSION_COOKIE_SECURE` → `.env.example`·README 반영 완료
 - #82 report 진입 시 점수 재산출 호출 추가 (**#75 P2 CLOSED**, 타 세션 머지) — report만 `recalculate_score` 미호출로 점수 stale 불일치 해소
 - #84 헤더 프로필 아바타 드롭다운(마이페이지·로그아웃) 추가 (타 세션 머지)
