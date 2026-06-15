@@ -85,11 +85,21 @@
 
     // 제출 시 로딩 오버레이 + 단계별 메시지
     const steps = ['영수증 읽는 중...', '메뉴 항목 분석 중...', '칼로리 계산 중...', '결과 정리 중...'];
+    let intervalId = null;
     form.addEventListener('submit', () => {
       overlay.classList.remove('hidden');
       overlay.classList.add('flex');
       let i = 0;
-      setInterval(() => { i = (i + 1) % steps.length; msg.textContent = steps[i]; }, 1500);
+      intervalId = setInterval(() => { i = (i + 1) % steps.length; msg.textContent = steps[i]; }, 1500);
+    });
+
+    // bfcache 복귀 시 오버레이 정리 (setInterval 누적 방지)
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) {
+        if (intervalId) { clearInterval(intervalId); intervalId = null; }
+        overlay.classList.add('hidden');
+        overlay.classList.remove('flex');
+      }
     });
   })();
 </script>
