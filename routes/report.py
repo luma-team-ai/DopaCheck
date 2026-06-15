@@ -207,6 +207,8 @@ def report_page():
         ai_comment=ai_comment,
         # 유저 닉네임 — 평면 세션에서 직접 조회(없으면 빈 문자열)
         nickname=session.get("nickname", ""),
+        # 하단 탭바 활성 표시
+        active_tab="report",
     )
 
 

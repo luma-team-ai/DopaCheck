@@ -1,25 +1,19 @@
-{% extends "base.html" %}
+{% extends "_app_base.html" %}
 {% block title %}기록 상세{% endblock %}
-
-{% block header_left %}
-<a href="{{ url_for('history.history_list') }}" class="text-primary hover:opacity-80 active:scale-95">
-  <span class="material-symbols-outlined">arrow_back</span>
-</a>
-{% endblock %}
-
-{% block header_title %}
-<h1 class="text-lg font-bold gradient-text" style="font-family:'Plus Jakarta Sans',sans-serif;">기록 상세</h1>
-{% endblock %}
-
-{% block header_right %}
-{% if record %}
-<button id="btn-delete" data-id="{{ record.id | e }}" data-type="{{ record_type | e }}" class="text-outline-variant hover:text-error transition-colors active:scale-95">
-  <span class="material-symbols-outlined">delete</span>
-</button>
-{% else %}<span></span>{% endif %}
-{% endblock %}
+{% block page_title %}기록 상세{% endblock %}
 
 {% block content %}
+{% if record %}
+<!-- 액션바: 목록 복귀 + 삭제 (기존 헤더 버튼을 본문으로 이전) -->
+<div class="flex items-center justify-between mb-3">
+  <a href="{{ url_for('history.history_list') }}" class="text-primary hover:opacity-80 active:scale-95 flex items-center">
+    <span class="material-symbols-outlined">arrow_back</span>
+  </a>
+  <button id="btn-delete" data-id="{{ record.id | e }}" data-type="{{ record_type | e }}" class="text-outline-variant hover:text-error transition-colors active:scale-95">
+    <span class="material-symbols-outlined">delete</span>
+  </button>
+</div>
+{% endif %}
 {% if not record %}
 <div class="flex flex-col items-center justify-center pt-24 text-center">
   <span class="material-symbols-outlined text-6xl text-outline mb-4">search_off</span>

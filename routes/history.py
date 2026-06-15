@@ -177,6 +177,7 @@ def history_list():
         period=period,
         type_filter=type_filter,
         csrf_token=get_or_create_csrf_token(),
+        active_tab="history",
     )
 
 
@@ -207,7 +208,7 @@ def history_detail(record_id: str):
         abort(503)
 
     if not row:
-        return render_template("history/detail.html", record=None, record_type=record_type, csrf_token=get_or_create_csrf_token()), 404
+        return render_template("history/detail.html", record=None, record_type=record_type, csrf_token=get_or_create_csrf_token(), active_tab="history"), 404
 
     _enrich([row], record_type)
 
@@ -244,7 +245,7 @@ def history_detail(record_id: str):
         row["conv_workout_n"] = round(sns_h / WORKOUT_HOURS, 1) if WORKOUT_HOURS else 0.0
         row["conv_game_cost"] = int(game_h * hourly)
 
-    return render_template("history/detail.html", record=row, record_type=record_type, csrf_token=get_or_create_csrf_token())
+    return render_template("history/detail.html", record=row, record_type=record_type, csrf_token=get_or_create_csrf_token(), active_tab="history")
 
 
 @history_bp.route("/<record_id>", methods=["DELETE"])
