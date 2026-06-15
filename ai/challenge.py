@@ -53,10 +53,10 @@ def recommend(history: dict) -> dict:
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
-    text = extract_text(response)
     try:
+        text = extract_text(response)
         recommendations = json.loads(extract_json(text))
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, ValueError) as e:
         raise ValueError(f"챌린지 추천 응답 파싱 실패: {e}") from e
 
     return {"success": True, "recommendations": recommendations}

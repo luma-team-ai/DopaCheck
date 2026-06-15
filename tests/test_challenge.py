@@ -91,10 +91,34 @@ def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client)
         "합계 0이면 top_app이 history에 포함되면 안 됨"
 
 
-@pytest.mark.skip(reason="TODO(오영석·김승현): recalculate_score 구현 후 달성 판정 통합 테스트 작성")
-def test_챌린지_달성시_보너스_반영():
-    """FR-37, FR-38: 달성 시 +5점"""
-    ...
+def test_챌린지_달성시_완료처리():
+    """FR-37, FR-38: recalculate_score 호출 시 target 달성 챌린지 is_completed=1 갱신."""
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    # fetchone: delivery sum, time sum, delivery count, challenge count
+    cursor.fetchone.side_effect = [
+        {"sum_price": 20_000},
+        {"sum_min": 0},
+        {"cnt": 3},        # 배달 3회 — delivery target_value=2 초과 → 달성
+        {"comp_count": 1},
+    ]
+    # 활성 챌린지: delivery 타입, target_value=2
+    cursor.fetchall.return_value = [
+        {"id": "uc-1", "target_type": "delivery", "target_value": 2}
+    ]
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    with patch("services.score_service.db", _db):
+        recalculate_score(user_id=1)
+
+    # UPDATE user_challenges SET ... is_completed=1 호출 확인
+    update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
+    assert any("is_completed = 1" in c for c in update_calls), \
+        "달성 시 is_completed=1 UPDATE가 호출돼야 함"
 
 
 # ── P2 추가 테스트 ────────────────────────────────────────
