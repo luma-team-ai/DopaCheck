@@ -1,7 +1,9 @@
-"""커넥션 풀 단위 테스트 (#23).
+"""커넥션 풀 단위 테스트 (#23, #71).
 
 실제 네트워크 접속 없이 _get_pool() 싱글톤 동작과
 PooledDB 생성 인자를 검증한다.
+
+#71 추가: bounded-timeout / PoolExhaustedError 동작 검증.
 """
 from __future__ import annotations
 
@@ -101,9 +103,10 @@ class TestPooledDBArgs:
         _, kwargs = self._call_get_pool()
         assert kwargs["creator"] is pymysql_mod
 
-    def test_blocking_is_true(self):
+    def test_blocking_is_false(self):
+        """blocking=False 로 변경 — 풀 소진 시 무한 대기 대신 TooManyConnections 즉시 발생 (#71)."""
         _, kwargs = self._call_get_pool()
-        assert kwargs["blocking"] is True
+        assert kwargs["blocking"] is False
 
     def test_ping_is_4(self):
         _, kwargs = self._call_get_pool()
@@ -190,3 +193,81 @@ class TestGetConnection:
 
         mock_pool.connection.assert_called_once()
         assert conn is mock_conn
+
+
+# --------------------------------------------------------------------------- #
+# 테스트: bounded-timeout / PoolExhaustedError (#71)
+# --------------------------------------------------------------------------- #
+
+class TestBoundedTimeout:
+    """_get_connection() bounded 재시도 루프 및 PoolExhaustedError 검증 (#71)."""
+
+    def test_raises_pool_exhausted_error_on_timeout(self):
+        """풀 connection()이 항상 TooManyConnections를 던지면 timeout 후 PoolExhaustedError가 발생해야 한다."""
+        from dbutils.pooled_db import TooManyConnections
+        from db.client import PoolExhaustedError
+
+        mock_pool = MagicMock()
+        mock_pool.connection.side_effect = TooManyConnections()
+        client = _get_client()
+
+        with patch.dict(os.environ, _db_env()):
+            with patch("db.client.PooledDB", return_value=mock_pool):
+                # interval=0.0(실제 sleep 없음)·timeout=0.05s → 즉시 반복 재시도 후 에러
+                with pytest.raises(PoolExhaustedError, match="커넥션 풀 소진"):
+                    client._get_connection(timeout=0.05, interval=0.0)
+
+        # 단발 호출이 아니라 재시도 루프가 실제로 반복됐는지 검증
+        assert mock_pool.connection.call_count >= 2
+
+    def test_succeeds_after_retry_on_too_many_connections(self):
+        """처음 2번은 TooManyConnections, 3번째 시도에서 커넥션 반환 → 정상 반환해야 한다."""
+        from dbutils.pooled_db import TooManyConnections
+        from db.client import PoolExhaustedError
+
+        mock_conn = MagicMock()
+        mock_pool = MagicMock()
+        mock_pool.connection.side_effect = [
+            TooManyConnections(),
+            TooManyConnections(),
+            mock_conn,  # 3번째 시도에서 성공
+        ]
+        client = _get_client()
+
+        with patch.dict(os.environ, _db_env()):
+            with patch("db.client.PooledDB", return_value=mock_pool):
+                # interval을 0으로 줘서 sleep 없이 빠르게 재시도
+                conn = client._get_connection(timeout=5.0, interval=0.0)
+
+        assert conn is mock_conn, "재시도 성공 후 커넥션이 반환되어야 한다"
+        assert mock_pool.connection.call_count == 3
+
+    def test_first_success_does_not_sleep(self):
+        """첫 시도에서 성공(sync 워커 정상 경로) 시 sleep이 호출되지 않아야 한다."""
+        mock_conn = MagicMock()
+        mock_pool = MagicMock()
+        mock_pool.connection.return_value = mock_conn
+        client = _get_client()
+
+        with patch.dict(os.environ, _db_env()):
+            with patch("db.client.PooledDB", return_value=mock_pool):
+                with patch("db.client.time") as mock_time:
+                    mock_time.monotonic.return_value = 0.0
+                    conn = client._get_connection(timeout=30.0)
+
+        # sleep은 TooManyConnections 잡았을 때만 호출 — 첫 성공 시 호출 없어야 함
+        mock_time.sleep.assert_not_called()
+        assert conn is mock_conn
+
+    def test_pool_exhausted_error_maps_to_503(self, client):
+        """PoolExhaustedError 발생 시 Flask 핸들러가 503을 반환해야 한다 (#71)."""
+        from db.client import PoolExhaustedError
+
+        # errorhandler 직접 호출로 503 응답 확인
+        with client.application.test_request_context():
+            from app import handle_pool_exhausted
+            response = handle_pool_exhausted(PoolExhaustedError("테스트"))
+            # response는 (body, status_code) 튜플
+            body, status = response
+            assert status == 503
+            assert "혼잡" in body
