@@ -29,7 +29,7 @@ def test_챌린지_페이지_렌더링(logged_in_client):
 
 def test_챌린지_중복참여_차단(logged_in_client):
     """FR-35: 이미 참여 중인 챌린지에 재참여 시 409 반환."""
-    challenge_id = "1"
+    challenge_id = "00000000-0000-0000-0000-000000000001"
 
     # CSRF 토큰 세션 주입
     with logged_in_client.session_transaction() as sess:
@@ -125,7 +125,7 @@ def test_챌린지_달성시_완료처리():
 
 def test_CSRF_토큰_불일치시_403(logged_in_client):
     """CSRF 토큰이 일치하지 않으면 403을 반환한다."""
-    challenge_id = "1"
+    challenge_id = "00000000-0000-0000-0000-000000000001"
 
     # 세션에 토큰 주입 후, 다른 값으로 요청
     with logged_in_client.session_transaction() as sess:
@@ -142,7 +142,7 @@ def test_CSRF_토큰_불일치시_403(logged_in_client):
 
 def test_CSRF_토큰_없으면_403(logged_in_client):
     """CSRF 토큰 헤더가 아예 없으면 403을 반환한다."""
-    challenge_id = "1"
+    challenge_id = "00000000-0000-0000-0000-000000000001"
 
     with logged_in_client.session_transaction() as sess:
         sess["csrf_token"] = "some-token"
@@ -266,7 +266,7 @@ def test_프롬프트_인젝션_리스트_truncate():
 
 def test_CSRF_세션_토큰_없으면_빈_토큰_우회_차단(logged_in_client):
     """[P1] 세션에 CSRF 토큰이 없을 때 빈 X-CSRF-Token으로 요청하면 403을 반환한다."""
-    challenge_id = "1"
+    challenge_id = "00000000-0000-0000-0000-000000000001"
 
     # 세션에 csrf_token 키 없음 (초기 상태)
     with logged_in_client.session_transaction() as sess:

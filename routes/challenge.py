@@ -1,6 +1,7 @@
 """AI 챌린지 (담당: 오영석 — FR-32~38)."""
 import logging
 import time
+import uuid as _uuid
 
 from flask import Blueprint, jsonify, render_template, session
 
@@ -222,10 +223,12 @@ def join(challenge_id: str):
 
     user_id = session.get("user_id")
 
-    # challenges.id = CHAR(36) UUID (실DB 스키마와 일치) — 형식만 검증하고
+    # challenges.id = CHAR(36) UUID (실DB 스키마와 일치) — UUID 형식 검증 후
     # 실제 존재 여부는 INSERT 시 FK 제약(fk_uc_challenge)이 보장한다.
     challenge_id = (challenge_id or "").strip()
-    if not challenge_id or len(challenge_id) > 36:
+    try:
+        _uuid.UUID(challenge_id)
+    except ValueError:
         return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
 
     # 중복 참여 체크 + INSERT를 단일 트랜잭션으로 원자화 (FR-35)
