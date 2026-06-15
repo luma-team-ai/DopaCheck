@@ -1,7 +1,15 @@
 {% extends 'base.html' %}
 {% block title %}시간 분석 결과{% endblock %}
 
-{% block nav %}{% endblock nav %}
+{% block nav %}
+<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 flex items-center justify-between px-container-padding h-16">
+  <a href="{{ url_for('time.time_page') }}" class="p-2 active:scale-95 transition-transform text-primary">
+    <span class="material-symbols-outlined">arrow_back</span>
+  </a>
+  <h1 class="font-display-lg text-[20px] font-bold text-on-surface">시간 분석 결과</h1>
+  <div class="w-10"></div>
+</header>
+{% endblock nav %}
 
 {% block head %}
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -109,15 +117,15 @@
     }
     .bg-orb {
         filter: blur(80px);
-        opacity: 0.2;
-        position: absolute;
+        opacity: 0.15;
+        position: fixed;
         z-index: -1;
         border-radius: 50%;
-        animation: drift 15s infinite alternate ease-in-out;
+        animation: drift 20s infinite alternate ease-in-out;
     }
     @keyframes drift {
-        from { transform: translate(-10%, -10%) scale(1); }
-        to   { transform: translate(10%, 10%) scale(1.1); }
+        from { transform: translate(-10%, -10%); }
+        to   { transform: translate(20%, 20%); }
     }
     .result-card {
         background-color: #1f1f28;
@@ -146,28 +154,15 @@
     .delay-3 { animation-delay: 0.3s; opacity: 0; }
     .delay-4 { animation-delay: 0.4s; opacity: 0; }
     .delay-5 { animation-delay: 0.5s; opacity: 0; }
-    /* base.html .container 리셋 */
-    main.container { max-width: none; padding: 0; margin: 0; }
 </style>
 {% endblock head %}
 
 {% block content %}
-<div class="dark min-h-screen" style="background:#13121c;">
-
 <!-- Atmospheric Background Orbs -->
 <div class="bg-orb w-96 h-96 bg-primary top-[-10%] left-[-10%]"></div>
 <div class="bg-orb w-80 h-80 bg-secondary bottom-[20%] right-[-5%]"></div>
 
-<!-- Top App Bar -->
-<header class="fixed top-0 w-full z-50 bg-[#13121c]/80 backdrop-blur-xl border-b border-[#474555]/20 flex items-center justify-between px-5 h-16">
-  <a href="{{ url_for('time.time_page') }}" class="p-2 active:scale-95 transition-transform text-[#c5c0ff]">
-    <span class="material-symbols-outlined">arrow_back</span>
-  </a>
-  <h1 class="text-[20px] font-bold text-[#e5e0ee]" style="font-family:'Plus Jakarta Sans',sans-serif;">시간 분석 결과</h1>
-  <div class="w-10"></div>
-</header>
-
-<div class="pt-24 pb-32 px-5 max-w-lg mx-auto space-y-6">
+<div class="pt-24 pb-32 max-w-lg mx-auto space-y-6">
 
   <!-- P2-1: 합산 168h 초과 경고 배너 -->
   {% if over_limit %}
@@ -290,10 +285,10 @@
     </div>
   </div>
 
-</div><!-- /main content -->
+</div><!-- /content wrapper -->
 
 <!-- Bottom CTA -->
-<div class="fixed bottom-0 left-0 w-full p-5 z-50" style="background:rgba(19,18,28,0.8);backdrop-filter:blur(12px);border-top:1px solid rgba(71,69,85,0.1);">
+<div class="fixed bottom-0 left-0 w-full p-5 z-50 bg-surface/80 backdrop-blur-xl border-t border-outline-variant/10">
   <a href="{{ url_for('time.time_page') }}"
      id="btn-retry"
      class="w-full h-[52px] rounded-xl flex items-center justify-center font-semibold text-white active:scale-[0.98] transition-transform"
@@ -301,8 +296,6 @@
     다시 입력하기
   </a>
 </div>
-
-</div><!-- /.dark -->
 {% endblock content %}
 
 {% block scripts %}
