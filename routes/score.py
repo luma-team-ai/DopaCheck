@@ -102,19 +102,19 @@ def score_page():
         # 5. 시간 통계 데이터 추출
         cursor.execute(
             """
-            SELECT AVG(youtube_min + instagram_min + tiktok_min) as avg_min
+            SELECT SUM(youtube_min + instagram_min + tiktok_min + game_min) as sum_min
             FROM time_records
             WHERE user_id = %s AND created_at >= %s AND created_at < %s
             """,
             (user_id, this_gte_at, this_lt_at)
         )
-        avg_res = cursor.fetchone()
-        avg_min = int(avg_res["avg_min"] or 0) # 데이터가 없는 경우 0분 세팅
+        time_res = cursor.fetchone()
+        avg_min = int(time_res["sum_min"] or 0) # 데이터가 없는 경우 0분 세팅
         avg_hours = avg_min // 60
         avg_remain_min = avg_min % 60
         avg_time_str = f"{avg_hours}시간 {avg_remain_min}분" if avg_hours > 0 else f"{avg_remain_min}분"
 
-        # 평균 사용 시간의 25%를 잠금 해제 횟수로 환산 (기본 0회), UI 깨짐 방지를 위해 99회로 상한
+        # 이번 주 사용 시간의 25%를 잠금 해제 횟수로 환산 (기본 0회), UI 깨짐 방지를 위해 99회로 상한
         unlock_count = min(99, int(avg_min * 0.25))
 
     return render_template(
