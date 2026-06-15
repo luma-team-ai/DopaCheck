@@ -110,6 +110,8 @@ def challenge_page():
         progress_map=progress_map,
         ai_recommendations=ai_recommendations,
         csrf_token=csrf_token,
+        # 하단 탭바 활성 표시
+        active_tab="challenge",
     )
 
 

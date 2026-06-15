@@ -1,19 +1,6 @@
-{% extends "base.html" %}
+{% extends "_app_base.html" %}
 {% block title %}히스토리{% endblock %}
-
-{% block header_left %}
-<button onclick="history.back()" class="text-primary hover:opacity-80 transition-opacity active:scale-95">
-  <span class="material-symbols-outlined">arrow_back</span>
-</button>
-{% endblock %}
-
-{% block header_title %}
-<h1 class="text-lg font-bold gradient-text" style="font-family:'Plus Jakarta Sans',sans-serif;">히스토리</h1>
-{% endblock %}
-
-{% block header_right %}
-<span class="material-symbols-outlined text-on-surface-variant">tune</span>
-{% endblock %}
+{% block page_title %}히스토리{% endblock %}
 
 {% block content %}
 
