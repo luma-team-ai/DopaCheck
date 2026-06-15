@@ -19,6 +19,7 @@
 
 ## 마지막 머지 PR
 
+- #77 delivery P2 3건 (**#55 CLOSED**, PR머신 생성→정재봉 사람검수 머지) — 업로드 오버레이 setInterval 정리(pageshow) · manual 폼 서버검증(빈 food_names·음수 total_price 거부) · `_stitch_head.html` Tailwind CDN 제거→정적 산출물. code-reviewer P1(z-[100]) **검증 결과 오탐**(빌드 내 실재+기존 코드), pytest 114 PASS. ⚠️ home/time/score CDN 잔존은 #67 후속(타 담당)
 - #72 DBUtils 커넥션 풀 도입 (**#23 CLOSED**, 정재봉) — `db/client.py` 요청마다 `pymysql.connect()`→`PooledDB` 풀 전환(503/고갈 방지). 모듈 싱글톤 지연초기화+`threading.Lock` DCL, `db()` 외부 계약 유지, `DB_POOL_SIZE`(기본5). FR-35 중복검증은 기구현이라 범위 제외. reviewer P1 2건(`int("")` 방어·`blocking` 무한대기)→픽스+**#71 분리**, 재검토 APPROVE, pytest 111 PASS
 - #70 홈 챌린지 집계를 `completed_at` 기준으로 통일 (**#69 P1 정합성 버그 CLOSED**, 정재봉) — `routes/home.py` 완료 집계가 `started_at`→`completed_at`로 score_service와 정합, `total`은 (시작 OR 완료) 합집합으로 확장해 completed ⊆ total 불변식 보장. code-reviewer P1 0건(초기 P1은 OR-COUNT 로직 정상 재분류), pytest 98 PASS
 - #67 Tailwind Play CDN → PostCSS(v3 CLI) 빌드 전환 (#49 CLOSED, 정재봉) — `base.html`·`login.html` CDN 제거 → `static/css/tailwind.css` 산출물 커밋(SRI 해소). 인라인 config 컬러 47개 전량 이식. code-reviewer P1 3건 → **G3.5 원본 대조로 전부 무효**(orb 컨테이너 `z-[-1]`·인라인 opacity/스크롤 보존). main rebase 후 pytest 95 PASS
