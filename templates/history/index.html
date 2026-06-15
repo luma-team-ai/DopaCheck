@@ -119,7 +119,10 @@ async function deleteRecord(id, type, btn) {
   card.style.opacity = '0';
   card.style.transform = 'translateX(24px)';
 
-  const res = await fetch(`/history/${id}?type=${type}`, { method: 'DELETE' });
+  const res = await fetch(`/history/${id}?type=${type}`, {
+    method: 'DELETE',
+    headers: { 'X-CSRF-Token': '{{ csrf_token }}' },
+  });
 
   if (res.ok) {
     setTimeout(() => {

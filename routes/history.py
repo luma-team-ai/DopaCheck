@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 
 from flask import Blueprint, abort, jsonify, render_template, request, session
 
+from utils.csrf import get_or_create_csrf_token, verify_csrf
 from utils.week import KST, kst_bounds, kst_today, week_bounds
 
 logger = logging.getLogger(__name__)
@@ -165,6 +166,7 @@ def history_list():
         grouped=list(groups.values()),
         period=period,
         type_filter=type_filter,
+        csrf_token=get_or_create_csrf_token(),
     )
 
 
@@ -195,16 +197,17 @@ def history_detail(record_id: str):
         abort(503)
 
     if not row:
-        return render_template("history/detail.html", record=None, record_type=record_type), 404
+        return render_template("history/detail.html", record=None, record_type=record_type, csrf_token=get_or_create_csrf_token()), 404
 
     _enrich([row], record_type)
-    return render_template("history/detail.html", record=row, record_type=record_type)
+    return render_template("history/detail.html", record=row, record_type=record_type, csrf_token=get_or_create_csrf_token())
 
 
 @history_bp.route("/<record_id>", methods=["DELETE"])
 @login_required  # 비로그인 차단 — if not user_id: abort(401) 대신 데코레이터로 위임 (P1 수정)
 def history_delete(record_id: str):
     """기록 삭제. (FR-23)"""
+    verify_csrf()
     user_id = session.get("user_id")
     record_type = request.args.get("type", "delivery")
 

@@ -7,6 +7,7 @@ import os
 
 from dotenv import load_dotenv
 from flask import Flask, flash, redirect, session, url_for
+from werkzeug.routing import BuildError
 
 load_dotenv()
 
@@ -29,7 +30,10 @@ app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5MB — 대용량 업로�
 # - SECURE: 운영(HTTPS)에서만 쿠키 전송. 개발(http://localhost)에선 False라야 로그인 유지됨
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") == "production"
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.environ.get("SESSION_COOKIE_SECURE", "").lower() == "true"
+    or os.environ.get("FLASK_ENV") == "production"
+)
 
 # 환경 분기: FLASK_ENV=production(CloudType 배포)일 때만 ProxyFix 적용.
 # - production: Nginx 리버스 프록시가 있으므로 X-Forwarded-Proto를 신뢰 → https:// URL 생성.
@@ -71,7 +75,10 @@ def handle_request_entity_too_large(error):
     전용 핸들러가 없으면 기본 HTML 에러 페이지가 노출되어 flash+redirect 흐름이 끊긴다.
     """
     flash("파일 크기가 5MB를 초과했습니다.", "error")
-    return redirect(url_for("delivery.delivery_page"))
+    try:
+        return redirect(url_for("delivery.delivery_page"))
+    except BuildError:
+        return redirect("/")
 
 if __name__ == "__main__":
     # 디버그 모드는 환경변수로 게이트 — 운영에서 debug=True 노출 방지 (#44 P3)
