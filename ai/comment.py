@@ -60,4 +60,7 @@ def generate(comment_type: str, context: dict) -> str:
         system=_SYSTEM,
         messages=[{"role": "user", "content": prompt}],
     )
-    return extract_text(response).strip()
+    try:
+        return extract_text(response).strip()
+    except ValueError as e:
+        raise ValueError(f"공감 코멘트 응답에 text 블록이 없습니다: {e}") from e

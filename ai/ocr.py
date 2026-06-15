@@ -62,9 +62,9 @@ def parse_receipt(image_bytes: bytes) -> dict:
             ],
         }],
     )
-    text = extract_text(response)
     try:
+        text = extract_text(response)
         result = json.loads(extract_json(text))
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, ValueError) as e:
         raise ValueError(f"영수증 OCR 응답 파싱 실패: {e}") from e
     return {"success": True, **result}
