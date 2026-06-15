@@ -11,6 +11,7 @@ from werkzeug.routing import BuildError
 
 load_dotenv()
 
+from db.client import PoolExhaustedError
 from routes.auth import auth_bp, init_oauth
 from routes.challenge import challenge_bp
 from routes.delivery import delivery_bp
@@ -66,6 +67,16 @@ def index():
     if session.get("user_id"):
         return redirect(url_for("home.index"))
     return redirect(url_for("auth.login_page"))
+
+
+@app.errorhandler(PoolExhaustedError)
+def handle_pool_exhausted(error):
+    """커넥션 풀 소진(DB_POOL_TIMEOUT 초과) 시 503을 반환한다 (#71).
+
+    gthread/eventlet 전환 시 동시 요청이 풀을 소진하면 이 핸들러가 동작한다.
+    sync 워커(현행)에선 풀이 소진되지 않으므로 이 핸들러가 호출되는 일은 없다.
+    """
+    return "서버가 혼잡합니다. 잠시 후 다시 시도해주세요.", 503
 
 
 @app.errorhandler(413)
