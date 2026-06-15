@@ -8,7 +8,7 @@ PooledDB 생성 인자를 검증한다.
 from __future__ import annotations
 
 import os
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -213,12 +213,12 @@ class TestBoundedTimeout:
 
         with patch.dict(os.environ, _db_env()):
             with patch("db.client.PooledDB", return_value=mock_pool):
-                # timeout=0.2s, interval=0.05s(기본) → 최대 약 4회 재시도 후 에러
+                # interval=0.0(실제 sleep 없음)·timeout=0.05s → 즉시 반복 재시도 후 에러
                 with pytest.raises(PoolExhaustedError, match="커넥션 풀 소진"):
-                    client._get_connection(timeout=0.2)
+                    client._get_connection(timeout=0.05, interval=0.0)
 
-        # connection()이 최소 1회 이상 호출됐는지 확인
-        assert mock_pool.connection.call_count >= 1
+        # 단발 호출이 아니라 재시도 루프가 실제로 반복됐는지 검증
+        assert mock_pool.connection.call_count >= 2
 
     def test_succeeds_after_retry_on_too_many_connections(self):
         """처음 2번은 TooManyConnections, 3번째 시도에서 커넥션 반환 → 정상 반환해야 한다."""
