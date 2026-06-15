@@ -3,8 +3,8 @@
 -- 정책 (#21):
 --   - users.id 는 BIGINT AUTO_INCREMENT 자체 PK. 소셜 로그인 시 (provider, provider_id) 로 upsert (#26).
 --   - 나머지 테이블 id 는 uuid(CHAR(36)), user_id 는 BIGINT FK.
---   - 예외(#115): challenges.id / user_challenges.id 는 BIGINT AUTO_INCREMENT
---     (운영 DB 레거시 정수 PK + routes/challenge.py의 int(challenge_id) 전제와 일치).
+--     challenges.id / user_challenges.challenge_id 도 CHAR(36) UUID 다
+--     (운영 DB 실제 스키마 + routes/challenge.py 가 UUID 문자열로 처리하는 것과 일치).
 --   - RLS 제거 — 모든 조회는 앱에서 WHERE user_id = session['user_id'] 로 스코프한다.
 SET NAMES utf8mb4;
 
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS dopamine_scores (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS challenges (
-  id              BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  id              CHAR(36)     NOT NULL PRIMARY KEY DEFAULT (UUID()),
   title           VARCHAR(255) NOT NULL,
   description     TEXT,
   target_type     VARCHAR(20)  NOT NULL CHECK (target_type IN ('delivery','time','both')),
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS challenges (
 CREATE TABLE IF NOT EXISTS user_challenges (
   id           CHAR(36)   NOT NULL PRIMARY KEY DEFAULT (UUID()),
   user_id      BIGINT     NOT NULL,
-  challenge_id BIGINT     NOT NULL,
+  challenge_id CHAR(36)   NOT NULL,
   progress     INT        NOT NULL DEFAULT 0,
   is_completed TINYINT(1) NOT NULL DEFAULT 0,
   started_at   DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
