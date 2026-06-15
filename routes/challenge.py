@@ -230,12 +230,15 @@ def join(challenge_id: str):
     if challenge_id_int <= 0:
         return jsonify({"error": "잘못된 챌린지 ID입니다."}), 400
 
-    # 중복 참여 체크 + INSERT를 단일 트랜잭션으로 원자화 (FR-35, #74 TOCTOU 제거)
+    # 중복 참여 체크 + INSERT를 단일 트랜잭션으로 원자화 (FR-35)
+    # FOR UPDATE: InnoDB REPEATABLE READ에서 next-key lock(행+gap)을 획득해
+    # 동시 요청이 모두 '없음'을 보고 INSERT하는 TOCTOU를 차단한다. (#74 #105)
     try:
         with db() as cursor:
             cursor.execute(
                 "SELECT id FROM user_challenges"
-                " WHERE user_id = %s AND challenge_id = %s AND is_completed = 0",
+                " WHERE user_id = %s AND challenge_id = %s AND is_completed = 0"
+                " FOR UPDATE",
                 (user_id, challenge_id_int),
             )
             if cursor.fetchone():
