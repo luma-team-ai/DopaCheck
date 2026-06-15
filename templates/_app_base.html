@@ -10,7 +10,7 @@
   {% include "partials/_stitch_head.html" %}
   {% block head %}{% endblock %}
 </head>
-<body class="flex flex-col min-h-screen pb-40 bg-background text-on-surface">
+<body class="min-h-screen bg-background text-on-surface">
   <!-- Ambient Background Orbs -->
   <div class="bg-orb w-96 h-96 bg-primary top-[-10%] left-[-10%]"></div>
   <div class="bg-orb w-[500px] h-[500px] bg-secondary bottom-[-10%] right-[-10%]" style="animation-delay: -5s;"></div>
@@ -19,7 +19,7 @@
   {% include "components/header.html" %}
 
   <!-- Main Content -->
-  <main class="flex-1 mt-[56px] px-container-padding pb-8 max-w-lg mx-auto w-full">
+  <main class="mt-[56px] px-container-padding pb-[100px] max-w-lg mx-auto w-full">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="mt-4 space-y-2">
