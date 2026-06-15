@@ -154,6 +154,7 @@ chore: 의존성 추가
 | 변수 | 설명 | 관리 |
 |------|------|------|
 | `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` | MariaDB 연결 | 김승현 |
+| `DB_POOL_SIZE` / `DB_POOL_TIMEOUT` | 커넥션 풀 크기(기본 5, #23) / 풀 소진 대기 한도 초(기본 30, 초과 시 503, #71). 둘 다 선택 | 정재봉 |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `KAKAO_CLIENT_ID` | OAuth | 김승현 |
 | `ANTHROPIC_API_KEY` | Claude API | 오영석 |
 | `FLASK_SECRET_KEY` | 세션 암호화 | 김관영 |
