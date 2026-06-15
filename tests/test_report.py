@@ -222,7 +222,8 @@ def test_report_진입_시_recalculate_score_호출됨(logged_in_client):
     home.py·score.py와 동일 패턴으로 이번 주 점수를 재산출한 뒤 조회해야
     진입 경로에 따른 점수 불일치(stale 0 문제)가 사라진다.
     """
-    with patch("services.score_service.recalculate_score") as mock_recalc:
+    # patch 대상은 report 모듈에 바인딩된 이름(#83) — 모듈 최상위 import로 전환돼 리팩터링에도 안전.
+    with patch("routes.report.recalculate_score") as mock_recalc:
         res = logged_in_client.get("/report")
     assert res.status_code == 200
     # logged_in_client는 user_id=1 주입(conftest) — 인자까지 검증해 호출 신뢰성 확보
@@ -234,7 +235,7 @@ def test_report_recalculate_score_예외_발생해도_200(logged_in_client):
 
     예외는 logger.warning으로 삼키고, 폴백으로 기존 점수(또는 0)를 표시한다.
     """
-    with patch("services.score_service.recalculate_score", side_effect=RuntimeError("DB 오류")):
+    with patch("routes.report.recalculate_score", side_effect=RuntimeError("DB 오류")):
         res = logged_in_client.get("/report")
     assert res.status_code == 200
 

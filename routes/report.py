@@ -8,6 +8,7 @@ from flask import Blueprint, abort, render_template, session
 from ai import comment
 from db.client import db
 from routes.auth import login_required
+from services.score_service import recalculate_score
 from utils.week import get_week_ranges, kst_bounds
 
 logger = logging.getLogger(__name__)
@@ -175,8 +176,8 @@ def report_page():
     this_delivery = aggregate_delivery(_fetch_delivery(user_id, this_start, this_end))
     this_time = aggregate_time(_fetch_time(user_id, this_start, this_end))
     # 점수 재산출 트리거 — home/score와 동일 패턴(#75). 저번 주 점수에는 영향 없음.
+    # 모듈 최상위 import로 통일(#83) — score_service는 routes 미참조라 순환 import 없음.
     try:
-        from services.score_service import recalculate_score
         recalculate_score(user_id)
     except Exception as exc:
         logger.warning("도파민 점수 재계산 실패: %s", exc)
