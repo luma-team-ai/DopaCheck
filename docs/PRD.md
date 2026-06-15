@@ -1,10 +1,20 @@
 # PRD — 도파민 대리 만족 (Dopamine Check)
 
 > AI 심화 과정 팀 프로젝트 | 6인 팀 | 개발 기간: 6~7일  
-> 작성일: 2026-06-11 (Ver1.1) / 갱신일: 2026-06-15 (Ver1.3)  
+> 작성일: 2026-06-11 (Ver1.1) / 갱신일: 2026-06-15 (Ver1.4)  
 > 팀원: 김승현(DB담당), 김관영(Flask/백엔드), 이은석(서버세팅/프론트), 정재봉(리포트), 허남(히스토리), 오영석(AI모듈/챌린지)
 >
 > 📋 진행 현황·팀원별 할 일은 [docs/STATUS.md](STATUS.md) 참조
+
+---
+
+## 0-0. Ver1.4 변경 요약 (2026-06-15 — challenges id 타입 정합)
+
+Ver1.3에서 `challenges.id`/`user_challenges.challenge_id`를 BIGINT로 정정(#115)했으나, **운영 DB는 실제로 `CHAR(36)` UUID**였다. 코드(`routes/challenge.py`)가 `int(challenge_id)` 변환을 강제하면서 모든 챌린지 '참여하기'가 400으로 전면 불능이 되는 회귀가 발생했다(#133).
+
+- **challenges.id / user_challenges.challenge_id → `CHAR(36)` UUID로 환원**: 운영 DB 실제 스키마와 일치. `join`은 UUID 문자열로 처리(존재는 FK가 보장). #115의 BIGINT 정정은 운영 DB 미반영 회귀라 되돌림 (PR #135)
+- **운영 영향 없음**: 운영 DB는 이미 char(36) → 코드 머지·pull만으로 복구(DB 마이그레이션 불필요)
+- **후속**: UUID 형식 검증 강화 + 참여 성공 테스트 (#134)
 
 ---
 
@@ -403,11 +413,11 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 
 > `(user_id, week_start)` UNIQUE 제약 — 주차별 1개 레코드 upsert (`services/score_service.recalculate_score`)
 
-**challenges** *(Ver1.3: id를 BIGINT AUTO_INCREMENT로 정정 — #115, title UNIQUE 제약 추가 — #97)*
+**challenges** *(Ver1.4: id는 CHAR(36) UUID — 운영 DB 실제 스키마와 일치 #133, title UNIQUE 제약 — #97)*
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| id | BIGINT PK AUTO_INCREMENT | 운영 DB 레거시 정수 PK 및 `routes/challenge.py`의 `int(challenge_id)` 전제와 일치 (#115) |
+| id | CHAR(36) PK (UUID) | 운영 DB 실제 타입. `routes/challenge.py` join이 UUID 문자열로 처리 (#133 — #115의 BIGINT 정정은 운영 DB 미반영 회귀라 되돌림) |
 | title | VARCHAR(255) UNIQUE | 챌린지 제목 — 재시드 시 UPSERT 기준 (#97) |
 | description | TEXT | 상세 설명 |
 | target_type | VARCHAR(20) | `delivery` / `time` / `both` |
@@ -422,7 +432,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 |------|------|------|
 | id | CHAR(36) PK (UUID) | |
 | user_id | BIGINT FK → users.id | 데이터 접근 필터 기준 컬럼 |
-| challenge_id | BIGINT FK → challenges.id | challenges.id 타입 변경에 따라 BIGINT로 정정 (Ver1.3, #115) |
+| challenge_id | CHAR(36) FK → challenges.id | challenges.id(UUID)와 동일 타입 (Ver1.4, #133) |
 | progress | INT | 현재 달성값 |
 | is_completed | TINYINT(1) | 달성 여부, 기본값 0 |
 | started_at | DATETIME | 참여 시작일 |
