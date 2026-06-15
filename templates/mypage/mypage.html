@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>DopaCheck - 마이페이지</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Pretendard", sans-serif;
+      background-color: #0A0A0F;
+      color: #e4e1ed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
+    .glass-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+    }
+    .primary-gradient-text {
+      background: linear-gradient(135deg, #c5c0ff 0%, #ffb1c5 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei);
+      z-index: 99;
+    }
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: -1;
+    }
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #6b5bff;
+      top: -100px;
+      right: -100px;
+    }
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #8c0a46;
+      bottom: 100px;
+      left: -50px;
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-tint": "#c5c0ff",
+            "inverse-on-surface": "#303038",
+            "secondary-container": "#8c0a46",
+            "tertiary-fixed-dim": "#2fe0a6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-tertiary-container": "#fcfffa",
+            "primary-container": "#6b5bff",
+            "on-primary-container": "#fffdff",
+            "outline-variant": "#474555",
+            "surface-container-low": "#1b1b23",
+            "on-secondary-fixed": "#3f001b",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "on-secondary-container": "#ff95b4",
+            "on-background": "#e4e1ed",
+            "on-error": "#690005",
+            "on-tertiary-fixed-variant": "#005139",
+            "tertiary-container": "#008660",
+            "primary-fixed": "#e3dfff",
+            "tertiary": "#2fe0a6",
+            "on-error-container": "#ffdad6",
+            "inverse-surface": "#e4e1ed",
+            "surface": "#13131b",
+            "surface-container-high": "#292932",
+            "on-secondary": "#650030",
+            "on-primary-fixed": "#140067",
+            "background": "#13131b",
+            "on-primary": "#2500a2",
+            "secondary": "#ffb1c5",
+            "surface-container-lowest": "#0d0d15",
+            "secondary-fixed-dim": "#ffb1c5",
+            "error": "#ffb4ab",
+            "primary-fixed-dim": "#c5c0ff",
+            "inverse-primary": "#5340e7",
+            "on-tertiary-fixed": "#002115",
+            "outline": "#918ea1",
+            "surface-variant": "#34343d",
+            "surface-container": "#1f1f27",
+            "on-tertiary": "#003826",
+            "primary": "#c5c0ff",
+            "on-surface": "#e4e1ed",
+            "on-surface-variant": "#c8c4d8",
+            "surface-dim": "#13131b",
+            "surface-bright": "#393841",
+            "tertiary-fixed": "#59fdc0",
+            "error-container": "#93000a",
+            "surface-container-highest": "#34343d",
+            "secondary-fixed": "#ffd9e1"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "edge-padding": "20px",
+            "stack-md": "16px",
+            "base": "8px",
+            "stack-lg": "24px",
+            "stack-sm": "8px",
+            "gutter": "16px",
+            "section-margin": "40px"
+          },
+          "fontFamily": {
+            "body-lg": ["Pretendard"],
+            "label-md": ["Pretendard"],
+            "headline-md": ["Pretendard"],
+            "headline-lg": ["Pretendard"]
+          },
+          "fontSize": {
+            "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+            "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+            "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- Header 컴포넌트 포함 -->
+  {% include "components/header.html" %}
+
+  <!-- Main Content Area -->
+  <main class="pt-[80px] pb-[100px] px-edge-padding max-w-[600px] mx-auto space-y-stack-lg">
+    
+    <!-- Flash Messages (알림 메시지) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="space-y-2" id="flash-container">
+          {% for category, message in messages %}
+            <div class="p-4 rounded-xl flex items-center justify-between {% if category == 'error' %}bg-error-container/20 border border-error/30 text-error{% else %}bg-primary-container/20 border border-primary/30 text-primary{% endif %} animate-in fade-in slide-in-from-top-2 duration-300">
+              <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined">
+                  {% if category == 'error' %}error{% else %}check_circle{% endif %}
+                </span>
+                <span class="font-label-md text-label-md">{{ message }}</span>
+              </div>
+              <button onclick="document.getElementById('flash-container').remove()" class="text-on-surface-variant hover:text-on-surface">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+              </button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- 1. 프로필 카드 -->
+    <section class="glass-card p-6 flex flex-col items-center text-center space-y-4">
+      <div class="w-20 h-20 rounded-full border-2 border-primary/30 overflow-hidden shadow-lg shadow-primary-container/10 flex items-center justify-center bg-surface-container-high">
+        {% if session.get('avatar_url') %}
+          <img alt="User avatar" class="w-full h-full object-cover" src="{{ session.get('avatar_url') }}">
+        {% else %}
+          <span class="material-symbols-outlined text-[48px] text-primary">person</span>
+        {% endif %}
+      </div>
+      <div class="space-y-1">
+        <h2 class="font-headline-md text-headline-md text-on-surface font-bold">{{ user.nickname }}</h2>
+        <p class="font-body-md text-body-md text-on-surface-variant/80">{{ email_display }}</p>
+      </div>
+      <div class="py-1 px-4 bg-surface-container-high border border-outline-variant/20 rounded-full">
+        <span class="font-label-md text-label-md text-on-surface-variant font-medium">{{ joined_date_str }} 가입</span>
+      </div>
+    </section>
+
+    <!-- 2. 통계 지표 정보 -->
+    <section class="glass-card grid grid-cols-3 divide-x divide-outline-variant/20 py-5">
+      <div class="flex flex-col items-center justify-center px-2">
+        <span class="font-headline-lg text-headline-lg text-primary font-extrabold mb-1 primary-gradient-text">{{ score }}</span>
+        <span class="font-label-md text-label-md text-on-surface-variant/60">도파민 점수</span>
+      </div>
+      <div class="flex flex-col items-center justify-center px-2">
+        <span class="font-headline-lg text-headline-lg text-primary font-extrabold mb-1 primary-gradient-text">{{ completed_challenges }}</span>
+        <span class="font-label-md text-label-md text-on-surface-variant/60">챌린지 달성</span>
+      </div>
+      <div class="flex flex-col items-center justify-center px-2">
+        <span class="font-headline-lg text-headline-lg text-primary font-extrabold mb-1 primary-gradient-text">{{ total_analyses }}회</span>
+        <span class="font-label-md text-label-md text-on-surface-variant/60">총 분석 횟수</span>
+      </div>
+    </section>
+
+    <!-- 3. 메뉴 리스트 -->
+    <section class="glass-card overflow-hidden">
+      <ul class="flex flex-col divide-y divide-outline-variant/10">
+        <!-- 알림 설정 -->
+        <li onclick="showNoticeModal('알림 설정', '도파민 리포트 및 챌린지 알림 기능은 다음 버전에서 출시될 예정입니다. 조금만 기다려 주세요! 🌱')" class="h-14 flex items-center px-5 active:bg-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+          <span class="material-symbols-outlined text-primary mr-4">notifications</span>
+          <span class="font-body-md text-body-md text-on-surface flex-grow">알림 설정</span>
+          <span class="material-symbols-outlined text-on-surface-variant/40 group-hover:translate-x-1 transition-transform">chevron_right</span>
+        </li>
+        <!-- 시급 설정 -->
+        <li id="openWageModalBtn" class="h-14 flex items-center px-5 active:bg-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+          <span class="material-symbols-outlined text-primary mr-4">payments</span>
+          <span class="font-body-md text-body-md text-on-surface flex-grow">시급 설정</span>
+          <span class="font-label-md text-label-md text-primary font-semibold mr-2">{{ "{:,}".format(user.hourly_wage) }}원</span>
+          <span class="material-symbols-outlined text-on-surface-variant/40 group-hover:translate-x-1 transition-transform">chevron_right</span>
+        </li>
+        <!-- 개인정보 처리방침 -->
+        <li onclick="showNoticeModal('개인정보 처리방침', 'DopaCheck은 사용자의 개인정보(소셜 로그인 이메일, 닉네임, 업로드한 분석 데이터)를 안전하게 암호화하여 관리하며, 외부로 무단 공유하지 않습니다. 본 서비스는 AI 심화 과정 팀 프로젝트 데모용이며 언제든지 정보를 파기할 수 있습니다.')" class="h-14 flex items-center px-5 active:bg-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+          <span class="material-symbols-outlined text-primary mr-4">lock</span>
+          <span class="font-body-md text-body-md text-on-surface flex-grow">개인정보 처리방침</span>
+          <span class="material-symbols-outlined text-on-surface-variant/40 group-hover:translate-x-1 transition-transform">chevron_right</span>
+        </li>
+        <!-- 도움말 -->
+        <li onclick="showNoticeModal('도움말 및 안내', 'DopaCheck은 현대인들이 모르게 소비하는 배달 금액과 SNS 화면 응시 시간을 가시화하여 자기성찰을 돕는 앱입니다. 영수증 업로드 분석과 앱 사용 시간 입력을 통해 이번 주 나의 도파민 중독 지수를 분석하고 관리해 보세요!')" class="h-14 flex items-center px-5 active:bg-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+          <span class="material-symbols-outlined text-primary mr-4">help_outline</span>
+          <span class="font-body-md text-body-md text-on-surface flex-grow">도움말</span>
+          <span class="material-symbols-outlined text-on-surface-variant/40 group-hover:translate-x-1 transition-transform">chevron_right</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- 4. 로그아웃 세션 -->
+    <section class="flex flex-col items-center gap-4 mt-6">
+      <button class="w-full h-[52px] border border-error/60 rounded-2xl flex items-center justify-center gap-2 text-error font-bold text-body-md hover:bg-error/10 transition-colors active:scale-[0.98] duration-200" id="logoutBtn">
+        <span class="material-symbols-outlined text-[20px]">logout</span>
+        로그아웃
+      </button>
+      
+      <!-- Hidden Confirmation Section -->
+      <div class="hidden flex flex-col items-center gap-3 w-full p-4 glass-card bg-surface-container-high/60 border border-error/20 animate-in fade-in slide-in-from-top-2 duration-300" id="logoutConfirm">
+        <p class="font-label-md text-label-md text-on-surface-variant">정말 로그아웃 하시겠습니까?</p>
+        <div class="flex gap-8 justify-center w-full">
+          <button class="text-on-surface font-semibold text-body-md px-6 py-2 rounded-xl hover:bg-white/5 transition-colors" id="cancelLogout">취소</button>
+          <a href="{{ url_for('auth.logout') }}" class="text-error font-bold text-body-md px-6 py-2 rounded-xl hover:bg-error/10 transition-colors text-decoration-none">확인</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer v1.0.0 -->
+    <footer class="mt-8 flex flex-col items-center opacity-30">
+      <span class="font-label-md text-label-md text-on-surface-variant">DopaCheck v1.0.0</span>
+    </footer>
+  </main>
+
+  <!-- 시급 설정 모달 레이어 -->
+  <div id="wageModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-edge-padding">
+    <div class="w-full max-w-[400px] glass-card p-6 flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-200">
+      <div class="flex justify-between items-center">
+        <h3 class="font-headline-md text-headline-md text-primary font-bold">기본 시급 변경</h3>
+        <button id="closeWageModalBtn" class="text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      
+      <p class="font-label-md text-label-md text-on-surface-variant/80">
+        설정한 시급은 시간 분석 화면에서 절약 시간 또는 낭비 시간의 가치로 환산할 때 사용됩니다.
+      </p>
+      
+      <form action="{{ url_for('mypage.update_wage') }}" method="POST" class="space-y-4">
+        <div class="space-y-2">
+          <label for="hourly_wage" class="font-label-md text-label-md text-on-surface-variant font-medium">시급 입력 (원)</label>
+          <div class="relative flex items-center">
+            <input type="number" name="hourly_wage" id="hourly_wage" required min="0" value="{{ user.hourly_wage }}" class="w-full h-[48px] bg-surface-container-low border border-outline-variant/30 rounded-xl px-4 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none font-semibold">
+            <span class="absolute right-4 font-label-md text-label-md text-on-surface-variant">원</span>
+          </div>
+        </div>
+        
+        <div class="flex gap-3 pt-2">
+          <button type="button" id="cancelWageModalBtn" class="w-1/2 h-[48px] bg-surface-container-high border border-outline-variant/20 rounded-xl font-semibold hover:bg-white/5 transition-colors">취소</button>
+          <button type="submit" class="w-1/2 h-[48px] bg-primary text-[#13131b] font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-opacity-90 transition-all">저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 일반 알림 안내용 모달 레이어 -->
+  <div id="noticeModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-edge-padding">
+    <div class="w-full max-w-[400px] glass-card p-6 flex flex-col space-y-4 animate-in fade-in zoom-in-95 duration-200">
+      <div class="flex justify-between items-center border-b border-outline-variant/10 pb-3">
+        <h3 id="noticeModalTitle" class="font-headline-md text-headline-md text-primary font-bold">안내</h3>
+        <button onclick="closeNoticeModal()" class="text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      
+      <p id="noticeModalContent" class="font-body-md text-body-md text-on-surface-variant/90 leading-relaxed py-2">
+        내용
+      </p>
+      
+      <div class="pt-2">
+        <button onclick="closeNoticeModal()" class="w-full h-[48px] bg-primary text-[#13131b] font-bold rounded-xl shadow-lg shadow-primary/20 hover:bg-opacity-90 transition-all">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공통 푸터 컴포넌트 포함 -->
+  {% set active_tab = 'mypage' %}
+  {% include "components/footer.html" %}
+
+  <!-- Client-side Scripts -->
+  <script>
+    // 로그아웃 확인 UI 처리
+    const logoutBtn = document.getElementById('logoutBtn');
+    const logoutConfirm = document.getElementById('logoutConfirm');
+    const cancelLogout = document.getElementById('cancelLogout');
+
+    logoutBtn.addEventListener('click', () => {
+      logoutConfirm.classList.remove('hidden');
+      logoutBtn.classList.add('opacity-40');
+      logoutBtn.disabled = true;
+    });
+
+    cancelLogout.addEventListener('click', () => {
+      logoutConfirm.classList.add('hidden');
+      logoutBtn.classList.remove('opacity-40');
+      logoutBtn.disabled = false;
+    });
+
+    // 시급 수정 모달 처리
+    const wageModal = document.getElementById('wageModal');
+    const openWageModalBtn = document.getElementById('openWageModalBtn');
+    const closeWageModalBtn = document.getElementById('closeWageModalBtn');
+    const cancelWageModalBtn = document.getElementById('cancelWageModalBtn');
+
+    openWageModalBtn.addEventListener('click', () => {
+      wageModal.classList.remove('hidden');
+    });
+
+    const closeWageModal = () => {
+      wageModal.classList.add('hidden');
+    };
+
+    closeWageModalBtn.addEventListener('click', closeWageModal);
+    cancelWageModalBtn.addEventListener('click', closeWageModal);
+
+    // ESC 키로 모달 닫기
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeWageModal();
+        closeNoticeModal();
+      }
+    });
+
+    // 바깥쪽 클릭 시 모달 닫기
+    wageModal.addEventListener('click', (e) => {
+      if (e.target === wageModal) {
+        closeWageModal();
+      }
+    });
+
+    // 안내 모달 처리
+    const noticeModal = document.getElementById('noticeModal');
+    const noticeModalTitle = document.getElementById('noticeModalTitle');
+    const noticeModalContent = document.getElementById('noticeModalContent');
+
+    function showNoticeModal(title, content) {
+      noticeModalTitle.textContent = title;
+      noticeModalContent.textContent = content;
+      noticeModal.classList.remove('hidden');
+    }
+
+    function closeNoticeModal() {
+      noticeModal.classList.add('hidden');
+    }
+
+    noticeModal.addEventListener('click', (e) => {
+      if (e.target === noticeModal) {
+        closeNoticeModal();
+      }
+    });
+
+    // Flash Message 자동 닫기 (5초 후)
+    const flashContainer = document.getElementById('flash-container');
+    if (flashContainer) {
+      setTimeout(() => {
+        flashContainer.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+        setTimeout(() => flashContainer.remove(), 500);
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
