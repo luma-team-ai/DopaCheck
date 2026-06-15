@@ -64,7 +64,8 @@ CREATE TABLE IF NOT EXISTS challenges (
   description     TEXT,
   target_type     VARCHAR(20)  NOT NULL CHECK (target_type IN ('delivery','time','both')),
   target_value    INT          NOT NULL,
-  is_ai_generated TINYINT(1)   NOT NULL DEFAULT 0
+  is_ai_generated TINYINT(1)   NOT NULL DEFAULT 0,
+  CONSTRAINT uq_challenges_title UNIQUE (title)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS user_challenges (
@@ -85,4 +86,4 @@ CREATE TABLE IF NOT EXISTS user_challenges (
 -- RLS 제거 — 모든 조회는 앱에서 WHERE user_id = session['user_id'] 로 스코프.
 --   랭킹(FR-29, FR-30) 전체 집계는 서버에서 직접 집계 쿼리로 처리(별도 정책 불필요).
 
--- TODO(김승현): 시드 더미 데이터 20건 삽입 스크립트 작성 (db/seed.sql)
+-- 기본 챌린지 7종 시드: db/seed.sql (UPSERT, #97)
