@@ -14,6 +14,9 @@ CREATE TABLE IF NOT EXISTS users (
   -- 소셜로그인 식별키 (#26): upsert_user_profile 이 (provider, provider_id) 로 사용자 매칭
   provider    VARCHAR(20)  NOT NULL,           -- 'google' | 'kakao'
   provider_id VARCHAR(255) NOT NULL,           -- OAuth sub / 카카오 회원번호
+  -- 관리자 페이지 접근 제어 (PRD Ver1.2 FR-52~54): 'user'(기본) | 'admin'.
+  -- 'admin' 지정은 DB 직접 UPDATE로만 처리 (별도 관리 UI 없음).
+  role        VARCHAR(20)  NOT NULL DEFAULT 'user',
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_provider (provider, provider_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

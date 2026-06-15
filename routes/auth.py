@@ -2,7 +2,7 @@
 import logging
 from flask import Blueprint, redirect, render_template, session, url_for
 from authlib.integrations.flask_client import OAuth
-from db.client import upsert_user_profile
+from db.client import db, upsert_user_profile
 from functools import wraps
 import os
 
@@ -97,10 +97,19 @@ def google_callback():
         provider_id = user_info["sub"]
     )
 
+    with db() as cursor:
+        cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+        user_record = cursor.fetchone()
+        role = user_record["role"] if user_record else "user"
+
     session["user_id"]  = user_id
     session["nickname"] = user_info.get("name") or user_info["email"].split("@")[0]
     session["email"]    = user_info["email"]
     session["avatar_url"] = user_info.get("picture")
+    session["role"]     = role
+
+    if role == "admin":
+        return redirect(url_for("admin.admin_dashboard"))
     return redirect("/")
 
 
@@ -159,6 +168,11 @@ def kakao_callback():
         provider_id = kakao_id
     )
 
+    with db() as cursor:
+        cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+        user_record = cursor.fetchone()
+        role = user_record["role"] if user_record else "user"
+
     session["user_id"]  = user_id
     session["nickname"] = nickname
     session["email"]    = email
@@ -166,6 +180,10 @@ def kakao_callback():
         profile.get("kakao_account", {}).get("profile", {}).get("profile_image_url")
         or profile.get("properties", {}).get("profile_image")
     )
+    session["role"]     = role
+
+    if role == "admin":
+        return redirect(url_for("admin.admin_dashboard"))
     return redirect("/")
 
 
