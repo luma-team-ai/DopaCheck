@@ -3,7 +3,48 @@
   <a href="/" class="flex items-center">
     <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck Logo" class="h-9 w-auto">
   </a>
-  <a href="{{ url_for('auth.logout') }}" class="w-10 h-10 rounded-full border border-primary/20 overflow-hidden active:scale-95 transition-transform cursor-pointer" title="로그아웃">
-    <img alt="User avatar" class="w-full h-full object-cover" src="{{ session.get('avatar_url') or url_for('static', filename='images/default_avatar.svg') }}">
-  </a>
+
+  <!-- Profile Avatar + Dropdown -->
+  <div class="relative" id="profile-menu-wrapper">
+    <div class="w-10 h-10 rounded-full border border-primary/20 overflow-hidden active:scale-95 transition-transform cursor-pointer" id="profile-avatar-btn">
+      <img alt="User avatar" class="w-full h-full object-cover"
+           src="{{ session.get('avatar_url') or url_for('static', filename='images/default_avatar.svg') }}">
+    </div>
+
+    <div class="hidden absolute top-[calc(100%+8px)] right-0 w-[200px] bg-surface-container backdrop-blur-md border border-outline-variant/30 rounded-xl shadow-2xl z-[100] overflow-hidden flex flex-col" id="profile-dropdown">
+      <div class="p-4 border-b border-outline-variant/20">
+        <div class="text-on-surface font-bold text-label-md">{{ session.get('nickname') or '사용자' }}</div>
+        <div class="text-on-surface-variant text-[12px]">{{ session.get('email') or '' }}</div>
+      </div>
+      <div class="flex flex-col py-2">
+        <button class="flex items-center gap-3 px-4 py-3 hover:bg-surface-bright/10 transition-colors text-left">
+          <span class="material-symbols-outlined text-primary text-[20px]">person</span>
+          <span class="text-on-surface text-label-md">마이페이지</span>
+        </button>
+        <a href="{{ url_for('auth.logout') }}" class="flex items-center gap-3 px-4 py-3 hover:bg-error/10 transition-colors">
+          <span class="material-symbols-outlined text-error text-[20px]">logout</span>
+          <span class="text-error text-label-md">로그아웃</span>
+        </a>
+      </div>
+    </div>
+  </div>
 </header>
+
+<script>
+(function () {
+  const btn = document.getElementById('profile-avatar-btn');
+  const menu = document.getElementById('profile-dropdown');
+  if (!btn || !menu) return;
+
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    menu.classList.toggle('hidden');
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!menu.contains(e.target) && !btn.contains(e.target)) {
+      menu.classList.add('hidden');
+    }
+  });
+})();
+</script>
