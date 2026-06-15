@@ -286,10 +286,13 @@
       type: 'bar',
       data: {
         labels: ['저번 주', '이번 주'],
-        datasets: [
-          { label: '저번 주', data: [lastVal, null], ...BAR_LAST },
-          { label: '이번 주', data: [null, thisVal], ...BAR_THIS },
-        ],
+        datasets: [{
+          data: [lastVal, thisVal],
+          backgroundColor: [BAR_LAST.backgroundColor, BAR_THIS.backgroundColor],
+          borderColor:     [BAR_LAST.borderColor, BAR_THIS.borderColor],
+          borderWidth: 1.5,
+          borderRadius: 6,
+        }],
       },
       options: {
         responsive: true,
@@ -298,8 +301,7 @@
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (item) => item.raw == null ? '' : tooltipFormatter(item.raw),
-              filter: (item) => item.raw !== null,
+              label: (item) => tooltipFormatter(item.raw),
             },
             backgroundColor: TOOLTIP_BG,
             titleColor: TOOLTIP_FG,
