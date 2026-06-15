@@ -225,7 +225,8 @@ def test_report_진입_시_recalculate_score_호출됨(logged_in_client):
     with patch("services.score_service.recalculate_score") as mock_recalc:
         res = logged_in_client.get("/report")
     assert res.status_code == 200
-    mock_recalc.assert_called_once()
+    # logged_in_client는 user_id=1 주입(conftest) — 인자까지 검증해 호출 신뢰성 확보
+    mock_recalc.assert_called_once_with(1)
 
 
 def test_report_recalculate_score_예외_발생해도_200(logged_in_client):
