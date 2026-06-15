@@ -1,6 +1,6 @@
 {# 모바일 앱 셸 레이아웃 (Stitch) — delivery 화면이 상속한다.
-   상단 앱바 + 앰비언트 orb + flash + 하단 탭바. 전역 base.html(상단 nav)과 별개.
-   하단탭 active 상태는 request.blueprint / request.endpoint 로 자동 판정. #}
+   공통 header/footer 컴포넌트(components/header.html, footer.html) 사용.
+   하단탭 active_tab='delivery' 고정 (이 베이스는 delivery 전용). #}
 <!DOCTYPE html>
 <html class="dark" lang="ko">
 <head>
@@ -10,26 +10,16 @@
   {% include "partials/_stitch_head.html" %}
   {% block head %}{% endblock %}
 </head>
-<body class="flex flex-col min-h-screen pb-40 bg-background text-on-surface">
+<body class="min-h-screen bg-background text-on-surface">
   <!-- Ambient Background Orbs -->
   <div class="bg-orb w-96 h-96 bg-primary top-[-10%] left-[-10%]"></div>
   <div class="bg-orb w-[500px] h-[500px] bg-secondary bottom-[-10%] right-[-10%]" style="animation-delay: -5s;"></div>
 
   <!-- Top App Bar -->
-  {% block topbar %}
-  <header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 h-16 flex items-center justify-between px-container-padding">
-    <a href="{{ url_for('index') }}" aria-label="뒤로" class="flex items-center justify-center w-10 h-10 active:scale-95 transition-transform text-on-surface">
-      <span class="material-symbols-outlined">arrow_back</span>
-    </a>
-    <h1 class="font-display-lg text-title-md font-bold text-on-surface">{% block app_title %}배달 분석{% endblock %}</h1>
-    <a href="{{ url_for('auth.logout') }}" aria-label="로그아웃" class="w-10 h-10 rounded-full bg-surface-container-high border border-outline-variant/20 flex items-center justify-center text-primary active:scale-95 transition-transform">
-      <span class="material-symbols-outlined">person</span>
-    </a>
-  </header>
-  {% endblock %}
+  {% include "components/header.html" %}
 
   <!-- Main Content -->
-  <main class="flex-1 mt-16 px-container-padding pb-8 max-w-lg mx-auto w-full">
+  <main class="mt-[56px] px-container-padding pb-[100px] max-w-lg mx-auto w-full">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="mt-4 space-y-2">
@@ -48,31 +38,8 @@
   {% block bottom_action %}{% endblock %}
 
   <!-- Bottom Navigation -->
-  {% block bottomnav %}
-  {% set bp = request.blueprint %}
-  <nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-20 pb-4 px-2 bg-surface-container/80 backdrop-blur-xl border-t border-outline-variant/20 z-40 rounded-t-xl">
-    <a href="{{ url_for('index') }}" class="flex flex-col items-center justify-center {% if request.endpoint == 'index' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary/80{% endif %} active:scale-90 transition-all">
-      <span class="material-symbols-outlined">home</span>
-      <span class="text-label-caps font-label-caps">홈</span>
-    </a>
-    <a href="{{ url_for('delivery.delivery_page') }}" class="flex flex-col items-center justify-center {% if bp in ['delivery', 'time'] %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary/80{% endif %} active:scale-90 transition-all">
-      <span class="material-symbols-outlined">insights</span>
-      <span class="text-label-caps font-label-caps">분석</span>
-    </a>
-    <a href="{{ url_for('report.report_page') }}" class="flex flex-col items-center justify-center {% if bp == 'report' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary/80{% endif %} active:scale-90 transition-all">
-      <span class="material-symbols-outlined">analytics</span>
-      <span class="text-label-caps font-label-caps">리포트</span>
-    </a>
-    <a href="{{ url_for('score.score_page') }}" class="flex flex-col items-center justify-center {% if bp == 'score' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary/80{% endif %} active:scale-90 transition-all">
-      <span class="material-symbols-outlined">speed</span>
-      <span class="text-label-caps font-label-caps">점수</span>
-    </a>
-    <a href="{{ url_for('challenge.challenge_page') }}" class="flex flex-col items-center justify-center {% if bp == 'challenge' %}text-primary font-bold{% else %}text-on-surface-variant hover:text-primary/80{% endif %} active:scale-90 transition-all">
-      <span class="material-symbols-outlined">emoji_events</span>
-      <span class="text-label-caps font-label-caps">챌린지</span>
-    </a>
-  </nav>
-  {% endblock %}
+  {% set active_tab = 'delivery' %}
+  {% include "components/footer.html" %}
 
   {% block scripts %}{% endblock %}
 </body>
