@@ -337,6 +337,32 @@ class TestResolvePoolTimeout:
         client = _get_client()
         assert client._pool_timeout is None
 
+    def test_concurrent_resolve_initializes_once(self):
+        """두 스레드가 동시 진입해도 DCL로 1회만 초기화·동일 값 반환해야 한다 (#102).
+
+        threading.Barrier로 두 스레드를 동시에 _resolve_pool_timeout()에 진입시켜,
+        이중검증 락(double-checked locking)이 중복 초기화를 막는지 검증한다.
+        """
+        import threading
+
+        client = _get_client()
+        results = []
+        barrier = threading.Barrier(2)
+
+        def call():
+            barrier.wait()  # 두 스레드를 동시에 출발시킴
+            results.append(client._resolve_pool_timeout())
+
+        with patch.dict(os.environ, {"DB_POOL_TIMEOUT": "45"}, clear=False):
+            threads = [threading.Thread(target=call) for _ in range(2)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+        assert results == [45.0, 45.0]
+        assert client._pool_timeout == 45.0  # 한 번만 확정됨
+
     def test_get_connection_uses_cached_timeout_when_no_arg(self):
         """timeout= 인자 없이 _get_connection() 호출 시 _resolve_pool_timeout() 캐시값을 사용해야 한다."""
         from dbutils.pooled_db import TooManyConnections
