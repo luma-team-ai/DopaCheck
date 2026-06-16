@@ -249,16 +249,16 @@
       <div class="glass-card relative overflow-hidden group p-6 flex flex-col gap-3">
         <div class="flex items-center gap-3">
           <span class="material-symbols-outlined text-tertiary">lightbulb</span>
-          <span class="font-body-lg text-body-lg font-bold">알림 다이어트</span>
+          <span class="font-body-lg text-body-lg font-bold">{{ tip.title }}</span>
         </div>
         <p class="font-body-md text-body-md text-on-surface-variant">
-          밤 11시 이후 SNS 알림을 꺼보세요. 취침 전 무분별한 스크롤링은 다음 날 도파민 수용체 감도를 낮추어 불필요한 과소비를 조장할 수 있습니다.
+          {{ tip.content }}
         </p>
         <a href="{{ url_for('challenge.challenge_page') }}" class="mt-2 py-3 px-6 rounded-xl primary-gradient text-white text-center font-bold text-label-md active:scale-95 transition-transform block text-decoration-none">
           AI 챌린지 시작하러 가기
         </a>
         <div class="absolute -right-10 -bottom-10 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
-          <span class="material-symbols-outlined text-[120px]">notifications_off</span>
+          <span class="material-symbols-outlined text-[120px]">lightbulb</span>
         </div>
       </div>
     </section>

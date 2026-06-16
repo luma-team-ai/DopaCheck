@@ -4,6 +4,7 @@ from routes.auth import login_required
 from db.client import db
 from utils.week import get_week_ranges, kst_bounds, kst_today
 from services.score_service import recalculate_score  # Issue #58: services 계층으로 분리
+from ai.comment import generate_tip
 
 score_bp = Blueprint("score", __name__, url_prefix="/score")
 
@@ -117,6 +118,21 @@ def score_page():
         # 이번 주 사용 시간의 25%를 잠금 해제 횟수로 환산 (기본 0회), UI 깨짐 방지를 위해 99회로 상한
         unlock_count = min(99, int(avg_min * 0.25))
 
+        # 6. 배달 통계 데이터 추출
+        cursor.execute(
+            """
+            SELECT SUM(total_price) as sum_price
+            FROM delivery_records
+            WHERE user_id = %s AND created_at >= %s AND created_at < %s
+            """,
+            (user_id, this_gte_at, this_lt_at)
+        )
+        delivery_res = cursor.fetchone()
+        delivery_total = int(delivery_res["sum_price"] or 0)
+
+        # 7. AI 맞춤 팁 생성
+        tip = generate_tip(score, avg_min, delivery_total)
+
     return render_template(
         "score/index.html",
         score=score,
@@ -127,5 +143,6 @@ def score_page():
         compare_last_week=compare_last_week,
         weekly_scores=weekly_scores,
         avg_time_str=avg_time_str,
-        unlock_count=unlock_count
+        unlock_count=unlock_count,
+        tip=tip
     )
