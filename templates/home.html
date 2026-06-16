@@ -419,8 +419,10 @@
           .then(r => r.json())
           .then(data => { cache = data; cacheTs = Date.now(); renderType(type, data); })
           .catch(() => {
-            document.getElementById('list-' + type).innerHTML =
-              '<p class="text-sm text-on-surface-variant py-4 text-center">데이터를 불러올 수 없습니다.</p>';
+            const errHtml = '<p class="text-sm text-on-surface-variant py-4 text-center">데이터를 불러올 수 없습니다.</p>';
+            ['delivery', 'time', 'challenge'].forEach(t => {
+              document.getElementById('list-' + t).innerHTML = errHtml;
+            });
           });
       }
     }
@@ -448,7 +450,10 @@
       else if (type === 'challenge') renderChallenge(data.challenges || []);
     }
 
-    function itemRow(iconHtml, summary, sub, badgeHtml) {
+    function itemRow(iconHtml, summary, sub, badgeText, badgeStyle) {
+      const badge = badgeText
+        ? `<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style="${badgeStyle}">${esc(badgeText)}</span>`
+        : '';
       return `
         <div class="flex items-center gap-3 py-3 border-b border-outline-variant/10 last:border-0">
           ${iconHtml}
@@ -456,7 +461,7 @@
             <p class="text-sm font-semibold text-on-surface truncate">${esc(summary)}</p>
             <p class="text-xs text-on-surface-variant mt-0.5">${esc(sub)}</p>
           </div>
-          ${badgeHtml}
+          ${badge}
           <span class="material-symbols-outlined text-on-surface-variant/40 flex-shrink-0" style="font-size:16px">chevron_right</span>
         </div>`;
     }
@@ -490,9 +495,8 @@
         `<div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(47,224,166,0.12)"><span class="material-symbols-outlined text-tertiary" style="font-size:20px">emoji_events</span></div>`,
         r.title,
         r.date_label,
-        r.is_completed
-          ? `<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style="background:rgba(74,222,128,0.15);color:#4ade80">달성</span>`
-          : `<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style="background:rgba(71,69,85,0.3);color:#928f9a">진행 중</span>`
+        r.is_completed ? '달성' : '진행 중',
+        r.is_completed ? 'background:rgba(74,222,128,0.15);color:#4ade80' : 'background:rgba(71,69,85,0.3);color:#928f9a'
       )).join('');
     }
   </script>
