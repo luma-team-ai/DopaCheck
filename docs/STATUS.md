@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-15
+> 마지막 갱신: 2026-06-16
 
 <a id="sprint"></a>
 ## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
@@ -48,6 +48,10 @@
 | 운영 마이그레이션 001~003 (role·challenges dedup·uc index) | ✅ 파일 머지 (운영 ALTER 적용 필요) | 김승현/정재봉 |
 
 ## 마지막 머지 PR
+
+### 2026-06-16 배치 (정재봉 검수·머지)
+- **#144** delivery 팁 카드 문구 단축 (**#143 CLOSED**) — `templates/delivery/index.html` 팁 3줄을 의미 보존하며 단축, 모바일 400px 뷰포트 우측 잘림 해소. Trivial(텍스트만, 런타임 무변경), 충돌 없음(MERGEABLE/CLEAN), G6 메타 자체검수 PASS. (작성 Ketose333→정재봉 머지)
+- 참고: #142(템플릿 7종 디자인·앱셸 통일), #138·#137(#60 OCR 프롬프트·챌린지 UUID 검증) 선행 머지됨
 
 ### 2026-06-15 배치 (정재봉 검수·머지)
 - **#140** 리포트·챌린지·히스토리 레이아웃 공통(_app_base) 통일 (**#136 CLOSED**) — base.html 상속(자체 헤더·하단탭바 없음) → `_app_base.html`(공통 header+footer 탭바)로 전환. `_app_base` active_tab을 `default('delivery')`로 바꿔 라우트별 탭 강조 가능. report/challenge active_tab 전달, history(목록+상세) page_title 이전 + detail 삭제·뒤로가기를 본문 액션바로 이전(기능 보존). 브라우저 검증(4화면 헤더+탭바, 배달 회귀 없음, 상세 삭제 동작), worktree 전체 138 PASS. code-reviewer P1 0(P2/P3→후속 **#141**). G6 PASS. (작성 luma200ok→정재봉 머지)
