@@ -32,9 +32,9 @@ def calculate(data: dict) -> dict:
             "challenge_bonus": 14          # 0~20
         }
     """
-    delivery_total = int(data.get("delivery_total", 0))
-    time_total_min = int(data.get("time_total_min", 0))
-    challenge_completed = int(data.get("challenge_completed", 0))
+    delivery_total = max(0, int(data.get("delivery_total", 0)))
+    time_total_min = max(0, int(data.get("time_total_min", 0)))
+    challenge_completed = max(0, int(data.get("challenge_completed", 0)))
 
     max_delivery_score = int(SCORE_DELIVERY_WEIGHT * 100)    # 40
     max_time_score = int(SCORE_TIME_WEIGHT * 100)            # 40

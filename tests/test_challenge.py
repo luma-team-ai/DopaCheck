@@ -156,6 +156,68 @@ def test_챌린지_달성시_완료처리():
         "달성 시 is_completed=1 UPDATE가 호출돼야 함"
 
 
+def test_time_챌린지_분단위_임계값_달성():
+    """#60: time 챌린지 target_value(분) 기준으로 time_total_min >= tv 시 완료 처리."""
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    # fetchone: delivery sum=0, time sum=300분(5시간), delivery count=0, challenge count=1
+    cursor.fetchone.side_effect = [
+        {"sum_price": 0},
+        {"sum_min": 300},   # 300분 — target_value=300과 일치 → 달성
+        {"cnt": 0},
+        {"comp_count": 1},
+    ]
+    # 활성 챌린지: time 타입, target_value=300(분)
+    cursor.fetchall.return_value = [
+        {"id": "uc-time-1", "target_type": "time", "target_value": 300}
+    ]
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    with patch("services.score_service.db", _db):
+        recalculate_score(user_id=1)
+
+    update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
+    assert any("is_completed = 1" in c for c in update_calls), \
+        "time 챌린지: time_total_min(300) >= target_value(300) → is_completed=1 이어야 함"
+
+
+def test_time_챌린지_분단위_미달성():
+    """#60: time_total_min이 target_value 미만이면 미완료로 progress만 갱신."""
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    # fetchone: delivery sum=0, time sum=120분(2시간), delivery count=0, challenge count=0
+    cursor.fetchone.side_effect = [
+        {"sum_price": 0},
+        {"sum_min": 120},   # 120분 < target_value=300 → 미달성
+        {"cnt": 0},
+        {"comp_count": 0},
+    ]
+    # 활성 챌린지: time 타입, target_value=300(분)
+    cursor.fetchall.return_value = [
+        {"id": "uc-time-2", "target_type": "time", "target_value": 300}
+    ]
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    with patch("services.score_service.db", _db):
+        recalculate_score(user_id=1)
+
+    update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
+    # is_completed=1 UPDATE가 없어야 함
+    assert not any("is_completed = 1" in c for c in update_calls), \
+        "time 챌린지: time_total_min(120) < target_value(300) → 완료 처리되면 안 됨"
+    # 진행도 업데이트(is_completed 미변경)는 호출돼야 함
+    assert any("UPDATE user_challenges" in c for c in update_calls), \
+        "미달성 시에도 progress UPDATE는 호출돼야 함"
+
+
 # ── P2 추가 테스트 ────────────────────────────────────────
 
 def test_CSRF_토큰_불일치시_403(logged_in_client):
