@@ -5,7 +5,7 @@
 
 <!-- 뒤로가기 (detail.html 패턴 참조) -->
 <div class="flex items-center mb-3">
-  <a href="/" class="text-primary hover:opacity-80 active:scale-95 flex items-center">
+  <a href="{{ url_for('report.report_page') }}" class="text-primary hover:opacity-80 active:scale-95 flex items-center">
     <span class="material-symbols-outlined">arrow_back</span>
   </a>
 </div>
@@ -117,6 +117,8 @@ const deleteModal = document.getElementById('deleteConfirmModal');
 let pendingDelete = null; // { id, type, btn }
 
 function openDeleteModal(id, type, btn) {
+  // 이미 모달이 열려 있으면 무시 (빠른 연속 클릭으로 pendingDelete 덮어쓰기 방지)
+  if (!deleteModal.classList.contains('hidden')) return;
   pendingDelete = { id, type, btn };
   deleteModal.classList.remove('hidden');
 }
@@ -134,19 +136,29 @@ document.getElementById('confirmDelete').addEventListener('click', () => {
   deleteRecord(id, type, btn);
 });
 // 바깥쪽 클릭 / ESC 로 닫기 (mypage 모달 패턴)
+// MPA 구조: 페이지 이동 시 스크립트가 새로 로드되므로 keydown 리스너 중복 등록 없음
 deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDeleteModal(); });
 
 async function deleteRecord(id, type, btn) {
   const card = btn.closest('.history-card');
+  const restoreCard = () => { card.style.opacity = '1'; card.style.transform = ''; };
   card.style.transition = 'all 0.35s cubic-bezier(0.4,0,0.2,1)';
   card.style.opacity = '0';
   card.style.transform = 'translateX(24px)';
 
-  const res = await fetch(`/history/${id}?type=${type}`, {
-    method: 'DELETE',
-    headers: { 'X-CSRF-Token': '{{ csrf_token }}' },
-  });
+  let res;
+  try {
+    res = await fetch(`/history/${id}?type=${type}`, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': '{{ csrf_token }}' },
+    });
+  } catch (e) {
+    // 네트워크 오류: 카드 원복 + 사용자 피드백
+    restoreCard();
+    alert('네트워크 오류로 삭제에 실패했습니다.');
+    return;
+  }
 
   if (res.ok) {
     setTimeout(() => {
@@ -167,8 +179,7 @@ async function deleteRecord(id, type, btn) {
       }
     }, 380);
   } else {
-    card.style.opacity = '1';
-    card.style.transform = '';
+    restoreCard();
     const body = await res.json().catch(() => ({}));
     alert(body.error || '삭제에 실패했습니다.');
   }
