@@ -359,6 +359,24 @@ def test_progress_이번주_기준으로_세팅():
         "progress는 이번 주(1)여야 하고 judge_week(5)가 아니어야 함"
 
 
+def test_started_at_None_방어가드_크래시없이_스킵():
+    """[봇 P1] started_at이 None인 챌린지는 week_bounds 크래시 없이 스킵된다.
+
+    started_at은 스키마상 NOT NULL이나, 방어적으로 None이면 판정 루프에서 continue.
+    크래시(week_bounds(None)) 없이 어떤 UPDATE user_challenges도 일으키지 않아야 한다.
+    """
+    cursor = _run_recalc(
+        [{"id": "uc-null", "target_type": "delivery", "target_value": 2,
+          "started_at": None}],  # 방어 가드 대상
+        score_aggr=(0, 0, 0),
+        judge_aggr=(0, 0),
+        judge_today=_SUN,
+    )
+    assert not _completed(cursor), "started_at=None 챌린지는 완료 처리되면 안 됨"
+    assert _progress_value(cursor) is None, \
+        "started_at=None 챌린지는 progress UPDATE도 일으키지 않고 스킵돼야 함"
+
+
 # ── P2 추가 테스트 ────────────────────────────────────────
 
 def test_CSRF_토큰_불일치시_403(logged_in_client):
