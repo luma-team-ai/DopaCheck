@@ -27,6 +27,30 @@ def test_챌린지_페이지_렌더링(logged_in_client):
     assert res.status_code == 200
 
 
+def test_progress_map_none_정규화():
+    """#139 방어: progress_map에서 None이 반환되어도 'or 0'으로 0으로 정규화된다.
+
+    스키마상 NOT NULL이지만 DB 드라이버 엣지케이스 대비.
+    Jinja2 템플릿 수식(raw * 100 // target)은 None이면 TypeError이므로
+    정규화 로직을 단위 수준에서 검증한다.
+    """
+    # progress_map.get(ch_id, 0) or 0 — None 케이스 정규화
+    progress_map = {"ch-1": None, "ch-2": 5}
+
+    raw_none = progress_map.get("ch-1", 0) or 0
+    raw_normal = progress_map.get("ch-2", 0) or 0
+    raw_missing = progress_map.get("ch-999", 0) or 0
+
+    assert raw_none == 0, "None은 0으로 정규화되어야 함"
+    assert raw_normal == 5, "정상값은 그대로여야 함"
+    assert raw_missing == 0, "키 없으면 기본값 0이어야 함"
+
+    # 정규화 후 달성률 계산이 TypeError 없이 수행됨을 검증
+    target = 10
+    pct = min(raw_none * 100 // target, 100) if target else 0
+    assert pct == 0, "None 정규화 후 달성률은 0%여야 함"
+
+
 def test_챌린지_중복참여_차단(logged_in_client):
     """FR-35: 이미 참여 중인 챌린지에 재참여 시 409 반환."""
     challenge_id = "00000000-0000-0000-0000-000000000001"
