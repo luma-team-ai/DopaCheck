@@ -188,7 +188,17 @@
           {% endfor %}
         {% else %}
           <div class="card-blur rounded-[24px] p-8 text-center text-white/40 text-sm">
-            {% if q %}검색 결과가 없습니다.{% else %}가입자가 없습니다.{% endif %}
+            {% if q %}
+              검색 결과가 없습니다.
+            {% elif filter_type == 'recent' %}
+              최근 7일 내 가입자가 없습니다.
+            {% elif filter_type == 'danger' %}
+              도파민 위험군(70점 이상) 사용자가 없습니다.
+            {% elif filter_type == 'challenge' %}
+              진행 중인 챌린지가 있는 사용자가 없습니다.
+            {% else %}
+              가입자가 없습니다.
+            {% endif %}
           </div>
         {% endif %}
       </div>
