@@ -384,7 +384,13 @@
   <script>
     const backdrop = document.getElementById('modal-backdrop');
     let cache = null;        // API 응답 캐시
+    let cacheTs = 0;         // 캐시 저장 시각 (ms)
+    const CACHE_TTL = 60000; // 60초 TTL
     let currentModal = null; // 현재 열린 모달 엘리먼트
+
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
     function openModal(type) {
       const el = document.getElementById('modal-' + type);
@@ -404,13 +410,14 @@
         card.style.transform = 'scale(1)';
       });
 
-      // 데이터 로드 (캐시 있으면 재사용)
-      if (cache) {
+      // 데이터 로드 (60초 TTL 캐시)
+      const now = Date.now();
+      if (cache && (now - cacheTs) < CACHE_TTL) {
         renderType(type, cache);
       } else {
         fetch('/home/this-week-summary')
           .then(r => r.json())
-          .then(data => { cache = data; renderType(type, data); })
+          .then(data => { cache = data; cacheTs = Date.now(); renderType(type, data); })
           .catch(() => {
             document.getElementById('list-' + type).innerHTML =
               '<p class="text-sm text-on-surface-variant py-4 text-center">데이터를 불러올 수 없습니다.</p>';
@@ -446,8 +453,8 @@
         <div class="flex items-center gap-3 py-3 border-b border-outline-variant/10 last:border-0">
           ${iconHtml}
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-on-surface truncate">${summary}</p>
-            <p class="text-xs text-on-surface-variant mt-0.5">${sub}</p>
+            <p class="text-sm font-semibold text-on-surface truncate">${esc(summary)}</p>
+            <p class="text-xs text-on-surface-variant mt-0.5">${esc(sub)}</p>
           </div>
           ${badgeHtml}
           <span class="material-symbols-outlined text-on-surface-variant/40 flex-shrink-0" style="font-size:16px">chevron_right</span>

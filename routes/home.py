@@ -178,8 +178,6 @@ def index():
 @login_required
 def this_week_summary():
     """이번 주 핵심 모달용 상세 기록 JSON API."""
-    from datetime import datetime
-
     user_id = session.get("user_id")
     this_week_range, _ = get_week_ranges()
     this_start, this_end = this_week_range
@@ -232,6 +230,7 @@ def this_week_summary():
               OR (uc.is_completed = 1 AND uc.completed_at >= %s AND uc.completed_at < %s)
             )
             ORDER BY COALESCE(uc.completed_at, uc.started_at) DESC
+            LIMIT 20
             """,
             (user_id, this_gte_at, this_lt_at, this_gte_at, this_lt_at),
         )
