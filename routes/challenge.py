@@ -75,12 +75,18 @@ def challenge_page():
     # CSRF 토큰 생성 (join POST에서 검증)
     csrf_token = get_or_create_csrf_token()
 
-    # 기본 챌린지 목록 — AI 생성 챌린지 제외 (FR-32)
+    # 챌린지 목록: 일반(is_ai_generated=0) + 사용자가 참여한 AI 챌린지 (FR-32)
     try:
         with db() as cursor:
             cursor.execute(
-                "SELECT id, title, description, target_type, target_value"
-                " FROM challenges WHERE is_ai_generated = 0"
+                "SELECT c.id, c.title, c.description, c.target_type, c.target_value"
+                " FROM challenges c"
+                " WHERE c.is_ai_generated = 0"
+                "   OR EXISTS ("
+                "     SELECT 1 FROM user_challenges uc"
+                "     WHERE uc.challenge_id = c.id AND uc.user_id = %s"
+                "   )",
+                (user_id,),
             )
             challenges = cursor.fetchall() or []
     except Exception as e:
@@ -108,7 +114,7 @@ def challenge_page():
     # AI 추천 (FR-33) — 세션 캐시로 TTL 내 중복 LLM 호출 방지
     ai_recommendations = _get_ai_recommendations(user_id)
 
-    # 사용자가 이미 참여한 AI 챌린지 title 집합 (AI 추천 섹션 상태 표시용)
+    # 사용자가 이미 참여한 AI 챌린지 title 집합 — 추천 섹션 제외 + 챌린지 목록 편입에 사용
     try:
         with db() as cursor:
             cursor.execute(
@@ -122,6 +128,12 @@ def challenge_page():
         logger.warning("AI 참여 챌린지 조회 실패: %s", e)
         ai_joined_titles = set()
 
+    # 이미 참여한 AI 챌린지는 추천 섹션에서 제외
+    ai_recommendations = [
+        rec for rec in ai_recommendations
+        if rec.get("title") not in ai_joined_titles
+    ]
+
     return render_template(
         "challenge/index.html",
         challenges=challenges,
@@ -129,7 +141,6 @@ def challenge_page():
         completed_ids=completed_ids,
         progress_map=progress_map,
         ai_recommendations=ai_recommendations,
-        ai_joined_titles=ai_joined_titles,
         csrf_token=csrf_token,
         # 하단 탭바 활성 표시
         active_tab="challenge",
