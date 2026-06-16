@@ -219,21 +219,22 @@
       </div>
     </div>
 
-    <!-- 7-Day Trend Chart -->
+    <!-- Weekly Trend Chart -->
     <section class="glass-card p-6 space-y-stack-md">
       <div class="flex justify-between items-center mb-4">
         <h3 class="font-headline-md text-headline-md">점수 트렌드</h3>
-        <span class="font-label-md text-label-md text-primary">이번 주 요일별 지표</span>
+        <span class="font-label-md text-label-md text-primary">최근 주별 추이</span>
       </div>
       <div class="chart-container">
         {% for day_info in weekly_scores %}
-        <div class="flex-1 flex flex-col items-center gap-2">
-          {% if day_info.score is not none %}
-          <!-- 스코어 비례 높이 동적 매핑 (IDE 인라인 CSS 에러 회피 및 애니메이션 적용) -->
-          <div class="chart-bar {% if day_info.is_today %}active{% endif %} w-full" style="height: 0%;" data-score-height="{{ day_info.score }}"></div>
+        <div class="flex-1 flex flex-col items-center gap-2 relative group/bar">
+          {% if day_info.has_data %}
+          <div class="chart-bar {% if day_info.is_today %}active{% endif %} w-full" style="height: 0px;" data-score-height="{{ day_info.score }}"></div>
+          <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-surface-variant text-on-surface font-label-md text-label-md px-2 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none z-10 text-xs">
+            {{ day_info.score }}점
+          </div>
           {% else %}
-          <!-- 일별 점수 기록이 없는 요일: 공백 표시 -->
-          <div class="chart-bar w-full opacity-20" style="height: 2%;" title="데이터 없음"></div>
+          <div class="chart-bar w-full opacity-20" style="height: 4px;"></div>
           {% endif %}
           <span class="font-label-md text-label-md {% if day_info.is_today %}text-primary font-bold{% else %}text-on-surface-variant/60{% endif %}">
             {{ day_info.day }}
@@ -295,14 +296,13 @@
         }, 300);
       }
 
-      // 2. 트렌드 차트 바 높이 설정 (인라인 CSS 구문 에러 방지 및 등장 애니메이션 추가)
-      document.querySelectorAll('.chart-bar').forEach(bar => {
-        const scoreHeight = bar.dataset.scoreHeight;
-        if (scoreHeight) {
-          setTimeout(() => {
-            bar.style.height = `${scoreHeight}%`;
-          }, 100);
-        }
+      // 2. 트렌드 차트 바 높이 설정 — % 대신 px 사용 (부모 height:auto 환경에서 % 해석 불가)
+      const CHART_MAX_PX = 112; // chart-container 120px - padding-bottom 8px
+      document.querySelectorAll('.chart-bar[data-score-height]').forEach(bar => {
+        const score = parseInt(bar.dataset.scoreHeight || '0', 10);
+        setTimeout(() => {
+          bar.style.height = Math.round(score * CHART_MAX_PX / 100) + 'px';
+        }, 100);
       });
     });
   </script>
