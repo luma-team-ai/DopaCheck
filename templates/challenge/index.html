@@ -394,17 +394,17 @@
             <span class="target-tag">목표:
               {% if rec.target_type == 'delivery' %}{{ rec.target_value }}번 줄이기
               {% elif rec.target_type == 'time' %}{{ rec.target_value }}분 줄이기
-              {% else %}{{ rec.target_value }}번 &amp; {{ rec.target_value }}시간 줄이기{% endif %}
+              {% else %}{{ rec.target_value }}번 &amp; {{ rec.target_value * 60 }}분 줄이기{% endif %}
             </span>
           </div>
-          {% if rec.title in ai_joined_titles %}
-            <button class="btn-joined" disabled>✅ 참여 중</button>
-          {% else %}
-            <button class="btn-join"
-              onclick="joinAiChallenge(this, {{ rec.title | tojson }}, {{ rec.description | tojson }}, {{ rec.target_type | tojson }}, {{ rec.target_value | tojson }})">
-              사용하지 않아보기
-            </button>
-          {% endif %}
+          <button class="btn-join"
+            data-title="{{ rec.title | e }}"
+            data-description="{{ rec.description | e }}"
+            data-target-type="{{ rec.target_type }}"
+            data-target-value="{{ rec.target_value }}"
+            onclick="joinAiChallenge(this)">
+            참여하기
+          </button>
         </div>
         {% endfor %}
       </div>
@@ -422,7 +422,7 @@
             <span class="target-tag">목표:
               {% if ch.target_type == 'delivery' %}{{ ch.target_value }}번 줄이기
               {% elif ch.target_type == 'time' %}{{ ch.target_value }}분 줄이기
-              {% else %}{{ ch.target_value }}번 &amp; {{ ch.target_value }}시간 줄이기{% endif %}
+              {% else %}{{ ch.target_value }}번 &amp; {{ ch.target_value * 60 }}분 줄이기{% endif %}
             </span>
           </div>
           {% if ch.id in completed_ids %}
@@ -489,7 +489,11 @@
         btn.textContent = "참여하기";
       }
     }
-    async function joinAiChallenge(btn, title, description, targetType, targetValue) {
+    async function joinAiChallenge(btn) {
+      const title = btn.dataset.title;
+      const description = btn.dataset.description;
+      const targetType = btn.dataset.targetType;
+      const targetValue = parseInt(btn.dataset.targetValue, 10);
       btn.disabled = true;
       btn.textContent = "참여 중...";
       try {
@@ -506,12 +510,12 @@
         } else {
           showToast(data.error || "오류가 발생했습니다.", "error");
           btn.disabled = false;
-          btn.textContent = "사용하지 않아보기";
+          btn.textContent = "참여하기";
         }
       } catch {
         showToast("네트워크 오류가 발생했습니다.", "error");
         btn.disabled = false;
-        btn.textContent = "사용하지 않아보기";
+        btn.textContent = "참여하기";
       }
     }
     function showToast(msg, type) {
