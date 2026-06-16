@@ -1,0 +1,74 @@
+name: E2E
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: dopacheck
+          MARIADB_USER: dopacheck
+          MARIADB_PASSWORD: dopacheck
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+
+    env:
+      # E2E는 OAuth 대신 /auth/dev_login 우회를 쓰므로 development로 둔다.
+      FLASK_ENV: development
+      FLASK_SECRET_KEY: ${{ secrets.E2E_FLASK_SECRET_KEY }}
+      SESSION_COOKIE_SECURE: "false"
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+      DB_USER: dopacheck
+      DB_PASSWORD: dopacheck
+      DB_NAME: dopacheck
+      DB_POOL_SIZE: "5"
+      DB_POOL_TIMEOUT: "30"
+      BASE_URL: http://localhost:5000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.2"
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Apply DB schema
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u dopacheck -pdopacheck dopacheck < db/schema.sql
+          # TODO: 운영 마이그레이션(db/migrations/*.sql)·시드(db/seed.sql) 필요 시 여기에 적용
+
+      - name: Setup Node (Playwright)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Playwright
+        run: |
+          npm install -D @playwright/test
+          npx playwright install --with-deps chromium
+
+      - name: Run E2E
+        run: npx playwright test
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

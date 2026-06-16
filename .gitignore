@@ -30,3 +30,10 @@ node_modules/
 
 # Claude IDE 폴더
 .claude/
+
+# Playwright E2E
+/playwright-report/
+/test-results/
+/playwright-results.xml
+e2e/.auth/
+.env.test.local

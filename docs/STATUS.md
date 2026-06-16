@@ -50,8 +50,10 @@
 ## 마지막 머지 PR
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
+- **#149** 챌린지 참여 테스트 보강 + `_app_base` 주석 갱신 (**#134·#141 CLOSED**) — (1) #134: 참여 해피패스(201)·잘못된 UUID(400) 회귀 테스트 추가. **P2-A(UUID 형식 검증→400)는 #137에서 이미 적용**되어 테스트만 보강. (2) #141: P2-1/2/3은 **#142 재디자인(standalone 구조)에서 모두 해소**(라이트 하드코딩 색상 제거·`html.dark`·bg `#0A0A0F`, 자체 헤더, toast `bottom 24px→80px`로 탭바 64px 위) → 코드 변경 불필요, P3 stale 주석('delivery 전용'→공통 베이스)만 갱신. 런타임 로직 무변경(Trivial/Normal), `pytest tests/test_challenge.py` 18/18 PASS, 전체 템플릿 Jinja 파싱 OK, MERGEABLE/CLEAN, G6 메타 자체검수 PASS. (작성·머지 정재봉)
+- **#142** 분석·리포트·챌린지 템플릿 7종 디자인 및 모바일 앱셸 통일 — delivery/time/report/challenge 등을 `_app_base` 상속 탈피하여 score.html식 standalone 구조로 개편, Stitch 토큰 병합·공통 header/footer 인클루드. score.py 주간점수 placeholder `None→0`(차트 렌더용). base 최신·MERGEABLE/CLEAN, 템플릿 전체 파싱 OK, 시크릿 스캔 통과, G6 PASS. (작성 luma200ok→정재봉 머지)
 - **#144** delivery 팁 카드 문구 단축 (**#143 CLOSED**) — `templates/delivery/index.html` 팁 3줄을 의미 보존하며 단축, 모바일 400px 뷰포트 우측 잘림 해소. Trivial(텍스트만, 런타임 무변경), 충돌 없음(MERGEABLE/CLEAN), G6 메타 자체검수 PASS. (작성 Ketose333→정재봉 머지)
-- 참고: #142(템플릿 7종 디자인·앱셸 통일), #138·#137(#60 OCR 프롬프트·챌린지 UUID 검증) 선행 머지됨
+- 참고: #138·#137(#60 OCR 프롬프트·챌린지 UUID 검증) 선행 머지됨
 
 ### 2026-06-15 배치 (정재봉 검수·머지)
 - **#140** 리포트·챌린지·히스토리 레이아웃 공통(_app_base) 통일 (**#136 CLOSED**) — base.html 상속(자체 헤더·하단탭바 없음) → `_app_base.html`(공통 header+footer 탭바)로 전환. `_app_base` active_tab을 `default('delivery')`로 바꿔 라우트별 탭 강조 가능. report/challenge active_tab 전달, history(목록+상세) page_title 이전 + detail 삭제·뒤로가기를 본문 액션바로 이전(기능 보존). 브라우저 검증(4화면 헤더+탭바, 배달 회귀 없음, 상세 삭제 동작), worktree 전체 138 PASS. code-reviewer P1 0(P2/P3→후속 **#141**). G6 PASS. (작성 luma200ok→정재봉 머지)
