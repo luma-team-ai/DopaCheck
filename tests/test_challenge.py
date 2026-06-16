@@ -576,3 +576,82 @@ def test_sanitize_context_깊이_초과시_조기종료():
     result = _sanitize_context({"key": "val"}, _depth=11)
     assert isinstance(result, str)
     assert len(result) <= 200
+
+
+# ── 주 미종료 리셋 + both max() 검증 ─────────────────────────────
+
+
+def test_주_미종료_중_완료처리_리셋():
+    """주가 끝나지 않은 상태(week_is_over=False)에서 이번 주에 완료 처리된 챌린지를
+    재평가 대상(is_completed=0)으로 되돌리는 UPDATE가 호출되어야 한다.
+
+    구 로직(>= tv)이 week_is_over 없이 즉시 완료 처리한 데이터를 보정한다.
+    """
+    from datetime import date
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    # 주 미종료(수요일) — 활성 챌린지 없음(리셋 후 빈 리스트)
+    cursor.fetchone.side_effect = [
+        {"sum_price": 0},
+        {"sum_min": 0},
+        # fetchall 이후 챌린지가 없으므로 per-challenge fetchone 없음
+        {"comp_count": 0},
+    ]
+    cursor.fetchall.return_value = []
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    wednesday = date(2026, 6, 17)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=wednesday), \
+         patch("services.score_service.kst_today", return_value=wednesday):
+        recalculate_score(user_id=1)
+
+    reset_calls = [
+        str(c) for c in cursor.execute.call_args_list
+        if "UPDATE user_challenges" in str(c) and "is_completed = 0" in str(c)
+    ]
+    assert reset_calls, "주 미종료 시 is_completed=0 리셋 UPDATE가 호출돼야 함"
+
+
+def test_both_한쪽_초과_progress_max저장():
+    """both 챌린지 — 배달 횟수가 목표를 초과할 때 progress = max(delivery, time_hours).
+
+    delivery=4(초과), time=1h(미초과), target=3 → max(4,1)=4 가 UPDATE에 사용돼야 하며
+    달성 처리(is_completed=1)는 되면 안 된다.
+    """
+    from datetime import date
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    cursor.fetchone.side_effect = [
+        {"sum_price": 0},
+        {"sum_min": 0},
+        {"cnt": 4},        # ch_delivery_count — 목표(3) 초과
+        {"sum_min": 60},   # ch_time_total_min = 60분 = 1시간 — 미초과
+        {"comp_count": 0},
+    ]
+    cursor.fetchall.return_value = [
+        {"id": "uc-both-1", "started_at": None, "target_type": "both", "target_value": 3}
+    ]
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    sunday = date(2026, 6, 21)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=sunday), \
+         patch("services.score_service.kst_today", return_value=sunday):
+        recalculate_score(user_id=1)
+
+    update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
+    # is_completed=1 UPDATE 없어야 함 (배달 초과 → 달성 불가)
+    assert not any("is_completed = 1" in c for c in update_calls), \
+        "both: delivery 초과 시 is_completed=1 UPDATE 금지"
+    # progress=4(max) 가 포함된 UPDATE가 있어야 함
+    assert any("4" in c and "is_completed" not in c or ("4," in c) for c in update_calls), \
+        "both: progress에 max(delivery=4, time_hours=1)=4 가 저장돼야 함"

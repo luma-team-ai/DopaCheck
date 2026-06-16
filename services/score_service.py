@@ -36,6 +36,19 @@ def recalculate_score(user_id: int) -> None:
         time_total_min = cursor.fetchone()["sum_min"] or 0
 
         # ── 챌린지 진행도 갱신 + 달성 판정 (FR-36~38, #73) ─────────────────────────
+        week_end_date = date.fromisoformat(week_end)
+        week_is_over = kst_today() >= week_end_date
+
+        # 주 미종료 상태에서 이번 주에 완료 처리된 챌린지를 재평가 대상으로 되돌린다.
+        # 구 로직(>= tv)이 week_is_over 없이 즉시 완료 처리한 데이터를 보정한다.
+        if not week_is_over:
+            cursor.execute(
+                "UPDATE user_challenges SET is_completed = 0, completed_at = NULL"
+                " WHERE user_id = %s AND is_completed = 1"
+                " AND completed_at >= %s AND completed_at < %s",
+                (user_id, gte_at, lt_at),
+            )
+
         cursor.execute(
             "SELECT uc.id, uc.started_at, c.target_type, c.target_value"
             " FROM user_challenges uc JOIN challenges c ON c.id = uc.challenge_id"
@@ -44,11 +57,8 @@ def recalculate_score(user_id: int) -> None:
         )
         active_challenges = cursor.fetchall() or []
 
-        # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
-        # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
-        # 주 종료(일요일) 이후에만 달성 판정 — 그 전엔 0회여도 완료 처리 금지
-        week_end_date = date.fromisoformat(week_end)
-        week_is_over = kst_today() >= week_end_date
+        # DopaCheck 챌린지는 전부 '줄이기' 방향 — 목표값 미만이어야 달성.
+        # 주 종료(일요일) 이후에만 달성 판정 — 그 전엔 0회여도 완료 처리 금지.
 
         for ch in active_challenges:
             tt = ch["target_type"]
@@ -92,9 +102,9 @@ def recalculate_score(user_id: int) -> None:
                 done = week_is_over and ch_time_total_min < tv
             else:  # "both"
                 # target_value 단위: 배달은 횟수, 시간은 시(hour) — seed.sql "3시간 이하" 참고.
-                # time 타입(분 단위)과 달리 both 타입은 시간 단위이므로 ch_time_hours로 비교한다.
-                # int() 절삭 시 3.1h → 3h < 3 = False 로 목표 경계를 실패 판정 — float 비교 유지.
-                progress = min(ch_delivery_count, int(ch_time_hours))
+                # max()로 저장해야 템플릿의 already_failed(raw >= tv) 가 한쪽만 초과해도 올바르게 감지.
+                # min()이면 delivery=4, time=1h → min=1 → 1>=3=False 로 실패를 놓침.
+                progress = max(ch_delivery_count, int(ch_time_hours))
                 done = week_is_over and ch_delivery_count < tv and ch_time_hours < tv
 
             if done:
