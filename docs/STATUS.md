@@ -50,6 +50,8 @@
 ## 마지막 머지 PR
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
+- **🧹 제로베이스 정리** — 열린 PR 전부 처리 후 머지 완료된 원격 브랜치 9종 일괄 삭제(원격=main만), 로컬 잔여 워크트리(backend/102) 제거. main `90770a2`, pytest **143 PASS / 3 skip / 0 fail**, 작업트리 clean. ⚠️ **stale base 회귀 주의**: 이번 배치 PR(#145·#146·#148)이 모두 옛 base라 머지 시 최신작업 revert 위험 → 기능 커밋만 현재 main 위로 재적용하는 방식으로 처리.
+- **#156** history 헤더 타이틀(`page_title` 블록) 제거 (**CLOSED**) — 다른 화면 UI 일치. CLEAN·surgical(2줄), stale revert 없음. Trivial. (작성 vapsnamheo-dev→정재봉 머지)
 - **main 그린화** — `tests/test_report.py` 비교차트 테스트를 #142 재디자인 기준으로 갱신(compareChart→chartDelivery/Time/Score). pytest **143 PASS / 3 skip / 0 fail**.
 - **#146** admin 사용자 상세·전체 가입자·챌린지 관리 페이지 추가 (**CLOSED**) — 검색·필터·정렬·페이지네이션. 원본 브랜치(feature/admin-detail)가 stale base라 기능 커밋만 현재 main 위로 재적용. security-reviewer **P1 2건 수정**(user_detail 이메일 평문→`_mask_email` 마스킹 / users_list page 상한 500으로 LIMIT 폭주 차단), P2(생성·삭제 실패 flash·기록 LIMIT)·P3는 후속 권장. code/security 리뷰 통과, pytest 그린. (작성 EunSeok→정재봉 정리·머지)
 - **#148** score 페이지 AI 맞춤 팁(generate_tip) 연동 (**#147**, **CLOSED**) — 원본 브랜치(feature/unified-design)가 #142 디자인 중복·#144 팁문구 revert·.claude 로컬설정 포함 stale이라 **기능 커밋만 재적용**. 동반 회귀 수정: ai/utils.py 과도한 API키 RuntimeError 환원(test_ai 복구), generate_tip print/ANSI→logger 정리(AI 실패 시 default_tip fallback 유지), test_score 새 배달쿼리 mock 보강. pytest 그린. (작성 김승현→정재봉 정리·머지)
