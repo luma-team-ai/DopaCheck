@@ -499,16 +499,31 @@
           {% elif ch.id in joined_ids %}
           {% set raw = progress_map.get(ch.id, 0) %}
           {% set pct = [(raw * 100 // ch.target_value), 100] | min if ch.target_value else 0 %}
+          {% set already_failed = ch.target_value and raw >= ch.target_value %}
+          {% set unit = '회' if ch.target_type == 'delivery' else ('분' if ch.target_type == 'time' else '') %}
+          {% if already_failed %}
           <div class="progress-section">
             <div class="progress-label">
-              <span>달성률</span>
-              <span>{{ pct }}%</span>
+              <span style="font-weight:700;color:#ff8a8a">{{ raw }}{{ unit }}</span>
+              <span style="color:#918ea1">사용 중 · 한도 {{ ch.target_value }}{{ unit }}</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:100%; background:#ff8a8a"></div>
+            </div>
+          </div>
+          <button class="btn-joined" disabled style="color:#ff8a8a">❌ 실패</button>
+          {% else %}
+          <div class="progress-section">
+            <div class="progress-label">
+              <span style="font-weight:700;color:#e4e1ed">{{ raw }}{{ unit }}</span>
+              <span style="color:#918ea1">사용 중 · 한도 {{ ch.target_value }}{{ unit }}</span>
             </div>
             <div class="progress-bar">
               <div class="progress-fill" style="width: {{ pct }}%"></div>
             </div>
           </div>
           <button class="btn-joined" disabled>✅ 참여 중</button>
+          {% endif %}
           {% else %}
           <button class="btn-join" onclick="joinChallenge('{{ ch.id }}')" data-id="{{ ch.id }}">참여하기</button>
           {% endif %}

@@ -35,22 +35,14 @@ def recalculate_score(user_id: int) -> None:
         )
         time_total_min = cursor.fetchone()["sum_min"] or 0
 
-        # 이번 주 배달 횟수 (챌린지 progress용 — 소비금액이 아닌 건수)
-        cursor.execute(
-            "SELECT COUNT(*) as cnt FROM delivery_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
-            (user_id, gte_at, lt_at)
-        )
-        delivery_count = cursor.fetchone()["cnt"] or 0
-
         # ── 챌린지 진행도 갱신 + 달성 판정 (FR-36~38, #73) ─────────────────────────
         cursor.execute(
-            "SELECT uc.id, c.target_type, c.target_value"
+            "SELECT uc.id, uc.started_at, c.target_type, c.target_value"
             " FROM user_challenges uc JOIN challenges c ON c.id = uc.challenge_id"
             " WHERE uc.user_id = %s AND uc.is_completed = 0",
             (user_id,)
         )
         active_challenges = cursor.fetchall() or []
-        time_hours = time_total_min / 60
 
         # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
         # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
@@ -61,19 +53,49 @@ def recalculate_score(user_id: int) -> None:
         for ch in active_challenges:
             tt = ch["target_type"]
             tv = ch["target_value"] or 1
+
+            # 참여 시점(started_at) 이후 기록만 집계 — 참여 전 누적 데이터 제외
+            ch_started_at = ch["started_at"]
+            # gte_at(str)·started_at(datetime)을 datetime으로 통일 후 비교, DB용 문자열로 변환
+            if ch_started_at:
+                from datetime import datetime as _dt
+                gte_dt = _dt.fromisoformat(gte_at)
+                started_dt = (
+                    ch_started_at if isinstance(ch_started_at, _dt)
+                    else _dt.fromisoformat(str(ch_started_at))
+                )
+                ch_gte = max(gte_dt, started_dt).strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                ch_gte = gte_at
+
+            cursor.execute(
+                "SELECT COUNT(*) as cnt FROM delivery_records"
+                " WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+                (user_id, ch_gte, lt_at)
+            )
+            ch_delivery_count = cursor.fetchone()["cnt"] or 0
+
+            cursor.execute(
+                "SELECT SUM(youtube_min + instagram_min + tiktok_min + game_min) as sum_min"
+                " FROM time_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+                (user_id, ch_gte, lt_at)
+            )
+            ch_time_total_min = cursor.fetchone()["sum_min"] or 0
+            ch_time_hours = ch_time_total_min / 60
+
             if tt == "delivery":
-                progress = delivery_count
-                done = week_is_over and delivery_count <= tv
+                progress = ch_delivery_count
+                done = week_is_over and ch_delivery_count < tv
             elif tt == "time":
                 # target_value 단위: 분(min) — time_total_min과 단위 일치
-                progress = time_total_min
-                done = week_is_over and time_total_min <= tv
+                progress = ch_time_total_min
+                done = week_is_over and ch_time_total_min < tv
             else:  # "both"
                 # target_value 단위: 배달은 횟수, 시간은 시(hour) — seed.sql "3시간 이하" 참고.
-                # time 타입(분 단위)과 달리 both 타입은 시간 단위이므로 time_hours로 비교한다.
-                # int() 절삭 시 3.1h → 3h ≤ 3 가 되어 목표 초과를 달성으로 오판 — float 비교 유지.
-                progress = min(delivery_count, int(time_hours))
-                done = week_is_over and delivery_count <= tv and time_hours <= tv
+                # time 타입(분 단위)과 달리 both 타입은 시간 단위이므로 ch_time_hours로 비교한다.
+                # int() 절삭 시 3.1h → 3h < 3 = False 로 목표 경계를 실패 판정 — float 비교 유지.
+                progress = min(ch_delivery_count, int(ch_time_hours))
+                done = week_is_over and ch_delivery_count < tv and ch_time_hours < tv
 
             if done:
                 cursor.execute(

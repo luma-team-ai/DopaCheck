@@ -6,4 +6,5 @@ authlib==1.7.2
 requests>=2.34
 anthropic>=0.40
 gunicorn>=23.0
+APScheduler>=3.10,<4.0
 pytest>=8.0

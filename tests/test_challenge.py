@@ -127,27 +127,38 @@ def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client)
 
 
 def test_챌린지_달성시_완료처리():
-    """FR-37, FR-38: recalculate_score 호출 시 target 달성 챌린지 is_completed=1 갱신."""
+    """FR-37, FR-38: recalculate_score 호출 시 target 달성 챌린지 is_completed=1 갱신.
+
+    줄이기 방향: delivery_count(1) <= target_value(2), 주 종료 후 → 달성.
+    """
+    from datetime import date
     from services.score_service import recalculate_score
 
     cursor = MagicMock()
-    # fetchone: delivery sum, time sum, delivery count, challenge count
+    # fetchone 순서: delivery sum → time sum → [챌린지별] ch_delivery_cnt → ch_time_sum → comp_count
     cursor.fetchone.side_effect = [
         {"sum_price": 20_000},
         {"sum_min": 0},
-        {"cnt": 3},        # 배달 3회 — delivery target_value=2 초과 → 달성
+        {"cnt": 1},        # 챌린지 시작 후 배달 1회 — target_value=2 이하 → 달성
+        {"sum_min": 0},    # 챌린지 시작 후 시간 합계
         {"comp_count": 1},
     ]
-    # 활성 챌린지: delivery 타입, target_value=2
+    # 활성 챌린지: delivery 타입, target_value=2, started_at=None(주 시작 기준)
     cursor.fetchall.return_value = [
-        {"id": "uc-1", "target_type": "delivery", "target_value": 2}
+        {"id": "uc-1", "started_at": None, "target_type": "delivery", "target_value": 2}
     ]
 
     @contextmanager
     def _db():
         yield cursor
 
-    with patch("services.score_service.db", _db):
+    # kst_today를 일요일로 고정 → week_is_over=True
+    # get_week_ranges()는 utils.week.kst_today를, recalculate_score 내 직접 호출은
+    # services.score_service.kst_today를 참조하므로 두 곳 모두 패치한다.
+    sunday = date(2026, 6, 21)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=sunday), \
+         patch("services.score_service.kst_today", return_value=sunday):
         recalculate_score(user_id=1)
 
     # UPDATE user_challenges SET ... is_completed=1 호출 확인
@@ -157,65 +168,208 @@ def test_챌린지_달성시_완료처리():
 
 
 def test_time_챌린지_분단위_임계값_달성():
-    """#60: time 챌린지 target_value(분) 기준으로 time_total_min >= tv 시 완료 처리."""
+    """#60: time 챌린지 — 사용 시간이 목표 미만일 때 주 종료 후 완료 처리.
+
+    줄이기 방향(엄격 미만): time_total_min(299) < target_value(300), 주 종료 후 → 달성.
+    경계값(300 < 300 = False)은 실패 처리됨.
+    """
+    from datetime import date
     from services.score_service import recalculate_score
 
     cursor = MagicMock()
-    # fetchone: delivery sum=0, time sum=300분(5시간), delivery count=0, challenge count=1
+    # fetchone 순서: delivery sum → time sum → [챌린지별] ch_delivery_cnt → ch_time_sum → comp_count
     cursor.fetchone.side_effect = [
         {"sum_price": 0},
-        {"sum_min": 300},   # 300분 — target_value=300과 일치 → 달성
-        {"cnt": 0},
+        {"sum_min": 299},
+        {"cnt": 0},        # ch_delivery_count
+        {"sum_min": 299},  # ch_time_total_min — 299 < target(300) → 달성
         {"comp_count": 1},
     ]
-    # 활성 챌린지: time 타입, target_value=300(분)
     cursor.fetchall.return_value = [
-        {"id": "uc-time-1", "target_type": "time", "target_value": 300}
+        {"id": "uc-time-1", "started_at": None, "target_type": "time", "target_value": 300}
     ]
 
     @contextmanager
     def _db():
         yield cursor
 
-    with patch("services.score_service.db", _db):
+    sunday = date(2026, 6, 21)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=sunday), \
+         patch("services.score_service.kst_today", return_value=sunday):
         recalculate_score(user_id=1)
 
     update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
     assert any("is_completed = 1" in c for c in update_calls), \
-        "time 챌린지: time_total_min(300) >= target_value(300) → is_completed=1 이어야 함"
+        "time 챌린지: time_total_min(299) < target_value(300), 주 종료 → is_completed=1 이어야 함"
 
 
 def test_time_챌린지_분단위_미달성():
-    """#60: time_total_min이 target_value 미만이면 미완료로 progress만 갱신."""
+    """#60: time 챌린지 — 사용 시간이 목표 초과 시 주 종료 후에도 미완료로 progress만 갱신.
+
+    줄이기 방향: time_total_min(500) > target_value(300) → 달성 불가.
+    """
+    from datetime import date
     from services.score_service import recalculate_score
 
     cursor = MagicMock()
-    # fetchone: delivery sum=0, time sum=120분(2시간), delivery count=0, challenge count=0
+    # fetchone 순서: delivery sum → time sum → [챌린지별] ch_delivery_cnt → ch_time_sum → comp_count
     cursor.fetchone.side_effect = [
         {"sum_price": 0},
-        {"sum_min": 120},   # 120분 < target_value=300 → 미달성
-        {"cnt": 0},
+        {"sum_min": 500},
+        {"cnt": 0},        # ch_delivery_count
+        {"sum_min": 500},  # ch_time_total_min — 500 > target(300) → 달성 불가
         {"comp_count": 0},
     ]
-    # 활성 챌린지: time 타입, target_value=300(분)
     cursor.fetchall.return_value = [
-        {"id": "uc-time-2", "target_type": "time", "target_value": 300}
+        {"id": "uc-time-2", "started_at": None, "target_type": "time", "target_value": 300}
     ]
 
     @contextmanager
     def _db():
         yield cursor
 
-    with patch("services.score_service.db", _db):
+    sunday = date(2026, 6, 21)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=sunday), \
+         patch("services.score_service.kst_today", return_value=sunday):
         recalculate_score(user_id=1)
 
     update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
     # is_completed=1 UPDATE가 없어야 함
     assert not any("is_completed = 1" in c for c in update_calls), \
-        "time 챌린지: time_total_min(120) < target_value(300) → 완료 처리되면 안 됨"
+        "time 챌린지: time_total_min(500) > target_value(300) → 완료 처리되면 안 됨"
     # 진행도 업데이트(is_completed 미변경)는 호출돼야 함
     assert any("UPDATE user_challenges" in c for c in update_calls), \
         "미달성 시에도 progress UPDATE는 호출돼야 함"
+
+
+# ── started_at 커트오프 검증 ────────────────────────────────────
+def test_참여시점_이후_기록만_집계_delivery():
+    """참여(started_at) 이후 delivery_records만 집계하는지 검증.
+
+    ch_gte = max(week_start, started_at) 이므로
+    챌린지별 COUNT 쿼리의 하한이 started_at 값이어야 한다.
+    """
+    from datetime import datetime, date
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    join_time = datetime(2026, 6, 17, 14, 0, 0)  # 수요일 14:00 참여
+
+    cursor.fetchone.side_effect = [
+        {"sum_price": 0},
+        {"sum_min": 0},
+        {"cnt": 0},       # 참여 후 배달 0회
+        {"sum_min": 0},   # 참여 후 시간 0분
+        {"comp_count": 0},
+    ]
+    cursor.fetchall.return_value = [
+        {"id": "uc-1", "started_at": join_time, "target_type": "delivery", "target_value": 2}
+    ]
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    sunday = date(2026, 6, 21)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=sunday), \
+         patch("services.score_service.kst_today", return_value=sunday):
+        recalculate_score(user_id=1)
+
+    # 챌린지별 delivery COUNT 쿼리의 하한이 started_at인지 확인
+    delivery_cnt_calls = [
+        str(c) for c in cursor.execute.call_args_list
+        if "delivery_records" in str(c) and "COUNT" in str(c)
+    ]
+    assert delivery_cnt_calls, "delivery_records COUNT 쿼리가 호출돼야 함"
+    expected_ch_gte = "2026-06-17 14:00:00"
+    assert any(expected_ch_gte in c for c in delivery_cnt_calls), \
+        f"ch_gte가 started_at({expected_ch_gte}) 이어야 함 — 참여 전 배달 제외 확인"
+
+
+def test_참여시점_이후_기록만_집계_time():
+    """참여(started_at) 이후 time_records만 집계하는지 검증."""
+    from datetime import datetime, date
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    join_time = datetime(2026, 6, 18, 9, 30, 0)  # 목요일 09:30 참여
+
+    cursor.fetchone.side_effect = [
+        {"sum_price": 0},
+        {"sum_min": 0},
+        {"cnt": 0},
+        {"sum_min": 0},
+        {"comp_count": 0},
+    ]
+    cursor.fetchall.return_value = [
+        {"id": "uc-2", "started_at": join_time, "target_type": "time", "target_value": 300}
+    ]
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    sunday = date(2026, 6, 21)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=sunday), \
+         patch("services.score_service.kst_today", return_value=sunday):
+        recalculate_score(user_id=1)
+
+    time_cnt_calls = [
+        str(c) for c in cursor.execute.call_args_list
+        if "time_records" in str(c) and "SUM" in str(c)
+        and "WHERE user_id" in str(c)  # 챌린지별 쿼리만 (score용 SUM 제외)
+    ]
+    # score용 SUM 쿼리와 챌린지별 SUM 쿼리 모두 포함 — started_at 기반 쿼리가 있어야 함
+    expected_ch_gte = "2026-06-18 09:30:00"
+    assert any(expected_ch_gte in c for c in time_cnt_calls), \
+        f"ch_gte가 started_at({expected_ch_gte}) 이어야 함 — 참여 전 시간 제외 확인"
+
+
+def test_참여시점이_주시작_이전이면_주시작_기준():
+    """started_at이 이번 주 시작보다 앞서면 ch_gte = week_start 로 보정."""
+    from datetime import datetime, date
+    from services.score_service import recalculate_score
+
+    cursor = MagicMock()
+    # 지난주에 참여 → 이번 주 시작(2026-06-15)보다 앞선 시점
+    join_time = datetime(2026, 6, 10, 0, 0, 0)
+
+    cursor.fetchone.side_effect = [
+        {"sum_price": 0},
+        {"sum_min": 0},
+        {"cnt": 0},
+        {"sum_min": 0},
+        {"comp_count": 0},
+    ]
+    cursor.fetchall.return_value = [
+        {"id": "uc-3", "started_at": join_time, "target_type": "delivery", "target_value": 2}
+    ]
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    sunday = date(2026, 6, 21)
+    with patch("services.score_service.db", _db), \
+         patch("utils.week.kst_today", return_value=sunday), \
+         patch("services.score_service.kst_today", return_value=sunday):
+        recalculate_score(user_id=1)
+
+    delivery_cnt_calls = [
+        str(c) for c in cursor.execute.call_args_list
+        if "delivery_records" in str(c) and "COUNT" in str(c)
+    ]
+    # ch_gte = week_start(2026-06-15 00:00:00), started_at(2026-06-10)보다 최신
+    expected_week_start = "2026-06-15 00:00:00"
+    old_started_at = "2026-06-10 00:00:00"
+    assert any(expected_week_start in c for c in delivery_cnt_calls), \
+        "started_at이 주 시작보다 앞서면 ch_gte는 week_start여야 함"
+    assert not any(old_started_at in c for c in delivery_cnt_calls), \
+        "ch_gte에 주 시작 이전 started_at이 쓰이면 안 됨"
 
 
 # ── P2 추가 테스트 ────────────────────────────────────────
