@@ -45,6 +45,41 @@ def test_챌린지_중복참여_차단(logged_in_client):
     assert "이미 참여" in res.get_json()["error"]
 
 
+def test_챌린지_참여_성공_201(logged_in_client):
+    """FR-34: 유효 UUID·미참여 상태에서 참여하면 201과 INSERT가 수행된다 (#133 회귀 방지)."""
+    challenge_id = "00000000-0000-0000-0000-000000000001"
+
+    with logged_in_client.session_transaction() as sess:
+        sess["csrf_token"] = "test-csrf-token"
+
+    # 활성 참여 없음(fetchone=None) → INSERT 후 201
+    mock_db = _make_db_mock(fetchone=None)
+    with patch("routes.challenge.db", mock_db):
+        res = logged_in_client.post(
+            f"/challenge/{challenge_id}/join",
+            headers={"X-CSRF-Token": "test-csrf-token"},
+        )
+
+    assert res.status_code == 201
+    assert res.get_json()["success"] is True
+
+
+def test_챌린지_참여_잘못된_UUID_400(logged_in_client):
+    """#134 P2-A: 비 UUID challenge_id는 FK 위반 전에 400으로 조기 반환한다."""
+    with logged_in_client.session_transaction() as sess:
+        sess["csrf_token"] = "test-csrf-token"
+
+    # DB 접근 전에 400으로 차단되어야 하므로 mock은 호출되지 않아야 함
+    with patch("routes.challenge.db", _make_db_mock()):
+        res = logged_in_client.post(
+            "/challenge/not-a-uuid/join",
+            headers={"X-CSRF-Token": "test-csrf-token"},
+        )
+
+    assert res.status_code == 400
+    assert "잘못된 챌린지 ID" in res.get_json()["error"]
+
+
 def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client):
     """app_totals 합계가 0이면 top_app/top_app_hours 없이 recommend 호출된다."""
     call_count = [0]
