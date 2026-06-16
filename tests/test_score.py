@@ -96,3 +96,20 @@ def test_분석_저장시_점수_재산출():
     last_sql = cursor.execute.call_args_list[-1].args[0]
     assert "INSERT INTO dopamine_scores" in last_sql
     assert "ON DUPLICATE KEY UPDATE" in last_sql
+
+
+def test_점수_음수_입력_방어():
+    """#60: delivery_total / time_total_min / challenge_completed 음수 입력 시 0 clamp."""
+    from ai.score import calculate
+
+    result = calculate({
+        "delivery_total": -99999,
+        "time_total_min": -500,
+        "challenge_completed": -3,
+    })
+    # 음수를 0으로 clamp → 최선 케이스와 동일 (배달 40 + 시간 40 + 보너스 0 = 80)
+    assert result["delivery_contribution"] == 40, "음수 delivery_total은 0으로 clamp되어야 함"
+    assert result["time_contribution"] == 40, "음수 time_total_min은 0으로 clamp되어야 함"
+    assert result["challenge_bonus"] == 0, "음수 challenge_completed는 0으로 clamp되어야 함"
+    assert result["score"] == 80
+    assert result["success"] is True
