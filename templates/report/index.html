@@ -1,405 +1,574 @@
-{% extends "_app_base.html" %}
-{% block title %}종합 리포트{% endblock %}
+<!DOCTYPE html>
+<html class="dark" lang="ko">
 
-{% block head %}
-<!-- Chart.js CDN (FR-20 비교 차트) — SRI 적용 (#10 P2) -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
-        integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF"
-        crossorigin="anonymous"></script>
-<!-- html2canvas CDN (FR-19 공유 카드 캡처)
-     ⚠️ Safari 렌더링 이슈 QA 필요 (PRD §10) — useCORS:true 옵션 적용 중 -->
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
-        integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
-        crossorigin="anonymous"></script>
-<style>
-  /* ── 리포트 전용 — Stitch 다크테마 기반 ── */
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>종합 리포트 | DopaCheck</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+    integrity="sha384-JUh163oCRItcbPme8pYnROHQMC6fNKTBWtRG3I3I0erJkzNgL7uxKlNwcrcFKeqF"
+    crossorigin="anonymous"></script>
+  <!-- html2canvas CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
+    integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
+    crossorigin="anonymous"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&amp;display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      font-family: "Pretendard", "Inter", sans-serif;
+      background-color: #0A0A0F;
+      color: #e4e1ed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
 
-  /* share-card 캡처 대상 — 배경 불투명 고정 (html2canvas Safari 이슈 대응) */
-  #share-card {
-    background: #1f1f28; /* surface-container */
-  }
+    .glass-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+    }
 
-  /* 기여도 프로그레스 바 */
-  .contribution-bar-track {
-    flex: 1;
-    height: 6px;
-    background: rgba(197, 192, 255, 0.15);
-    border-radius: 9999px;
-    margin: 0 8px;
-    overflow: hidden;
-  }
-  .contribution-bar-fill {
-    height: 100%;
-    border-radius: 9999px;
-    transition: width 0.6s ease;
-  }
+    .primary-gradient {
+      background: linear-gradient(135deg, #6b5bff 0%, #c5c0ff 100%);
+    }
 
-  /* 도파민 점수 링 */
-  .score-ring {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 88px;
-    height: 88px;
-    border-radius: 50%;
-    background: conic-gradient(
-      #c5c0ff calc({{ this_score.score }} * 1%),
-      rgba(197, 192, 255, 0.15) 0%
-    );
-    margin: 0 auto 12px;
-  }
-  .score-inner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 66px;
-    height: 66px;
-    border-radius: 50%;
-    background: #1f1f28;
-    font-size: 22px;
-    font-weight: 800;
-    color: #c5c0ff;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-  }
-</style>
-{% endblock %}
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei);
+      z-index: 99;
+    }
 
-{% block content %}
-<!-- 페이지 헤더 -->
-<div class="mb-6">
-  <h1 class="text-2xl font-bold text-on-surface flex items-center gap-2">
-    <span class="material-symbols-outlined text-primary text-2xl">bar_chart</span>
-    종합 리포트
-  </h1>
-  {% if nickname %}
-  <p class="text-on-surface-variant text-sm mt-1">
-    <span class="text-primary font-semibold">{{ nickname }}</span>님의 이번 주 도파민 기록
-  </p>
-  {% endif %}
-</div>
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: -1;
+    }
 
-<!-- ───────── 공유 카드 영역 (FR-19) ───────── -->
-<div id="share-card" class="rounded-2xl p-5 mb-5 space-y-4 border border-outline-variant/20">
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #6b5bff;
+      top: -100px;
+      right: -100px;
+    }
 
-  <!-- 도파민 점수 (FR-18) -->
-  <div class="rounded-xl bg-surface-container-high/60 p-5 text-center border border-outline-variant/10">
-    <p class="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-3 flex items-center justify-center gap-1.5">
-      <span class="material-symbols-outlined text-sm">psychology</span>
-      이번 주 도파민 점수
-    </p>
-    <div class="score-ring">
-      <div class="score-inner">{{ this_score.score }}</div>
-    </div>
-    {% if this_score.score > 0 %}
-    {# 값은 routes/report.py clamp_score()로 0~100 보장됨에 의존 — clamp 제거 시 CSS 깨짐 #}
-    <div class="mt-3 space-y-2 text-left max-w-xs mx-auto">
-      <!-- 배달 기여 -->
-      <div class="flex items-center gap-1 text-xs text-on-surface-variant">
-        <span class="w-16 shrink-0">배달 기여</span>
-        <div class="contribution-bar-track">
-          <div class="contribution-bar-fill bg-primary" style="width:{{ this_score.delivery_contribution }}%;"></div>
-        </div>
-        <span class="w-8 text-right text-primary font-semibold shrink-0">{{ this_score.delivery_contribution }}점</span>
-      </div>
-      <!-- 시간 기여 -->
-      <div class="flex items-center gap-1 text-xs text-on-surface-variant">
-        <span class="w-16 shrink-0">시간 기여</span>
-        <div class="contribution-bar-track">
-          <div class="contribution-bar-fill bg-secondary" style="width:{{ this_score.time_contribution }}%;"></div>
-        </div>
-        <span class="w-8 text-right text-secondary font-semibold shrink-0">{{ this_score.time_contribution }}점</span>
-      </div>
-      <!-- 챌린지 보너스 -->
-      <div class="flex items-center gap-1 text-xs text-on-surface-variant">
-        <span class="w-16 shrink-0">챌린지 보너스</span>
-        <div class="contribution-bar-track">
-          <div class="contribution-bar-fill bg-tertiary" style="width:{{ this_score.challenge_bonus }}%;"></div>
-        </div>
-        <span class="w-8 text-right text-tertiary font-semibold shrink-0">{{ this_score.challenge_bonus }}점</span>
-      </div>
-    </div>
-    {% else %}
-    <p class="text-on-surface-variant text-sm mt-2 opacity-70">점수 데이터가 없습니다. 배달/시간 분석을 먼저 해보세요.</p>
-    {% endif %}
-  </div>
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #8c0a46;
+      bottom: 100px;
+      left: -50px;
+    }
 
-  <!-- 통합 대시보드 (FR-16) — 배달 지출 + 시간 소비 -->
-  <div class="grid grid-cols-2 gap-3">
+    /* ── 리포트 전용 — Stitch 다크테마 기반 ── */
+    #share-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+    }
 
-    <!-- 배달 지출 -->
-    <div class="rounded-xl bg-surface-container-high/60 p-4 border border-outline-variant/10">
-      <p class="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2 flex items-center gap-1">
-        <span class="material-symbols-outlined text-sm text-secondary">delivery_dining</span>
-        이번 주 배달 지출
-      </p>
-      {% if this_delivery.count > 0 %}
-        <p class="text-2xl font-extrabold text-on-surface leading-tight">
-          {{ "{:,}".format(this_delivery.total_price) }}<span class="text-sm font-semibold text-on-surface-variant ml-0.5">원</span>
-        </p>
-        <p class="text-xs text-on-surface-variant mt-1">
-          {{ this_delivery.count }}건 · {{ "{:,}".format(this_delivery.total_calories) }} kcal
-        </p>
-      {% else %}
-        <p class="text-base text-outline font-semibold mt-1">기록 없음</p>
-      {% endif %}
-    </div>
+    .contribution-bar-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(197, 192, 255, 0.15);
+      border-radius: 9999px;
+      margin: 0 8px;
+      overflow: hidden;
+    }
 
-    <!-- 시간 소비 -->
-    <div class="rounded-xl bg-surface-container-high/60 p-4 border border-outline-variant/10">
-      <p class="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2 flex items-center gap-1">
-        <span class="material-symbols-outlined text-sm text-tertiary">schedule</span>
-        이번 주 시간 소비
-      </p>
-      {% if this_time.total_min > 0 %}
-        <p class="text-2xl font-extrabold text-on-surface leading-tight">
-          {{ this_time.total_min // 60 }}<span class="text-sm font-semibold text-on-surface-variant">시간</span>
-          {{ this_time.total_min % 60 }}<span class="text-sm font-semibold text-on-surface-variant">분</span>
-        </p>
-        <p class="text-xs text-on-surface-variant mt-1">
-          {% set time_parts = [] %}
-          {% if this_time.youtube_min > 0 %}{% set _ = time_parts.append("유튜브 " ~ this_time.youtube_min ~ "분") %}{% endif %}
-          {% if this_time.instagram_min > 0 %}{% set _ = time_parts.append("인스타 " ~ this_time.instagram_min ~ "분") %}{% endif %}
-          {% if this_time.tiktok_min > 0 %}{% set _ = time_parts.append("틱톡 " ~ this_time.tiktok_min ~ "분") %}{% endif %}
-          {% if this_time.game_min > 0 %}{% set _ = time_parts.append("게임 " ~ this_time.game_min ~ "분") %}{% endif %}
-          {{ time_parts | join(" · ") if time_parts else "앱별 기록 없음" }}
-        </p>
-      {% else %}
-        <p class="text-base text-outline font-semibold mt-1">기록 없음</p>
-      {% endif %}
-    </div>
-  </div>
+    .contribution-bar-fill {
+      height: 100%;
+      border-radius: 9999px;
+      transition: width 0.6s ease;
+    }
 
-  <!-- AI 종합 인사이트 (FR-17) -->
-  <div class="rounded-xl border border-primary-container/40 p-4"
-       style="background: linear-gradient(135deg, rgba(107,91,255,0.12) 0%, rgba(140,10,70,0.10) 100%);">
-    <p class="text-xs font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
-      <span class="material-symbols-outlined text-sm">smart_toy</span>
-      AI 종합 인사이트
-    </p>
-    <p class="text-sm text-on-surface leading-relaxed">{{ ai_comment | e }}</p>
-  </div>
+    .score-ring {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
 
-</div><!-- /#share-card -->
-
-<!-- ───────── 저번 주 vs 이번 주 비교 차트 (FR-20) — 항목별 미니차트 분리 (#10 P3) ───────── -->
-<div class="mb-5">
-  <h2 class="text-base font-bold text-on-surface mb-3 flex items-center gap-2">
-    <span class="material-symbols-outlined text-primary text-lg">compare_arrows</span>
-    저번 주 vs 이번 주 비교
-  </h2>
-  <div class="rounded-xl bg-surface-container border border-outline-variant/20 p-4">
-    <!-- 항목별 미니차트 3개 분리 (#10 P3 — 단위 혼재 가독성 개선) -->
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <!-- 배달 지출 미니차트 -->
-      <div>
-        <p class="text-xs font-semibold text-on-surface-variant mb-2 text-center flex items-center justify-center gap-1">
-          <span class="material-symbols-outlined text-secondary text-sm">delivery_dining</span>
-          배달 지출 (원)
-        </p>
-        <div style="position:relative; height:120px;">
-          <canvas id="chartDelivery"></canvas>
-        </div>
-      </div>
-      <!-- 시간 소비 미니차트 -->
-      <div>
-        <p class="text-xs font-semibold text-on-surface-variant mb-2 text-center flex items-center justify-center gap-1">
-          <span class="material-symbols-outlined text-tertiary text-sm">schedule</span>
-          시간 소비 (분)
-        </p>
-        <div style="position:relative; height:120px;">
-          <canvas id="chartTime"></canvas>
-        </div>
-      </div>
-      <!-- 도파민 점수 미니차트 -->
-      <div>
-        <p class="text-xs font-semibold text-on-surface-variant mb-2 text-center flex items-center justify-center gap-1">
-          <span class="material-symbols-outlined text-primary text-sm">psychology</span>
-          도파민 점수
-        </p>
-        <div style="position:relative; height:120px;">
-          <canvas id="chartScore"></canvas>
-        </div>
-      </div>
-    </div>
-    {% if this_delivery.count == 0 and this_time.total_min == 0 and last_delivery.count == 0 and last_time.total_min == 0 %}
-    <p class="text-center text-on-surface-variant text-xs mt-3 opacity-70">비교할 데이터가 아직 없습니다.</p>
-    {% endif %}
-    <!-- 범례 -->
-    <div class="flex items-center justify-center gap-4 mt-3 text-xs text-on-surface-variant">
-      <span class="flex items-center gap-1.5">
-        <span class="inline-block w-3 h-3 rounded-sm" style="background:rgba(197,192,255,0.40);"></span>저번 주
-      </span>
-      <span class="flex items-center gap-1.5">
-        <span class="inline-block w-3 h-3 rounded-sm" style="background:#c5c0ff;"></span>이번 주
-      </span>
-    </div>
-  </div>
-</div>
-
-<!-- ───────── 공유 버튼 (FR-19) ───────── -->
-<div class="flex gap-3 mb-8">
-  <button onclick="saveAsImage()"
-          class="glass-button flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary-container text-on-primary-container font-bold text-sm hover:opacity-90 active:scale-95 transition-all">
-    <span class="material-symbols-outlined text-base">photo_camera</span>
-    이미지 저장
-  </button>
-  <button onclick="shareToSns()"
-          class="glass-button flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/10 active:scale-95 transition-all">
-    <span class="material-symbols-outlined text-base">share</span>
-    SNS 공유
-  </button>
-</div>
-
-{% endblock %}
-
-{% block scripts %}
-<script>
-// ── Chart.js 비교 차트 — 항목별 미니차트 분리 (FR-20, #10 P3 가독성 개선) ─────────────────
-// 기존 단일 compareChart: 배달(천원)·시간(분)·점수를 한 Y축에 그려 분 단위(930분 등)가
-// 지배하는 문제를 항목별 독립 캔버스(chartDelivery/chartTime/chartScore)로 해결.
-(function () {
-  // 다크테마 공통 색상 설정
-  const GRID_COLOR  = 'rgba(71,69,85,0.4)';   // outline-variant
-  const TICK_COLOR  = '#c8c4d8';               // on-surface-variant
-  const TOOLTIP_BG  = '#2a2933';               // surface-container-high
-  const TOOLTIP_FG  = '#e5e0ee';               // on-surface
-  const TOOLTIP_SUB = '#c8c4d8';               // on-surface-variant
-  const BORDER_C    = 'rgba(71,69,85,0.5)';
-
-  const BAR_LAST = {
-    backgroundColor: 'rgba(197,192,255,0.35)',
-    borderColor: 'rgba(197,192,255,0.6)',
-    borderWidth: 1.5,
-    borderRadius: 6,
-  };
-  const BAR_THIS = {
-    backgroundColor: 'rgba(107,91,255,0.85)',
-    borderColor: '#6b5bff',
-    borderWidth: 1.5,
-    borderRadius: 6,
-  };
-
-  function miniChart(canvasId, lastVal, thisVal, tooltipFormatter) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
-    new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: ['저번 주', '이번 주'],
-        datasets: [{
-          data: [lastVal, thisVal],
-          backgroundColor: [BAR_LAST.backgroundColor, BAR_THIS.backgroundColor],
-          borderColor:     [BAR_LAST.borderColor, BAR_THIS.borderColor],
-          borderWidth: 1.5,
-          borderRadius: 6,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: (item) => tooltipFormatter(item.raw),
-            },
-            backgroundColor: TOOLTIP_BG,
-            titleColor: TOOLTIP_FG,
-            bodyColor: TOOLTIP_SUB,
-            borderColor: BORDER_C,
-            borderWidth: 1,
-          },
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid:  { color: GRID_COLOR },
-            ticks: { color: TICK_COLOR, font: { size: 10 }, maxTicksLimit: 4 },
-          },
-          x: {
-            grid:  { display: false },
-            ticks: { color: TICK_COLOR, font: { size: 10 } },
-          },
-        },
-      },
-    });
-  }
-
-  // Jinja 데이터 주입 — 모든 바인딩 보존
-  const thisDelivery = {{ this_delivery.total_price | tojson }};
-  const lastDelivery = {{ last_delivery.total_price | tojson }};
-  const thisTime     = {{ this_time.total_min | tojson }};
-  const lastTime     = {{ last_time.total_min | tojson }};
-  const thisScore    = {{ this_score.score | tojson }};
-  const lastScore    = {{ last_score.score | tojson }};
-
-  miniChart('chartDelivery', lastDelivery, thisDelivery,
-    v => ` ${v.toLocaleString()}원`);
-
-  miniChart('chartTime', lastTime, thisTime,
-    v => ` ${v}분`);
-
-  miniChart('chartScore', lastScore, thisScore,
-    v => ` ${v}점`);
-})();
-
-// ── html2canvas 공유 카드 (FR-19) ──────────────────────────────────────────
-// ⚠️ Safari 렌더링 이슈: html2canvas가 Safari에서 일부 CSS(conic-gradient 등)를
-//    정확히 캡처하지 못할 수 있음. useCORS:true + scale:2 설정으로 완화 중.
-//    QA 필수 항목 (PRD §10).
-
-async function saveAsImage() {
-  const card = document.getElementById('share-card');
-  try {
-    const canvas = await html2canvas(card, { useCORS: true, scale: 2, backgroundColor: '#1f1f28' });
-    const link = document.createElement('a');
-    link.download = 'dopamine-check-report.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
-  } catch (e) {
-    console.error('이미지 저장 실패:', e);
-    alert('이미지 저장에 실패했습니다. 잠시 후 다시 시도해주세요.');
-  }
-}
-
-async function shareToSns() {
-  const card = document.getElementById('share-card');
-  try {
-    const canvas = await html2canvas(card, { useCORS: true, scale: 2, backgroundColor: '#1f1f28' });
-    canvas.toBlob(async (blob) => {
-      if (!blob) { alert('이미지 생성에 실패했습니다.'); return; }
-      const file = new File([blob], 'dopamine-check.png', { type: 'image/png' });
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            title: '내 도파민 점수',
-            text: '이번 주 도파민 소비 리포트를 확인해봐! — DopaCheck',
-            files: [file],
-          });
-        } catch (shareErr) {
-          // 사용자가 공유 취소한 경우는 무시
-          if (shareErr.name !== 'AbortError') {
-            console.warn('공유 실패:', shareErr);
-            _downloadFallback(canvas);
+      background: conic-gradient(#c5c0ff calc({
+            {
+            this_score.score
           }
         }
-      } else {
-        // Web Share API 미지원 — 이미지 다운로드로 fallback
-        _downloadFallback(canvas);
-        alert('이 브라우저에서는 직접 공유가 지원되지 않아 이미지를 저장했습니다.\n저장된 이미지를 SNS에 직접 업로드해주세요.');
-      }
-    }, 'image/png');
-  } catch (e) {
-    console.error('SNS 공유 실패:', e);
-    alert('이미지 생성에 실패했습니다.');
-  }
-}
 
-function _downloadFallback(canvas) {
-  const link = document.createElement('a');
-  link.download = 'dopamine-check-report.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-}
-</script>
-{% endblock %}
+        * 1%), rgba(197, 192, 255, 0.15) 0%);
+    margin: 0 auto 12px;
+    }
+
+    .score-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 66px;
+      height: 66px;
+      border-radius: 50%;
+      background: #14141C;
+      font-size: 22px;
+      font-weight: 800;
+      color: #c5c0ff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-tint": "#c5c0ff",
+            "inverse-on-surface": "#303038",
+            "secondary-container": "#8c0a46",
+            "tertiary-fixed-dim": "#2fe0a6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-tertiary-container": "#fcfffa",
+            "primary-container": "#6b5bff",
+            "on-primary-container": "#fffdff",
+            "outline-variant": "#474555",
+            "surface-container-low": "#1b1b23",
+            "on-secondary-fixed": "#3f001b",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "on-secondary-container": "#ff95b4",
+            "on-background": "#e4e1ed",
+            "on-error": "#690005",
+            "on-tertiary-fixed-variant": "#005139",
+            "tertiary-container": "#008660",
+            "primary-fixed": "#e3dfff",
+            "tertiary": "#2fe0a6",
+            "on-error-container": "#ffdad6",
+            "inverse-surface": "#e4e1ed",
+            "surface": "#13131b",
+            "surface-container-high": "#292932",
+            "on-secondary": "#650030",
+            "on-primary-fixed": "#140067",
+            "background": "#13131b",
+            "on-primary": "#2500a2",
+            "secondary": "#ffb1c5",
+            "surface-container-lowest": "#0d0d15",
+            "secondary-fixed-dim": "#ffb1c5",
+            "error": "#ffb4ab",
+            "primary-fixed-dim": "#c5c0ff",
+            "inverse-primary": "#5340e7",
+            "on-tertiary-fixed": "#002115",
+            "outline": "#918ea1",
+            "surface-variant": "#34343d",
+            "surface-container": "#1f1f27",
+            "on-tertiary": "#003826",
+            "primary": "#c5c0ff",
+            "on-surface": "#e4e1ed",
+            "on-surface-variant": "#c8c4d8",
+            "surface-dim": "#13131b",
+            "surface-bright": "#393841",
+            "tertiary-fixed": "#59fdc0",
+            "error-container": "#93000a",
+            "surface-container-highest": "#34343d",
+            "secondary-fixed": "#ffd9e1"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "edge-padding": "20px",
+            "stack-md": "16px",
+            "base": "8px",
+            "stack-lg": "24px",
+            "stack-sm": "8px",
+            "gutter": "16px",
+            "section-margin": "40px"
+          },
+          "fontFamily": {
+            "body-lg": ["Pretendard"],
+            "display-md-mobile": ["Pretendard"],
+            "display-xl": ["Pretendard"],
+            "label-md": ["Pretendard"],
+            "headline-md": ["Pretendard"],
+            "headline-lg": ["Pretendard"],
+            "display-md": ["Pretendard"],
+            "body-md": ["Pretendard"]
+          },
+          "fontSize": {
+            "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+            "display-md-mobile": ["48px", { "lineHeight": "56px", "fontWeight": "800" }],
+            "display-xl": ["96px", { "lineHeight": "100px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "display-md": ["56px", { "lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  {% include "components/header.html" %}
+
+  <!-- Main Container -->
+  <main class="pt-[80px] pb-[100px] px-edge-padding max-w-[600px] mx-auto space-y-stack-lg">
+    <!-- 페이지 헤더 -->
+    <div class="mb-6">
+      <h1 class="text-2xl font-bold text-on-surface flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-2xl">bar_chart</span>
+        종합 리포트
+      </h1>
+      {% if nickname %}
+      <p class="text-on-surface-variant text-sm mt-1">
+        <span class="text-primary font-semibold">{{ nickname }}</span>님의 이번 주 도파민 기록
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- ───────── 공유 카드 영역 (FR-19) ───────── -->
+    <div id="share-card" class="rounded-2xl p-5 mb-5 space-y-4">
+      <!-- 도파민 점수 (FR-18) -->
+      <div class="rounded-xl bg-surface-container-high/60 p-5 text-center border border-outline-variant/10">
+        <p
+          class="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-3 flex items-center justify-center gap-1.5">
+          <span class="material-symbols-outlined text-sm">psychology</span>
+          이번 주 도파민 점수
+        </p>
+        <div class="score-ring">
+          <div class="score-inner">{{ this_score.score }}</div>
+        </div>
+        {% if this_score.score > 0 %}
+        <div class="mt-3 space-y-2 text-left max-w-xs mx-auto">
+          <!-- 배달 기여 -->
+          <div class="flex items-center gap-1 text-xs text-on-surface-variant">
+            <span class="w-16 shrink-0">배달 기여</span>
+            <div class="contribution-bar-track">
+              <div class="contribution-bar-fill bg-primary" style="width:{{ this_score.delivery_contribution }}%;">
+              </div>
+            </div>
+            <span class="w-8 text-right text-primary font-semibold shrink-0">{{ this_score.delivery_contribution
+              }}점</span>
+          </div>
+          <!-- 시간 기여 -->
+          <div class="flex items-center gap-1 text-xs text-on-surface-variant">
+            <span class="w-16 shrink-0">시간 기여</span>
+            <div class="contribution-bar-track">
+              <div class="contribution-bar-fill bg-secondary" style="width:{{ this_score.time_contribution }}%;"></div>
+            </div>
+            <span class="w-8 text-right text-secondary font-semibold shrink-0">{{ this_score.time_contribution
+              }}점</span>
+          </div>
+          <!-- 챌린지 보너스 -->
+          <div class="flex items-center gap-1 text-xs text-on-surface-variant">
+            <span class="w-16 shrink-0">챌린지 보너스</span>
+            <div class="contribution-bar-track">
+              <div class="contribution-bar-fill bg-tertiary" style="width:{{ this_score.challenge_bonus }}%;"></div>
+            </div>
+            <span class="w-8 text-right text-tertiary font-semibold shrink-0">{{ this_score.challenge_bonus }}점</span>
+          </div>
+        </div>
+        {% else %}
+        <p class="text-on-surface-variant text-sm mt-2 opacity-70">점수 데이터가 없습니다. 배달/시간 분석을 먼저 해보세요.</p>
+        {% endif %}
+      </div>
+
+      <!-- 통합 대시보드 (FR-16) — 배달 지출 + 시간 소비 -->
+      <div class="grid grid-cols-2 gap-3">
+        <!-- 배달 지출 -->
+        <div class="rounded-xl bg-surface-container-high/60 p-4 border border-outline-variant/10">
+          <p
+            class="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2 flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm text-secondary">delivery_dining</span>
+            이번 주 배달 지출
+          </p>
+          {% if this_delivery.count > 0 %}
+          <p class="text-2xl font-extrabold text-on-surface leading-tight">
+            {{ "{:,}".format(this_delivery.total_price) }}<span
+              class="text-sm font-semibold text-on-surface-variant ml-0.5">원</span>
+          </p>
+          <p class="text-xs text-on-surface-variant mt-1">
+            {{ this_delivery.count }}건 · {{ "{:,}".format(this_delivery.total_calories) }} kcal
+          </p>
+          {% else %}
+          <p class="text-base text-outline font-semibold mt-1">기록 없음</p>
+          {% endif %}
+        </div>
+
+        <!-- 시간 소비 -->
+        <div class="rounded-xl bg-surface-container-high/60 p-4 border border-outline-variant/10">
+          <p
+            class="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-2 flex items-center gap-1">
+            <span class="material-symbols-outlined text-sm text-tertiary">schedule</span>
+            이번 주 시간 소비
+          </p>
+          {% if this_time.total_min > 0 %}
+          <p class="text-2xl font-extrabold text-on-surface leading-tight">
+            {{ this_time.total_min // 60 }}<span class="text-sm font-semibold text-on-surface-variant">시간</span>
+            {{ this_time.total_min % 60 }}<span class="text-sm font-semibold text-on-surface-variant">분</span>
+          </p>
+          <p class="text-xs text-on-surface-variant mt-1">
+            {% set time_parts = [] %}
+            {% if this_time.youtube_min > 0 %}{% set _ = time_parts.append("유튜브 " ~ this_time.youtube_min ~ "분") %}{%
+            endif %}
+            {% if this_time.instagram_min > 0 %}{% set _ = time_parts.append("인스타 " ~ this_time.instagram_min ~ "분")
+            %}{% endif %}
+            {% if this_time.tiktok_min > 0 %}{% set _ = time_parts.append("틱톡 " ~ this_time.tiktok_min ~ "분") %}{% endif
+            %}
+            {% if this_time.game_min > 0 %}{% set _ = time_parts.append("게임 " ~ this_time.game_min ~ "분") %}{% endif %}
+            {{ time_parts | join(" · ") if time_parts else "앱별 기록 없음" }}
+          </p>
+          {% else %}
+          <p class="text-base text-outline font-semibold mt-1">기록 없음</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- AI 종합 인사이트 (FR-17) -->
+      <div class="rounded-xl border border-primary-container/40 p-4"
+        style="background: linear-gradient(135deg, rgba(107,91,255,0.12) 0%, rgba(140,10,70,0.10) 100%);">
+        <p class="text-xs font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-sm">smart_toy</span>
+          AI 종합 인사이트
+        </p>
+        <p class="text-sm text-on-surface leading-relaxed">{{ ai_comment | e }}</p>
+      </div>
+    </div><!-- /#share-card -->
+
+    <!-- ───────── 저번 주 vs 이번 주 비교 차트 (FR-20) ───────── -->
+    <div class="mb-5">
+      <h2 class="text-base font-bold text-on-surface mb-3 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-lg">compare_arrows</span>
+        저번 주 vs 이번 주 비교
+      </h2>
+      <div class="glass-card p-5">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <!-- 배달 지출 미니차트 -->
+          <div>
+            <p
+              class="text-xs font-semibold text-on-surface-variant mb-2 text-center flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-secondary text-sm">delivery_dining</span>
+              배달 지출 (원)
+            </p>
+            <div style="position:relative; height:120px;">
+              <canvas id="chartDelivery"></canvas>
+            </div>
+          </div>
+          <!-- 시간 소비 미니차트 -->
+          <div>
+            <p
+              class="text-xs font-semibold text-on-surface-variant mb-2 text-center flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-tertiary text-sm">schedule</span>
+              시간 소비 (분)
+            </p>
+            <div style="position:relative; height:120px;">
+              <canvas id="chartTime"></canvas>
+            </div>
+          </div>
+          <!-- 도파민 점수 미니차트 -->
+          <div>
+            <p
+              class="text-xs font-semibold text-on-surface-variant mb-2 text-center flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-primary text-sm">psychology</span>
+              도파민 점수
+            </p>
+            <div style="position:relative; height:120px;">
+              <canvas id="chartScore"></canvas>
+            </div>
+          </div>
+        </div>
+        {% if this_delivery.count == 0 and this_time.total_min == 0 and last_delivery.count == 0 and last_time.total_min
+        == 0 %}
+        <p class="text-center text-on-surface-variant text-xs mt-3 opacity-70">비교할 데이터가 아직 없습니다.</p>
+        {% endif %}
+        <!-- 범례 -->
+        <div class="flex items-center justify-center gap-4 mt-4 text-xs text-on-surface-variant">
+          <span class="flex items-center gap-1.5">
+            <span class="inline-block w-3 h-3 rounded-sm" style="background:rgba(197,192,255,0.40);"></span>저번 주
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="inline-block w-3 h-3 rounded-sm" style="background:#c5c0ff;"></span>이번 주
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────── 공유 버튼 (FR-19) ───────── -->
+    <div class="flex gap-3 mb-8">
+      <button onclick="saveAsImage()"
+        class="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary-container text-on-primary-container font-bold text-sm hover:opacity-90 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-base">photo_camera</span>
+        이미지 저장
+      </button>
+      <button onclick="shareToSns()"
+        class="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/10 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-base">share</span>
+        SNS 공유
+      </button>
+    </div>
+  </main>
+
+  {% set active_tab = 'report' %}
+  {% include "components/footer.html" %}
+
+  <script>
+      // ── Chart.js 비교 차트 ─────────────────
+      (function () {
+        const GRID_COLOR = 'rgba(71,69,85,0.4)';
+        const TICK_COLOR = '#c8c4d8';
+        const TOOLTIP_BG = '#1f1f28';
+        const TOOLTIP_FG = '#e5e0ee';
+        const TOOLTIP_SUB = '#c8c4d8';
+        const BORDER_C = 'rgba(71,69,85,0.5)';
+
+        const BAR_LAST = {
+          backgroundColor: 'rgba(197,192,255,0.35)',
+          borderColor: 'rgba(197,192,255,0.6)',
+          borderWidth: 1.5,
+          borderRadius: 6,
+        };
+        const BAR_THIS = {
+          backgroundColor: 'rgba(107,91,255,0.85)',
+          borderColor: '#6b5bff',
+          borderWidth: 1.5,
+          borderRadius: 6,
+        };
+
+        function miniChart(canvasId, lastVal, thisVal, tooltipFormatter) {
+          const ctx = document.getElementById(canvasId);
+          if (!ctx) return;
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: ['저번 주', '이번 주'],
+              datasets: [{
+                data: [lastVal, thisVal],
+                backgroundColor: [BAR_LAST.backgroundColor, BAR_THIS.backgroundColor],
+                borderColor: [BAR_LAST.borderColor, BAR_THIS.borderColor],
+                borderWidth: 1.5,
+                borderRadius: 6,
+              }],
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (item) => tooltipFormatter(item.raw),
+                  },
+                  backgroundColor: TOOLTIP_BG,
+                  titleColor: TOOLTIP_FG,
+                  bodyColor: TOOLTIP_SUB,
+                  borderColor: BORDER_C,
+                  borderWidth: 1,
+                },
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  grid: { color: GRID_COLOR },
+                  ticks: { color: TICK_COLOR, font: { size: 10 }, maxTicksLimit: 4 },
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: { color: TICK_COLOR, font: { size: 10 } },
+                },
+              },
+            },
+          });
+        }
+
+        // Jinja 데이터 주입
+        const thisDelivery = {{ this_delivery.total_price | tojson
+      }};
+    const lastDelivery = {{ last_delivery.total_price | tojson }};
+    const thisTime = {{ this_time.total_min | tojson }};
+    const lastTime = {{ last_time.total_min | tojson }};
+    const thisScore = {{ this_score.score | tojson }};
+    const lastScore = {{ last_score.score | tojson }};
+
+    miniChart('chartDelivery', lastDelivery, thisDelivery, v => ` ${v.toLocaleString()}원`);
+    miniChart('chartTime', lastTime, thisTime, v => ` ${v}분`);
+    miniChart('chartScore', lastScore, thisScore, v => ` ${v}점`);
+    }) ();
+
+    // ── html2canvas 공유 카드 (FR-19) ──────────────────────────────────────────
+    async function saveAsImage() {
+      const card = document.getElementById('share-card');
+      try {
+        const canvas = await html2canvas(card, { useCORS: true, scale: 2, backgroundColor: '#14141C' });
+        const link = document.createElement('a');
+        link.download = 'dopamine-check-report.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } catch (e) {
+        console.error('이미지 저장 실패:', e);
+        alert('이미지 저장에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    }
+
+    async function shareToSns() {
+      const card = document.getElementById('share-card');
+      try {
+        const canvas = await html2canvas(card, { useCORS: true, scale: 2, backgroundColor: '#14141C' });
+        canvas.toBlob(async (blob) => {
+          if (!blob) { alert('이미지 생성에 실패했습니다.'); return; }
+          const file = new File([blob], 'dopamine-check.png', { type: 'image/png' });
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                title: '내 도파민 점수',
+                text: '이번 주 도파민 소비 리포트를 확인해봐! — DopaCheck',
+                files: [file],
+              });
+            } catch (shareErr) {
+              if (shareErr.name !== 'AbortError') {
+                console.warn('공유 실패:', shareErr);
+                _downloadFallback(canvas);
+              }
+            }
+          } else {
+            _downloadFallback(canvas);
+            alert('이 브라우저에서는 직접 공유가 지원되지 않아 이미지를 저장했습니다.\n저장된 이미지를 SNS에 직접 업로드해주세요.');
+          }
+        }, 'image/png');
+      } catch (e) {
+        console.error('SNS 공유 실패:', e);
+        alert('이미지 생성에 실패했습니다.');
+      }
+    }
+
+    function _downloadFallback(canvas) {
+      const link = document.createElement('a');
+      link.download = 'dopamine-check-report.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+  </script>
+</body>
+
+</html>

@@ -1,115 +1,460 @@
-{% extends "_app_base.html" %}
-{% block title %}챌린지{% endblock %}
+<!DOCTYPE html>
+<html class="dark" lang="ko">
 
-{% block head %}
-<style>
-  .challenge-page h1 { margin-bottom: 24px; }
-  .section-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
-  .section-desc { color: #777; font-size: 14px; margin-bottom: 16px; }
-  .challenge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 32px; }
-  .challenge-card { background: #fff; border-radius: 12px; padding: 20px; border: 1px solid #eee; }
-  .challenge-card.ai-card { border-color: #7c3aed; background: #faf5ff; }
-  .challenge-card.joined { border-color: #059669; }
-  .ai-badge { display: inline-block; background: #7c3aed; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; }
-  .challenge-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
-  .challenge-card p { font-size: 13px; color: #555; margin-bottom: 12px; line-height: 1.5; }
-  .challenge-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
-  .type-tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
-  .type-delivery { background: #fee2e2; color: #b91c1c; }
-  .type-time { background: #dbeafe; color: #1d4ed8; }
-  .type-both { background: #d1fae5; color: #065f46; }
-  .target-tag { font-size: 12px; color: #777; }
-  .progress-section { margin-bottom: 10px; }
-  .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #555; margin-bottom: 4px; }
-  .progress-bar { background: #e5e7eb; border-radius: 99px; height: 8px; overflow: hidden; }
-  .progress-fill { background: #059669; height: 100%; border-radius: 99px; transition: width 0.4s; }
-  .btn-join { background: #7c3aed; color: #fff; border: none; border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 4px; }
-  .btn-join:hover { background: #6d28d9; }
-  .btn-join:disabled { background: #c4b5fd; cursor: default; }
-  .btn-joined { background: #e5e7eb; color: #6b7280; border: none; border-radius: 8px; padding: 9px 16px; font-size: 14px; font-weight: 600; width: 100%; margin-top: 4px; cursor: default; }
-  .empty-msg { color: #999; text-align: center; padding: 40px 0; }
-  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; z-index: 999; }
-  .toast.hidden { display: none; }
-  .toast-success { background: #d1fae5; color: #065f46; }
-  .toast-error { background: #fee2e2; color: #b91c1c; }
-</style>
-{% endblock %}
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>챌린지 | DopaCheck</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Pretendard", sans-serif;
+      background-color: #0A0A0F;
+      color: #e4e1ed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
 
-{% block content %}
-<div class="challenge-page">
-  <h1>🏆 챌린지</h1>
+    .glass-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+    }
 
-  {% if ai_recommendations %}
-  <div class="section-title">✨ AI 맞춤 추천</div>
-  <div class="section-desc">내 습관 분석을 바탕으로 추천한 챌린지예요.</div>
-  <div class="challenge-grid">
-    {% for rec in ai_recommendations %}
-    <div class="challenge-card ai-card">
-      <span class="ai-badge">AI 추천</span>
-      <h3>{{ rec.title }}</h3>
-      <p>{{ rec.description }}</p>
-      <div class="challenge-meta">
-        <span class="type-tag type-{{ rec.target_type }}">{{ rec.target_type }}</span>
-        <span class="target-tag">목표: {{ rec.target_value }}</span>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
+    .primary-gradient {
+      background: linear-gradient(135deg, #6b5bff 0%, #c5c0ff 100%);
+    }
 
-  <div class="section-title">📋 챌린지 목록</div>
-  {% if challenges %}
-  <div class="challenge-grid">
-    {% for ch in challenges %}
-    <div class="challenge-card {% if ch.id in joined_ids %}joined{% endif %}">
-      <h3>{{ ch.title }}</h3>
-      {% if ch.description %}<p>{{ ch.description }}</p>{% endif %}
-      <div class="challenge-meta">
-        <span class="type-tag type-{{ ch.target_type }}">{{ ch.target_type }}</span>
-        <span class="target-tag">목표: {{ ch.target_value }}</span>
-      </div>
-      {% if ch.id in completed_ids %}
-        <div class="progress-section">
-          <div class="progress-label"><span>달성률</span><span>100%</span></div>
-          <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
-        </div>
-        <button class="btn-joined" disabled>🏅 완료</button>
-      {% elif ch.id in joined_ids %}
-        {% set raw = progress_map.get(ch.id, 0) %}
-        {% set pct = [(raw * 100 // ch.target_value), 100] | min if ch.target_value else 0 %}
-        <div class="progress-section">
-          <div class="progress-label">
-            <span>달성률</span>
-            <span>{{ pct }}%</span>
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei);
+      z-index: 99;
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: -1;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #6b5bff;
+      top: -100px;
+      right: -100px;
+    }
+
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #8c0a46;
+      bottom: 100px;
+      left: -50px;
+    }
+
+    /* ── 챌린지 전용 다크테마 기반 ── */
+    .challenge-page h1 {
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #fffdff;
+      margin-top: 24px;
+    }
+
+    .section-desc {
+      color: #918ea1;
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .challenge-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .challenge-card {
+      background: #14141C;
+      border-radius: 16px;
+      padding: 20px;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      color: #e4e1ed;
+    }
+
+    .challenge-card.ai-card {
+      border-color: #6b5bff;
+      background: rgba(107, 91, 255, 0.05);
+    }
+
+    .challenge-card.joined {
+      border-color: #2fe0a6;
+    }
+
+    .ai-badge {
+      display: inline-block;
+      background: #6b5bff;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+
+    .challenge-card h3 {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #fffdff;
+    }
+
+    .challenge-card p {
+      font-size: 13px;
+      color: #c8c4d8;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .challenge-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .type-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    .type-delivery {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ff8a8a;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .type-time {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .type-both {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .target-tag {
+      font-size: 12px;
+      color: #c8c4d8;
+    }
+
+    .progress-section {
+      margin-bottom: 10px;
+    }
+
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #c8c4d8;
+      margin-bottom: 4px;
+    }
+
+    .progress-bar {
+      background: #1f1f27;
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      background: #2fe0a6;
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.4s;
+    }
+
+    .btn-join {
+      background: #6b5bff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 4px;
+      transition: background 0.2s;
+    }
+
+    .btn-join:hover {
+      background: #5340e7;
+    }
+
+    .btn-join:disabled {
+      background: #34343d;
+      cursor: default;
+    }
+
+    .btn-joined {
+      background: #292932;
+      color: #918ea1;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      width: 100%;
+      margin-top: 4px;
+      cursor: default;
+    }
+
+    .empty-msg {
+      color: #918ea1;
+      text-align: center;
+      padding: 40px 0;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 999;
+    }
+
+    .toast.hidden {
+      display: none;
+    }
+
+    .toast-success {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+    }
+
+    .toast-error {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ff8a8a;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-tint": "#c5c0ff",
+            "inverse-on-surface": "#303038",
+            "secondary-container": "#8c0a46",
+            "tertiary-fixed-dim": "#2fe0a6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-tertiary-container": "#fcfffa",
+            "primary-container": "#6b5bff",
+            "on-primary-container": "#fffdff",
+            "outline-variant": "#474555",
+            "surface-container-low": "#1b1b23",
+            "on-secondary-fixed": "#3f001b",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "on-secondary-container": "#ff95b4",
+            "on-background": "#e4e1ed",
+            "on-error": "#690005",
+            "on-tertiary-fixed-variant": "#005139",
+            "tertiary-container": "#008660",
+            "primary-fixed": "#e3dfff",
+            "tertiary": "#2fe0a6",
+            "on-error-container": "#ffdad6",
+            "inverse-surface": "#e4e1ed",
+            "surface": "#13131b",
+            "surface-container-high": "#292932",
+            "on-secondary": "#650030",
+            "on-primary-fixed": "#140067",
+            "background": "#13131b",
+            "on-primary": "#2500a2",
+            "secondary": "#ffb1c5",
+            "surface-container-lowest": "#0d0d15",
+            "secondary-fixed-dim": "#ffb1c5",
+            "error": "#ffb4ab",
+            "primary-fixed-dim": "#c5c0ff",
+            "inverse-primary": "#5340e7",
+            "on-tertiary-fixed": "#002115",
+            "outline": "#918ea1",
+            "surface-variant": "#34343d",
+            "surface-container": "#1f1f27",
+            "on-tertiary": "#003826",
+            "primary": "#c5c0ff",
+            "on-surface": "#e4e1ed",
+            "on-surface-variant": "#c8c4d8",
+            "surface-dim": "#13131b",
+            "surface-bright": "#393841",
+            "tertiary-fixed": "#59fdc0",
+            "error-container": "#93000a",
+            "surface-container-highest": "#34343d",
+            "secondary-fixed": "#ffd9e1"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "edge-padding": "20px",
+            "stack-md": "16px",
+            "base": "8px",
+            "stack-lg": "24px",
+            "stack-sm": "8px",
+            "gutter": "16px",
+            "section-margin": "40px"
+          },
+          "fontFamily": {
+            "body-lg": ["Pretendard"],
+            "display-md-mobile": ["Pretendard"],
+            "display-xl": ["Pretendard"],
+            "label-md": ["Pretendard"],
+            "headline-md": ["Pretendard"],
+            "headline-lg": ["Pretendard"],
+            "display-md": ["Pretendard"],
+            "body-md": ["Pretendard"]
+          },
+          "fontSize": {
+            "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+            "display-md-mobile": ["48px", { "lineHeight": "56px", "fontWeight": "800" }],
+            "display-xl": ["96px", { "lineHeight": "100px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "display-md": ["56px", { "lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  {% include "components/header.html" %}
+
+  <!-- Main Container -->
+  <main class="pt-[80px] pb-[100px] px-edge-padding max-w-[600px] mx-auto space-y-stack-lg">
+    <div class="challenge-page">
+      <h1 class="text-2xl font-bold text-on-surface flex items-center gap-2 mb-6">
+        <span class="material-symbols-outlined text-primary text-2xl">military_tech</span>
+        챌린지
+      </h1>
+
+      {% if ai_recommendations %}
+      <div class="section-title">✨ AI 맞춤 추천</div>
+      <div class="section-desc">내 습관 분석을 바탕으로 추천한 챌린지예요.</div>
+      <div class="challenge-grid">
+        {% for rec in ai_recommendations %}
+        <div class="challenge-card ai-card">
+          <span class="ai-badge">AI 추천</span>
+          <h3>{{ rec.title }}</h3>
+          <p>{{ rec.description }}</p>
+          <div class="challenge-meta">
+            <span class="type-tag type-{{ rec.target_type }}">{{ rec.target_type }}</span>
+            <span class="target-tag">목표: {{ rec.target_value }}</span>
           </div>
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: {{ pct }}%"></div>
-          </div>
         </div>
-        <button class="btn-joined" disabled>✅ 참여 중</button>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="section-title">📋 챌린지 목록</div>
+      {% if challenges %}
+      <div class="challenge-grid">
+        {% for ch in challenges %}
+        <div class="challenge-card {% if ch.id in joined_ids %}joined{% endif %}">
+          <h3>{{ ch.title }}</h3>
+          {% if ch.description %}<p>{{ ch.description }}</p>{% endif %}
+          <div class="challenge-meta">
+            <span class="type-tag type-{{ ch.target_type }}">{{ ch.target_type }}</span>
+            <span class="target-tag">목표: {{ ch.target_value }}</span>
+          </div>
+          {% if ch.id in completed_ids %}
+          <div class="progress-section">
+            <div class="progress-label"><span>달성률</span><span>100%</span></div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:100%"></div>
+            </div>
+          </div>
+          <button class="btn-joined" disabled>🏅 완료</button>
+          {% elif ch.id in joined_ids %}
+          {% set raw = progress_map.get(ch.id, 0) %}
+          {% set pct = [(raw * 100 // ch.target_value), 100] | min if ch.target_value else 0 %}
+          <div class="progress-section">
+            <div class="progress-label">
+              <span>달성률</span>
+              <span>{{ pct }}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: {{ pct }}%"></div>
+            </div>
+          </div>
+          <button class="btn-joined" disabled>✅ 참여 중</button>
+          {% else %}
+          <button class="btn-join" onclick="joinChallenge('{{ ch.id }}')" data-id="{{ ch.id }}">참여하기</button>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
       {% else %}
-        <button class="btn-join" onclick="joinChallenge('{{ ch.id }}')" data-id="{{ ch.id }}">참여하기</button>
+      <p class="empty-msg">현재 등록된 챌린지가 없습니다.</p>
       {% endif %}
     </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <p class="empty-msg">현재 등록된 챌린지가 없습니다.</p>
-  {% endif %}
-</div>
+  </main>
 
-<div id="toast" class="toast hidden"></div>
-{% endblock %}
+  <div id="toast" class="toast hidden"></div>
 
-{% block scripts %}
-<script>
-async function joinChallenge(challengeId) {
-  const btn = document.querySelector(`[data-id="${challengeId}"]`);
-  btn.disabled = true;
-  btn.textContent = "참여 중...";
-  try {
-    // CSRF 토큰을 헤더에 포함 (세션 기반 CSRF 보호)
-    const csrfToken = {{ csrf_token | tojson }};
+  {% set active_tab = 'challenge' %}
+  {% include "components/footer.html" %}
+
+  <script>
+    async function joinChallenge(challengeId) {
+      const btn = document.querySelector(`[data-id="${challengeId}"]`);
+      btn.disabled = true;
+      btn.textContent = "참여 중...";
+      try {
+        const csrfToken = {{ csrf_token | tojson
+      }};
     const res = await fetch(`/challenge/${challengeId}/join`, {
       method: "POST",
       headers: { "X-CSRF-Token": csrfToken },
@@ -123,17 +468,19 @@ async function joinChallenge(challengeId) {
       btn.disabled = false;
       btn.textContent = "참여하기";
     }
-  } catch {
-    showToast("네트워크 오류가 발생했습니다.", "error");
-    btn.disabled = false;
-    btn.textContent = "참여하기";
+    } catch {
+      showToast("네트워크 오류가 발생했습니다.", "error");
+      btn.disabled = false;
+      btn.textContent = "참여하기";
+    }
   }
-}
-function showToast(msg, type) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.className = `toast toast-${type}`;
-  setTimeout(() => { t.className = "toast hidden"; }, 3000);
-}
-</script>
-{% endblock %}
+    function showToast(msg, type) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = `toast toast-${type}`;
+      setTimeout(() => { t.className = "toast hidden"; }, 3000);
+    }
+  </script>
+</body>
+
+</html>

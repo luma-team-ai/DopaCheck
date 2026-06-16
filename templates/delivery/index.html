@@ -1,115 +1,328 @@
-{% extends "_app_base.html" %}
-{% block title %}배달 분석{% endblock %}
-{% block page_title %}배달 분석{% endblock %}
-{% block content %}
-<!-- Hero -->
-<section class="mt-section-gap mb-stack-gap">
-  <h2 class="font-display-lg-mobile text-display-lg-mobile text-on-surface tracking-tight mb-2">영수증을 올려주세요</h2>
-  <p class="font-body-lg text-body-lg text-on-surface-variant opacity-80">사진 한 장이면 자동으로 분석해드려요</p>
-</section>
+<!DOCTYPE html>
+<html class="dark" lang="ko">
 
-<form id="upload-form" action="{{ url_for('delivery.analyze') }}" method="post" enctype="multipart/form-data">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>배달 분석 | DopaCheck</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&amp;display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap"
+    rel="stylesheet">
+  <style>
+    body {
+      font-family: "Pretendard", "Inter", sans-serif;
+      background-color: #0A0A0F;
+      color: #e4e1ed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
 
-  <!-- Upload Zone -->
-  <section class="relative mt-8">
-    <label class="upload-dashed w-full h-80 flex flex-col items-center justify-center cursor-pointer group hover:bg-surface-container-low transition-all duration-300" for="receipt-upload">
-      <div class="w-16 h-16 rounded-full bg-primary-container/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-        <span class="material-symbols-outlined text-primary text-4xl">upload_file</span>
+    .glass-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+    }
+
+    .primary-gradient {
+      background: linear-gradient(135deg, #6b5bff 0%, #c5c0ff 100%);
+    }
+
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei);
+      z-index: 99;
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: -1;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #6b5bff;
+      top: -100px;
+      right: -100px;
+    }
+
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #8c0a46;
+      bottom: 100px;
+      left: -50px;
+    }
+
+    /* ── 배달 분석 전용 ── */
+    .upload-dashed {
+      background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='%23474555' stroke-width='2' stroke-dasharray='12%2c 12' stroke-linecap='square'/%3e%3c/svg%3e");
+      border-radius: 24px;
+    }
+
+    .gradient-button {
+      background: linear-gradient(135deg, #6b5bff 0%, #ff95b4 100%);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .gradient-button:active {
+      transform: scale(0.98);
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-container": "#bb5a00",
+            "surface-container-high": "#2a2933",
+            "tertiary": "#ffb689",
+            "on-secondary-fixed": "#3f001b",
+            "inverse-primary": "#5340e7",
+            "inverse-surface": "#e5e0ee",
+            "surface-container": "#1f1f28",
+            "on-tertiary": "#512300",
+            "secondary-fixed": "#ffd9e1",
+            "on-background": "#e5e0ee",
+            "error-container": "#93000a",
+            "background": "#13121c",
+            "on-error": "#690005",
+            "surface-dim": "#13121c",
+            "surface-bright": "#393842",
+            "primary-fixed-dim": "#c5c0ff",
+            "outline-variant": "#474555",
+            "tertiary-fixed": "#ffdbc8",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-primary-container": "#fffdff",
+            "primary-fixed": "#e3dfff",
+            "primary": "#c5c0ff",
+            "on-tertiary-fixed-variant": "#743500",
+            "on-surface": "#e5e0ee",
+            "surface-variant": "#35343e",
+            "outline": "#918ea1",
+            "inverse-on-surface": "#302f39",
+            "on-tertiary-container": "#fffdff",
+            "secondary": "#ffb1c5",
+            "secondary-fixed-dim": "#ffb1c5",
+            "tertiary-fixed-dim": "#ffb689",
+            "surface": "#13121c",
+            "on-surface-variant": "#c8c4d8",
+            "surface-container-lowest": "#0e0d16",
+            "primary-container": "#6b5bff",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "secondary-container": "#8c0a46",
+            "on-secondary": "#650030",
+            "surface-container-highest": "#35343e",
+            "surface-container-low": "#1b1a24",
+            "on-secondary-container": "#ff95b4",
+            "error": "#ffb4ab",
+            "on-primary-fixed": "#140067",
+            "surface-tint": "#c5c0ff",
+            "on-tertiary-fixed": "#311300",
+            "on-primary": "#2500a2"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "card-padding": "24px",
+            "unit": "4px",
+            "section-gap": "40px",
+            "stack-gap": "16px",
+            "container-padding": "20px",
+            "edge-padding": "20px",
+            "stack-md": "16px",
+            "base": "8px",
+            "stack-lg": "24px",
+            "stack-sm": "8px",
+            "gutter": "16px",
+            "section-margin": "40px"
+          },
+          "fontFamily": {
+            "display-lg-mobile": ["Plus Jakarta Sans"],
+            "hero-num": ["Plus Jakarta Sans"],
+            "label-caps": ["Inter"],
+            "body-lg": ["Inter"],
+            "hero-num-md": ["Plus Jakarta Sans"],
+            "title-md": ["Inter"],
+            "display-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Pretendard"],
+            "display-xl": ["Pretendard"],
+            "label-md": ["Pretendard"],
+            "headline-md": ["Pretendard"],
+            "headline-lg": ["Pretendard"],
+            "display-md": ["Pretendard"]
+          },
+          "fontSize": {
+            "display-lg-mobile": ["28px", { "lineHeight": "130%", "fontWeight": "700" }],
+            "hero-num": ["96px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "label-caps": ["12px", { "lineHeight": "100%", "letterSpacing": "0.05em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "160%", "fontWeight": "400" }],
+            "hero-num-md": ["56px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "title-md": ["20px", { "lineHeight": "150%", "fontWeight": "600" }],
+            "display-lg": ["32px", { "lineHeight": "130%", "fontWeight": "700" }],
+            "display-md-mobile": ["48px", { "lineHeight": "56px", "fontWeight": "800" }],
+            "display-xl": ["96px", { "lineHeight": "100px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "display-md": ["56px", { "lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  {% include "components/header.html" %}
+
+  <!-- Main Container -->
+  <main class="pt-[80px] pb-[100px] px-container-padding max-w-[600px] mx-auto space-y-stack-lg">
+    <!-- Hero -->
+    <section class="mt-4 mb-stack-gap">
+      <h2 class="font-display-lg-mobile text-display-lg-mobile text-on-surface tracking-tight mb-2">영수증을 올려주세요</h2>
+      <p class="font-body-lg text-body-lg text-on-surface-variant opacity-80">사진 한 장이면 자동으로 분석해드려요</p>
+    </section>
+
+    <form id="upload-form" action="{{ url_for('delivery.analyze') }}" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <!-- Upload Zone -->
+      <section class="relative mt-8">
+        <label
+          class="upload-dashed w-full h-80 flex flex-col items-center justify-center cursor-pointer group hover:bg-[#1f1f28]/40 transition-all duration-300"
+          for="receipt-upload" style="background-color: #14141C; border: 1px solid rgba(71, 69, 85, 0.3);">
+          <div
+            class="w-16 h-16 rounded-full bg-primary-container/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-primary text-4xl">upload_file</span>
+          </div>
+          <p class="font-title-md text-title-md text-on-surface mb-2" id="upload-label">탭하여 사진 선택 또는 끌어다 놓기</p>
+          <p class="font-label-caps text-label-caps text-outline uppercase tracking-widest">JPG, PNG up to 5MB</p>
+          <input accept="image/jpeg,image/png" class="hidden" id="receipt-upload" name="image" type="file">
+        </label>
+      </section>
+
+      <!-- 파일 미선택 오류 메시지 -->
+      <p id="file-error" class="hidden mt-2 text-center text-sm text-error font-medium">사진을 먼저 선택해주세요.</p>
+
+      <!-- Manual Entry CTA -->
+      <div class="mt-stack-gap flex flex-col items-center">
+        <a href="{{ url_for('delivery.manual_page') }}"
+          class="font-title-md text-title-md text-primary py-4 px-8 rounded-xl active:opacity-60 transition-opacity text-decoration-none">
+          직접 입력하기
+        </a>
       </div>
-      <p class="font-title-md text-title-md text-on-surface mb-2" id="upload-label">탭하여 사진 선택 또는 끌어다 놓기</p>
-      <p class="font-label-caps text-label-caps text-outline uppercase tracking-widest">JPG, PNG up to 5MB</p>
-      <input accept="image/jpeg,image/png" class="hidden" id="receipt-upload" name="image" type="file">
-    </label>
-  </section>
 
-  <!-- 파일 미선택 오류 메시지 -->
-  <p id="file-error" class="hidden mt-2 text-center text-sm text-error font-medium">사진을 먼저 선택해주세요.</p>
+      <!-- Tip Card -->
+      <section class="mt-6">
+        <div class="glass-card rounded-2xl p-card-padding flex gap-4 items-start border-l-4 border-l-tertiary">
+          <div class="flex-shrink-0 mt-1">
+            <span class="material-symbols-outlined text-tertiary">photo_camera</span>
+          </div>
+          <div class="flex flex-col gap-2">
+            <h4 class="font-title-md text-title-md text-on-surface">정확한 분석을 위한 팁</h4>
+            <ul class="flex flex-col gap-3">
+              <li class="flex items-center gap-2 text-on-surface-variant text-sm"><span
+                  class="w-1 h-1 rounded-full bg-outline"></span>영수증의 모든 내용이 밝게 나오도록 촬영해주세요</li>
+              <li class="flex items-center gap-2 text-on-surface-variant text-sm"><span
+                  class="w-1 h-1 rounded-full bg-outline"></span>글자가 흔들리지 않게 평평한 곳에 두고 찍어주세요</li>
+              <li class="flex items-center gap-2 text-on-surface-variant text-sm"><span
+                  class="w-1 h-1 rounded-full bg-outline"></span>주문 내역과 결제 금액이 명확히 포함되어야 해요</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
-  <!-- Manual Entry CTA -->
-  <div class="mt-stack-gap flex flex-col items-center">
-    <a href="{{ url_for('delivery.manual_page') }}" class="font-title-md text-title-md text-primary py-4 px-8 rounded-xl active:opacity-60 transition-opacity">
-      직접 입력하기
-    </a>
+      <!-- Primary CTA -->
+      <button type="submit"
+        class="gradient-button w-full h-[52px] rounded-xl flex items-center justify-center font-title-md text-on-primary-container shadow-lg shadow-primary-container/20 mt-8">
+        분석 시작하기
+      </button>
+    </form>
+  </main>
+
+  <!-- Loading Overlay (제출 시 표시) -->
+  <div id="loading-overlay"
+    class="fixed inset-0 z-[100] hidden flex-col items-center justify-center bg-background/90 backdrop-blur-md">
+    <div class="w-16 h-16 rounded-full border-4 border-surface-variant border-t-primary animate-spin mb-6"></div>
+    <p id="loading-msg" class="font-title-md text-title-md text-on-surface">영수증 읽는 중...</p>
   </div>
 
-  <!-- Tip Card -->
-  <section class="mt-section-gap">
-    <div class="glass-card rounded-2xl p-card-padding flex gap-4 items-start border-l-4 border-l-tertiary">
-      <div class="flex-shrink-0 mt-1">
-        <span class="material-symbols-outlined text-tertiary">photo_camera</span>
-      </div>
-      <div class="flex flex-col gap-2">
-        <h4 class="font-title-md text-title-md text-on-surface">정확한 분석을 위한 팁</h4>
-        <ul class="flex flex-col gap-3">
-          <li class="flex items-center gap-2 text-on-surface-variant text-sm"><span class="w-1 h-1 rounded-full bg-outline"></span>영수증의 모든 내용이 밝게 나오도록 촬영해주세요</li>
-          <li class="flex items-center gap-2 text-on-surface-variant text-sm"><span class="w-1 h-1 rounded-full bg-outline"></span>글자가 흔들리지 않게 평평한 곳에 두고 찍어주세요</li>
-          <li class="flex items-center gap-2 text-on-surface-variant text-sm"><span class="w-1 h-1 rounded-full bg-outline"></span>주문 내역과 결제 금액이 명확히 포함되어야 해요</li>
-        </ul>
-      </div>
-    </div>
-  </section>
+  {% set active_tab = 'delivery' %}
+  {% include "components/footer.html" %}
 
-  <!-- Primary CTA (in-flow; 하단탭 위에 위치) -->
-  <button type="submit" class="gradient-button w-full h-[52px] rounded-xl flex items-center justify-center font-title-md text-on-primary-container shadow-lg shadow-primary-container/20 mt-section-gap">
-    분석 시작하기
-  </button>
-</form>
+  <script>
+      (function () {
+        const zone = document.querySelector('.upload-dashed');
+        const input = document.getElementById('receipt-upload');
+        const label = document.getElementById('upload-label');
+        const form = document.getElementById('upload-form');
+        const overlay = document.getElementById('loading-overlay');
+        const msg = document.getElementById('loading-msg');
 
-<!-- Loading Overlay (제출 시 표시) -->
-<div id="loading-overlay" class="fixed inset-0 z-[100] hidden flex-col items-center justify-center bg-background/90 backdrop-blur-md">
-  <div class="w-16 h-16 rounded-full border-4 border-surface-variant border-t-primary animate-spin mb-6"></div>
-  <p id="loading-msg" class="font-title-md text-title-md text-on-surface">영수증 읽는 중...</p>
-</div>
-{% endblock %}
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('bg-surface-container-high'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('bg-surface-container-high'));
+        zone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          zone.classList.remove('bg-surface-container-high');
+          if (e.dataTransfer.files.length > 0) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+        });
+        input.addEventListener('change', () => {
+          if (input.files.length > 0) label.textContent = input.files[0].name;
+        });
 
-{% block scripts %}
-<script>
-  (function () {
-    const zone = document.querySelector('.upload-dashed');
-    const input = document.getElementById('receipt-upload');
-    const label = document.getElementById('upload-label');
-    const form = document.getElementById('upload-form');
-    const overlay = document.getElementById('loading-overlay');
-    const msg = document.getElementById('loading-msg');
+        const fileError = document.getElementById('file-error');
+        const steps = ['영수증 읽는 중...', '메뉴 항목 분석 중...', '칼로리 계산 중...', '결과 정리 중...'];
+        let intervalId = null;
+        form.addEventListener('submit', (e) => {
+          if (input.files.length === 0) {
+            e.preventDefault();
+            fileError.classList.remove('hidden');
+            return;
+          }
+          fileError.classList.add('hidden');
+          overlay.classList.remove('hidden');
+          overlay.classList.add('flex');
+          let i = 0;
+          intervalId = setInterval(() => { i = (i + 1) % steps.length; msg.textContent = steps[i]; }, 1500);
+        });
 
-    // 드래그&드롭 → file input 에 반영
-    zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('bg-surface-container-high'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('bg-surface-container-high'));
-    zone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      zone.classList.remove('bg-surface-container-high');
-      if (e.dataTransfer.files.length > 0) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
-    });
-    input.addEventListener('change', () => {
-      if (input.files.length > 0) label.textContent = input.files[0].name;
-    });
+        window.addEventListener('pageshow', (e) => {
+          if (e.persisted) {
+            if (intervalId) { clearInterval(intervalId); intervalId = null; }
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+          }
+        });
+      })();
+  </script>
+</body>
 
-    // 제출 시 로딩 오버레이 + 단계별 메시지
-    const fileError = document.getElementById('file-error');
-    const steps = ['영수증 읽는 중...', '메뉴 항목 분석 중...', '칼로리 계산 중...', '결과 정리 중...'];
-    let intervalId = null;
-    form.addEventListener('submit', (e) => {
-      if (input.files.length === 0) {
-        e.preventDefault();
-        fileError.classList.remove('hidden');
-        return;
-      }
-      fileError.classList.add('hidden');
-      overlay.classList.remove('hidden');
-      overlay.classList.add('flex');
-      let i = 0;
-      intervalId = setInterval(() => { i = (i + 1) % steps.length; msg.textContent = steps[i]; }, 1500);
-    });
-
-    // bfcache 복귀 시 오버레이 정리 (setInterval 누적 방지)
-    window.addEventListener('pageshow', (e) => {
-      if (e.persisted) {
-        if (intervalId) { clearInterval(intervalId); intervalId = null; }
-        overlay.classList.add('hidden');
-        overlay.classList.remove('flex');
-      }
-    });
-  })();
-</script>
-{% endblock %}
+</html>

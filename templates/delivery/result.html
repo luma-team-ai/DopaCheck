@@ -1,89 +1,288 @@
-{% extends "_app_base.html" %}
-{% block title %}배달 분석 결과{% endblock %}
-{% block page_title %}분석 결과{% endblock %}
-{% block content %}
-{# 칼로리 맵 (음식명 → kcal) #}
-{% set cal_map = {} %}
-{% if calories %}
-  {% for c in calories %}{% set _ = cal_map.update({c.name: c.kcal}) %}{% endfor %}
-{% endif %}
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>배달 분석 결과 | DopaCheck</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Pretendard", "Inter", sans-serif;
+      background-color: #0A0A0F;
+      color: #e4e1ed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
+    .glass-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+    }
+    .primary-gradient {
+      background: linear-gradient(135deg, #6b5bff 0%, #c5c0ff 100%);
+    }
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei);
+      z-index: 99;
+    }
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: -1;
+    }
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #6b5bff;
+      top: -100px;
+      right: -100px;
+    }
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #8c0a46;
+      bottom: 100px;
+      left: -50px;
+    }
 
-<div class="space-y-6 mt-6">
-  <!-- Hero: 오늘 도파민 지출 -->
-  <div class="glass-card rounded-[2rem] p-card-padding text-center overflow-hidden relative">
-    <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
-    <p class="font-label-caps text-on-surface-variant mb-2">오늘 도파민 지출</p>
-    <h2 class="font-display-lg text-hero-num-md text-primary glow-text tracking-tighter mb-4">{{ "{:,}".format(total_price) }}원</h2>
-    <div class="inline-flex items-center gap-2 px-4 py-2 bg-surface-container-high rounded-full border border-outline-variant/20">
-      <span class="material-symbols-outlined text-tertiary text-lg">restaurant</span>
-      <p class="text-sm text-tertiary font-medium">{{ spending_conv.chicken_label }} · {{ spending_conv.gym_label }}</p>
-    </div>
-  </div>
+    /* ── 배달 분석 결과 전용 ── */
+    .glow-text {
+      text-shadow: 0 0 24px rgba(107, 91, 255, 0.35);
+    }
+    .gradient-button {
+      background: linear-gradient(135deg, #6b5bff 0%, #ff95b4 100%);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .gradient-button:active {
+      transform: scale(0.98);
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-container": "#bb5a00",
+            "surface-container-high": "#2a2933",
+            "tertiary": "#ffb689",
+            "on-secondary-fixed": "#3f001b",
+            "inverse-primary": "#5340e7",
+            "inverse-surface": "#e5e0ee",
+            "surface-container": "#1f1f28",
+            "on-tertiary": "#512300",
+            "secondary-fixed": "#ffd9e1",
+            "on-background": "#e5e0ee",
+            "error-container": "#93000a",
+            "background": "#13121c",
+            "on-error": "#690005",
+            "surface-dim": "#13121c",
+            "surface-bright": "#393842",
+            "primary-fixed-dim": "#c5c0ff",
+            "outline-variant": "#474555",
+            "tertiary-fixed": "#ffdbc8",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-primary-container": "#fffdff",
+            "primary-fixed": "#e3dfff",
+            "primary": "#c5c0ff",
+            "on-tertiary-fixed-variant": "#743500",
+            "on-surface": "#e5e0ee",
+            "surface-variant": "#35343e",
+            "outline": "#918ea1",
+            "inverse-on-surface": "#302f39",
+            "on-tertiary-container": "#fffdff",
+            "secondary": "#ffb1c5",
+            "secondary-fixed-dim": "#ffb1c5",
+            "tertiary-fixed-dim": "#ffb689",
+            "surface": "#13121c",
+            "on-surface-variant": "#c8c4d8",
+            "surface-container-lowest": "#0e0d16",
+            "primary-container": "#6b5bff",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "secondary-container": "#8c0a46",
+            "on-secondary": "#650030",
+            "surface-container-highest": "#35343e",
+            "surface-container-low": "#1b1a24",
+            "on-secondary-container": "#ff95b4",
+            "error": "#ffb4ab",
+            "on-primary-fixed": "#140067",
+            "surface-tint": "#c5c0ff",
+            "on-tertiary-fixed": "#311300",
+            "on-primary": "#2500a2"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "card-padding": "24px",
+            "unit": "4px",
+            "section-gap": "40px",
+            "stack-gap": "16px",
+            "container-padding": "20px",
+            "edge-padding": "20px",
+            "stack-md": "16px",
+            "base": "8px",
+            "stack-lg": "24px",
+            "stack-sm": "8px",
+            "gutter": "16px",
+            "section-margin": "40px"
+          },
+          "fontFamily": {
+            "display-lg-mobile": ["Plus Jakarta Sans"],
+            "hero-num": ["Plus Jakarta Sans"],
+            "label-caps": ["Inter"],
+            "body-lg": ["Inter"],
+            "hero-num-md": ["Plus Jakarta Sans"],
+            "title-md": ["Inter"],
+            "display-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Pretendard"],
+            "display-xl": ["Pretendard"],
+            "label-md": ["Pretendard"],
+            "headline-md": ["Pretendard"],
+            "headline-lg": ["Pretendard"],
+            "display-md": ["Pretendard"]
+          },
+          "fontSize": {
+            "display-lg-mobile": ["28px", { "lineHeight": "130%", "fontWeight": "700" }],
+            "hero-num": ["96px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "label-caps": ["12px", { "lineHeight": "100%", "letterSpacing": "0.05em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "160%", "fontWeight": "400" }],
+            "hero-num-md": ["56px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "title-md": ["20px", { "lineHeight": "150%", "fontWeight": "600" }],
+            "display-lg": ["32px", { "lineHeight": "130%", "fontWeight": "700" }],
+            "display-md-mobile": ["48px", {"lineHeight": "56px", "fontWeight": "800"}],
+            "display-xl": ["96px", {"lineHeight": "100px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+            "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+            "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "display-md": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+            "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
 
-  <!-- 칼로리 카드 -->
-  {% if total_kcal %}
-  <div class="glass-card rounded-2xl p-card-padding flex flex-col gap-4">
-    <div class="flex justify-between items-center">
-      <div class="flex flex-col">
-        <p class="text-on-surface-variant text-xs mb-1">섭취 칼로리</p>
-        <h3 class="font-display-lg text-display-lg text-on-surface">{{ "{:,}".format(total_kcal) }} kcal</h3>
-      </div>
-      <div class="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
-        <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1">bolt</span>
-      </div>
-    </div>
-    <p class="text-sm text-on-surface-variant">
-      = <span class="text-on-surface font-semibold">{{ calorie_conv.running_label }}</span> / {{ calorie_conv.walking_label }} 분량
-    </p>
-  </div>
+  {% set page_title = "분석 결과" %}
+  {% include "components/header.html" %}
+
+  <!-- 칼로리 맵 (음식명 → kcal) -->
+  {% set cal_map = {} %}
+  {% if calories %}
+    {% for c in calories %}{% set _ = cal_map.update({c.name: c.kcal}) %}{% endfor %}
   {% endif %}
 
-  <!-- AI 코멘트 -->
-  {% if comment %}
-  <div class="glass-card rounded-2xl p-card-padding">
-    <div class="flex items-start gap-3">
-      <div class="mt-1 bg-primary/20 p-2 rounded-lg">
-        <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1">auto_awesome</span>
-      </div>
-      <p class="text-sm leading-relaxed text-on-surface">{{ comment }}</p>
+  <!-- Main Container -->
+  <main class="pt-[80px] pb-[100px] px-container-padding max-w-[600px] mx-auto space-y-stack-lg">
+    <!-- Back to Main Link -->
+    <div>
+      <a href="{{ url_for('delivery.delivery_page') }}" class="inline-flex items-center gap-2 text-primary hover:text-primary-fixed-dim transition-colors text-sm font-semibold text-decoration-none">
+        <span class="material-symbols-outlined text-base">arrow_back</span>
+        영수증 업로드로 돌아가기
+      </a>
     </div>
-  </div>
-  {% endif %}
 
-  <!-- 주문 내역 -->
-  {% if items %}
-  <div class="space-y-4">
-    <div class="flex justify-between items-end px-1">
-      <h4 class="font-bold text-lg text-on-surface">주문 내역</h4>
-      {% if delivery_fee %}<span class="text-xs text-on-surface-variant">배달비 {{ "{:,}".format(delivery_fee) }}원</span>{% endif %}
+    <!-- Hero: 오늘 도파민 지출 -->
+    <div class="glass-card rounded-[2rem] p-card-padding text-center overflow-hidden relative">
+      <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
+      <p class="font-label-caps text-on-surface-variant mb-2">오늘 도파민 지출</p>
+      <h2 class="font-display-lg text-hero-num-md text-primary glow-text tracking-tighter mb-4">{{ "{:,}".format(total_price) }}원</h2>
+      <div class="inline-flex items-center gap-2 px-4 py-2 bg-surface-container-high rounded-full border border-outline-variant/20">
+        <span class="material-symbols-outlined text-tertiary text-lg">restaurant</span>
+        <p class="text-sm text-tertiary font-medium">{{ spending_conv.chicken_label }} · {{ spending_conv.gym_label }}</p>
+      </div>
     </div>
-    <div class="space-y-3">
-      {% for item in items %}
-      <div class="glass-card p-4 rounded-xl flex items-center justify-between">
+
+    <!-- 칼로리 카드 -->
+    {% if total_kcal %}
+    <div class="glass-card rounded-2xl p-card-padding flex flex-col gap-4">
+      <div class="flex justify-between items-center">
         <div class="flex flex-col">
-          <span class="text-on-surface font-semibold">{{ item.name }}</span>
-          <span class="text-xs text-on-surface-variant">
-            {{ item.quantity or 1 }}개{% if item.price %} · {{ "{:,}".format(item.price | int) }}원{% endif %}
-          </span>
+          <p class="text-on-surface-variant text-xs mb-1">섭취 칼로리</p>
+          <h3 class="font-display-lg text-display-lg text-on-surface">{{ "{:,}".format(total_kcal) }} kcal</h3>
         </div>
-        {% set kcal = cal_map.get(item.name) %}
-        {% if kcal %}
-        <span class="bg-surface-variant/50 text-[10px] px-2 py-1 rounded-full text-on-surface-variant font-bold">{{ "{:,}".format(kcal | int) }} kcal</span>
-        {% endif %}
+        <div class="w-12 h-12 rounded-full bg-secondary/20 flex items-center justify-center">
+          <span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1">bolt</span>
+        </div>
       </div>
-      {% endfor %}
+      <p class="text-sm text-on-surface-variant">
+        = <span class="text-on-surface font-semibold">{{ calorie_conv.running_label }}</span> / {{ calorie_conv.walking_label }} 분량
+      </p>
     </div>
-  </div>
-  {% endif %}
+    {% endif %}
 
-  <!-- 액션 -->
-  <div class="flex flex-col gap-3 pt-2">
-    <a href="{{ url_for('report.report_page') }}" class="gradient-button h-[52px] w-full rounded-xl flex items-center justify-center text-on-primary-container font-bold text-lg shadow-lg shadow-primary/20">
-      리포트에서 보기
-    </a>
-    <a href="{{ url_for('delivery.delivery_page') }}" class="h-[52px] w-full bg-transparent border border-outline-variant/30 rounded-xl flex items-center justify-center text-on-surface font-medium text-lg active:scale-[0.98] transition-transform">
-      다시 분석
-    </a>
-  </div>
-</div>
-{% endblock %}
+    <!-- AI 코멘트 -->
+    {% if comment %}
+    <div class="glass-card rounded-2xl p-card-padding">
+      <div class="flex items-start gap-3">
+        <div class="mt-1 bg-primary/20 p-2 rounded-lg flex-shrink-0">
+          <span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1">auto_awesome</span>
+        </div>
+        <p class="text-sm leading-relaxed text-on-surface">{{ comment }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 주문 내역 -->
+    {% if items %}
+    <div class="space-y-4">
+      <div class="flex justify-between items-end px-1">
+        <h4 class="font-bold text-lg text-on-surface">주문 내역</h4>
+        {% if delivery_fee %}<span class="text-xs text-on-surface-variant">배달비 {{ "{:,}".format(delivery_fee) }}원</span>{% endif %}
+      </div>
+      <div class="space-y-3">
+        {% for item in items %}
+        <div class="glass-card p-4 rounded-xl flex items-center justify-between">
+          <div class="flex flex-col">
+            <span class="text-on-surface font-semibold">{{ item.name }}</span>
+            <span class="text-xs text-on-surface-variant">
+              {{ item.quantity or 1 }}개{% if item.price %} · {{ "{:,}".format(item.price | int) }}원{% endif %}
+            </span>
+          </div>
+          {% set kcal = cal_map.get(item.name) %}
+          {% if kcal %}
+          <span class="bg-surface-variant/50 text-[10px] px-2 py-1 rounded-full text-on-surface-variant font-bold">{{ "{:,}".format(kcal | int) }} kcal</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 액션 -->
+    <div class="flex flex-col gap-3 pt-2">
+      <a href="{{ url_for('report.report_page') }}" class="gradient-button h-[52px] w-full rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20 text-decoration-none">
+        리포트에서 보기
+      </a>
+      <a href="{{ url_for('delivery.delivery_page') }}" class="h-[52px] w-full bg-transparent border border-outline-variant/30 rounded-xl flex items-center justify-center text-on-surface font-semibold text-lg active:scale-[0.98] transition-transform text-decoration-none">
+        다시 분석
+      </a>
+    </div>
+  </main>
+
+  {% set active_tab = 'delivery' %}
+  {% include "components/footer.html" %}
+</body>
+</html>

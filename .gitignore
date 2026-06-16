@@ -27,3 +27,6 @@ node_modules/
 
 # Playwright MCP 잔재
 .playwright-mcp/
+
+# Claude IDE 폴더
+.claude/

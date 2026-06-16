@@ -1,305 +1,332 @@
-{% extends 'base.html' %}
-{% block title %}시간 분석{% endblock %}
+<!DOCTYPE html>
+<html class="dark" lang="ko">
 
-{% block nav %}
-<header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 flex items-center justify-between px-container-padding h-16">
-  <a href="{{ url_for('index') }}" class="p-2 active:scale-95 transition-transform text-primary">
-    <span class="material-symbols-outlined">arrow_back</span>
-  </a>
-  <h1 class="font-display-lg text-[20px] font-bold text-on-surface">시간 분석</h1>
-  <div class="w-10"></div>
-</header>
-{% endblock nav %}
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>시간 분석 | DopaCheck</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+    rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Pretendard", sans-serif;
+      background-color: #0A0A0F;
+      color: #e4e1ed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
 
-{% block head %}
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
-  rel="stylesheet">
-<link
-  href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
-  rel="stylesheet">
-<script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        "colors": {
-          "tertiary-container": "#bb5a00",
-          "surface-container-high": "#2a2933",
-          "tertiary": "#ffb689",
-          "on-secondary-fixed": "#3f001b",
-          "inverse-primary": "#5340e7",
-          "inverse-surface": "#e5e0ee",
-          "surface-container": "#1f1f28",
-          "on-tertiary": "#512300",
-          "secondary-fixed": "#ffd9e1",
-          "on-background": "#e5e0ee",
-          "error-container": "#93000a",
-          "background": "#13121c",
-          "on-error": "#690005",
-          "surface-dim": "#13121c",
-          "surface-bright": "#393842",
-          "primary-fixed-dim": "#c5c0ff",
-          "outline-variant": "#474555",
-          "tertiary-fixed": "#ffdbc8",
-          "on-error-container": "#ffdad6",
-          "on-primary-fixed-variant": "#3a1bd0",
-          "on-primary-container": "#fffdff",
-          "primary-fixed": "#e3dfff",
-          "primary": "#c5c0ff",
-          "on-tertiary-fixed-variant": "#743500",
-          "on-surface": "#e5e0ee",
-          "surface-variant": "#35343e",
-          "outline": "#918ea1",
-          "inverse-on-surface": "#302f39",
-          "on-tertiary-container": "#fffdff",
-          "secondary": "#ffb1c5",
-          "secondary-fixed-dim": "#ffb1c5",
-          "tertiary-fixed-dim": "#ffb689",
-          "surface": "#13121c",
-          "on-surface-variant": "#c8c4d8",
-          "surface-container-lowest": "#0e0d16",
-          "primary-container": "#6b5bff",
-          "on-secondary-fixed-variant": "#8c0a46",
-          "secondary-container": "#8c0a46",
-          "on-secondary": "#650030",
-          "surface-container-highest": "#35343e",
-          "surface-container-low": "#1b1a24",
-          "on-secondary-container": "#ff95b4",
-          "error": "#ffb4ab",
-          "on-primary-fixed": "#140067",
-          "surface-tint": "#c5c0ff",
-          "on-tertiary-fixed": "#311300",
-          "on-primary": "#2500a2"
+    .glass-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+    }
+
+    .primary-gradient {
+      background: linear-gradient(135deg, #6b5bff 0%, #c5c0ff 100%);
+    }
+
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei);
+      z-index: 99;
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: -1;
+    }
+
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #6b5bff;
+      top: -100px;
+      right: -100px;
+    }
+
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #8c0a46;
+      bottom: 100px;
+      left: -50px;
+    }
+
+    /* ── 시간 분석 전용 스타일 ── */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .input-card {
+      background-color: #1f1f28;
+      border: 1px solid rgba(197, 192, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .input-card:focus-within {
+      border-color: rgba(197, 192, 255, 0.5);
+      background-color: #2a2933;
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-tint": "#c5c0ff",
+            "inverse-on-surface": "#303038",
+            "secondary-container": "#8c0a46",
+            "tertiary-fixed-dim": "#2fe0a6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-tertiary-container": "#fcfffa",
+            "primary-container": "#6b5bff",
+            "on-primary-container": "#fffdff",
+            "outline-variant": "#474555",
+            "surface-container-low": "#1b1b23",
+            "on-secondary-fixed": "#3f001b",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "on-secondary-container": "#ff95b4",
+            "on-background": "#e4e1ed",
+            "on-error": "#690005",
+            "on-tertiary-fixed-variant": "#005139",
+            "tertiary-container": "#008660",
+            "primary-fixed": "#e3dfff",
+            "tertiary": "#2fe0a6",
+            "on-error-container": "#ffdad6",
+            "inverse-surface": "#e4e1ed",
+            "surface": "#13131b",
+            "surface-container-high": "#292932",
+            "on-secondary": "#650030",
+            "on-primary-fixed": "#140067",
+            "background": "#13131b",
+            "on-primary": "#2500a2",
+            "secondary": "#ffb1c5",
+            "surface-container-lowest": "#0d0d15",
+            "secondary-fixed-dim": "#ffb1c5",
+            "error": "#ffb4ab",
+            "primary-fixed-dim": "#c5c0ff",
+            "inverse-primary": "#5340e7",
+            "on-tertiary-fixed": "#002115",
+            "outline": "#918ea1",
+            "surface-variant": "#34343d",
+            "surface-container": "#1f1f27",
+            "on-tertiary": "#003826",
+            "primary": "#c5c0ff",
+            "on-surface": "#e4e1ed",
+            "on-surface-variant": "#c8c4d8",
+            "surface-dim": "#13131b",
+            "surface-bright": "#393841",
+            "tertiary-fixed": "#59fdc0",
+            "error-container": "#93000a",
+            "surface-container-highest": "#34343d",
+            "secondary-fixed": "#ffd9e1"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "edge-padding": "20px",
+            "stack-md": "16px",
+            "base": "8px",
+            "stack-lg": "24px",
+            "stack-sm": "8px",
+            "gutter": "16px",
+            "section-margin": "40px"
+          },
+          "fontFamily": {
+            "body-lg": ["Pretendard"],
+            "display-md-mobile": ["Pretendard"],
+            "display-xl": ["Pretendard"],
+            "label-md": ["Pretendard"],
+            "headline-md": ["Pretendard"],
+            "headline-lg": ["Pretendard"],
+            "display-md": ["Pretendard"],
+            "body-md": ["Pretendard"]
+          },
+          "fontSize": {
+            "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+            "display-md-mobile": ["48px", { "lineHeight": "56px", "fontWeight": "800" }],
+            "display-xl": ["96px", { "lineHeight": "100px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "display-md": ["56px", { "lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+          }
         },
-        "borderRadius": {
-          "DEFAULT": "0.25rem",
-          "lg": "0.5rem",
-          "xl": "0.75rem",
-          "full": "9999px"
-        },
-        "spacing": {
-          "card-padding": "24px",
-          "unit": "4px",
-          "section-gap": "40px",
-          "stack-gap": "16px",
-          "container-padding": "20px"
-        },
-        "fontFamily": {
-          "display-lg-mobile": ["Plus Jakarta Sans"],
-          "hero-num": ["Plus Jakarta Sans"],
-          "label-caps": ["Inter"],
-          "body-lg": ["Inter"],
-          "hero-num-md": ["Plus Jakarta Sans"],
-          "title-md": ["Inter"],
-          "display-lg": ["Plus Jakarta Sans"]
-        },
-        "fontSize": {
-          "display-lg-mobile": ["28px", { "lineHeight": "130%", "fontWeight": "700" }],
-          "hero-num": ["96px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
-          "label-caps": ["12px", { "lineHeight": "100%", "letterSpacing": "0.05em", "fontWeight": "600" }],
-          "body-lg": ["16px", { "lineHeight": "160%", "fontWeight": "400" }],
-          "hero-num-md": ["56px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
-          "title-md": ["20px", { "lineHeight": "150%", "fontWeight": "600" }],
-          "display-lg": ["32px", { "lineHeight": "130%", "fontWeight": "700" }]
-        }
       },
-    },
-  }
-</script>
-<style>
-  body {
-    background-color: #13121c;
-    color: #e5e0ee;
-    font-family: 'Inter', sans-serif;
-    overflow-x: hidden;
-    min-height: max(884px, 100dvh);
-  }
-
-  .material-symbols-outlined {
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  }
-
-  .bg-orb {
-    filter: blur(80px);
-    opacity: 0.15;
-    position: fixed;
-    z-index: -1;
-    border-radius: 50%;
-    animation: drift 20s infinite alternate ease-in-out;
-  }
-
-  @keyframes drift {
-    from {
-      transform: translate(-10%, -10%);
     }
+  </script>
+</head>
 
-    to {
-      transform: translate(20%, 20%);
-    }
-  }
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
 
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
+  {% include "components/header.html" %}
 
-  .input-card {
-    background-color: #1f1f28;
-    border: 1px solid rgba(197, 192, 255, 0.1);
-    transition: all 0.3s ease;
-  }
+  <!-- Main Container -->
+  <main class="pt-[80px] pb-[100px] px-edge-padding max-w-[600px] mx-auto space-y-stack-lg">
+    <form action="{{ url_for('time.analyze') }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
-  .input-card:focus-within {
-    border-color: rgba(197, 192, 255, 0.5);
-    background-color: #2a2933;
-  }
-</style>
-{% endblock head %}
+      <!-- Headline -->
+      <section class="mb-6 mt-4">
+        <h2 class="text-2xl font-bold mb-2">이번 주, 얼마나 썼나요?</h2>
+        <p class="text-on-surface-variant text-sm">각 앱에 쓴 시간을 시간 단위로 입력해주세요</p>
+      </section>
 
-{% block content %}
-<!-- Atmospheric Background Orbs -->
-<div class="bg-orb w-96 h-96 bg-primary top-[-10%] left-[-10%]"></div>
-<div class="bg-orb w-80 h-80 bg-secondary bottom-[20%] right-[-5%]"></div>
-
-<form action="{{ url_for('time.analyze') }}" method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <div class="pt-24 pb-32 max-w-lg mx-auto">
-    <!-- Headline -->
-    <section class="mb-section-gap">
-      <h2 class="font-display-lg-mobile text-display-lg-mobile mb-2">이번 주, 얼마나 썼나요?</h2>
-      <p class="font-body-lg text-on-surface-variant">각 앱에 쓴 시간을 시간 단위로 입력해주세요</p>
-    </section>
-
-    <!-- Input Section -->
-    <div class="flex flex-col gap-stack-gap">
-      <!-- YouTube Card -->
-      <div class="input-card rounded-xl p-card-padding flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-full bg-[#FF0000]/20 flex items-center justify-center text-[#FF0000]">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+      <!-- Input Section -->
+      <div class="flex flex-col gap-4">
+        <!-- YouTube Card -->
+        <div class="input-card rounded-xl p-5 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-[#FF0000]/20 flex items-center justify-center text-[#FF0000]">
+              <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+            </div>
+            <div>
+              <p class="text-on-surface font-bold">YouTube</p>
+              <span
+                class="text-[11px] text-on-surface-variant font-semibold uppercase tracking-wider">Entertainment</span>
+            </div>
           </div>
-          <div>
-            <p class="font-title-md text-on-surface">YouTube</p>
-            <span class="text-label-caps text-on-surface-variant uppercase">Entertainment</span>
+          <div class="flex items-center gap-2">
+            <input id="youtube_h" name="youtube_h"
+              class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
+              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+            <span class="text-on-surface-variant font-semibold pt-1">h</span>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <input id="youtube_h" name="youtube_h"
-            class="bg-transparent border-none text-right font-hero-num-md text-hero-num-md w-24 p-0 tabular-nums focus:ring-0 text-primary"
-            placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
-          <span class="font-title-md text-on-surface-variant pt-2">h</span>
+
+        <!-- Instagram Card -->
+        <div class="input-card rounded-xl p-5 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div
+              class="w-12 h-12 rounded-full bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] opacity-80 flex items-center justify-center text-white">
+              <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span>
+            </div>
+            <div>
+              <p class="text-on-surface font-bold">Instagram</p>
+              <span class="text-[11px] text-on-surface-variant font-semibold uppercase tracking-wider">Social</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="instagram_h" name="instagram_h"
+              class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
+              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+            <span class="text-on-surface-variant font-semibold pt-1">h</span>
+          </div>
         </div>
+
+        <!-- TikTok Card -->
+        <div class="input-card rounded-xl p-5 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-[#00f2ea]/20 flex items-center justify-center text-[#00f2ea]">
+              <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">movie</span>
+            </div>
+            <div>
+              <p class="text-on-surface font-bold">TikTok</p>
+              <span class="text-[11px] text-on-surface-variant font-semibold uppercase tracking-wider">Short-form</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="tiktok_h" name="tiktok_h"
+              class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
+              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+            <span class="text-on-surface-variant font-semibold pt-1">h</span>
+          </div>
+        </div>
+
+        <!-- Game Card -->
+        <div class="input-card rounded-xl p-5 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+              <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">videogame_asset</span>
+            </div>
+            <div>
+              <p class="text-on-surface font-bold">Game</p>
+              <span class="text-[11px] text-on-surface-variant font-semibold uppercase tracking-wider">Gaming</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="game_h" name="game_h"
+              class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
+              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+            <span class="text-on-surface-variant font-semibold pt-1">h</span>
+          </div>
+        </div>
+
+        <div class="my-4 border-t border-outline-variant/20"></div>
+
+        <!-- Hourly Wage Card -->
+        <div
+          class="input-card rounded-xl p-5 flex items-center justify-between bg-surface-container-low border-dashed border-primary/30">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-tertiary">
+              <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
+            </div>
+            <div>
+              <p class="text-[11px] text-on-surface-variant font-semibold uppercase tracking-wider">내 시급</p>
+              <p class="text-on-surface font-bold">기본 설정</p>
+            </div>
+          </div>
+          <div class="flex items-end gap-1">
+            <input id="hourly_wage" name="hourly_wage"
+              class="bg-transparent border-none text-right text-xl font-bold w-24 p-0 tabular-nums focus:ring-0"
+              type="number" value="{{ hourly_wage }}" min="0">
+            <span class="text-on-surface-variant text-sm mb-0.5">원/h</span>
+          </div>
+        </div>
+
+        <!-- Submit Button in-flow -->
+        <button type="submit"
+          class="w-full h-[52px] bg-gradient-to-r from-primary-container to-[#8c0a46] rounded-xl flex items-center justify-center text-base font-bold text-white shadow-lg shadow-primary/20 active:scale-[0.98] transition-all duration-200 mt-8">
+          분석하기
+        </button>
       </div>
+    </form>
+  </main>
 
-      <!-- Instagram Card -->
-      <div class="input-card rounded-xl p-card-padding flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div
-            class="w-12 h-12 rounded-full bg-gradient-to-tr from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] opacity-80 flex items-center justify-center text-white">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">camera</span>
-          </div>
-          <div>
-            <p class="font-title-md text-on-surface">Instagram</p>
-            <span class="text-label-caps text-on-surface-variant uppercase">Social</span>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <input id="instagram_h" name="instagram_h"
-            class="bg-transparent border-none text-right font-hero-num-md text-hero-num-md w-24 p-0 tabular-nums focus:ring-0 text-primary"
-            placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
-          <span class="font-title-md text-on-surface-variant pt-2">h</span>
-        </div>
-      </div>
+  {% set active_tab = 'delivery' %}
+  {% include "components/footer.html" %}
 
-      <!-- TikTok Card -->
-      <div class="input-card rounded-xl p-card-padding flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-full bg-[#00f2ea]/20 flex items-center justify-center text-[#00f2ea]">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">movie</span>
-          </div>
-          <div>
-            <p class="font-title-md text-on-surface">TikTok</p>
-            <span class="text-label-caps text-on-surface-variant uppercase">Short-form</span>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <input id="tiktok_h" name="tiktok_h"
-            class="bg-transparent border-none text-right font-hero-num-md text-hero-num-md w-24 p-0 tabular-nums focus:ring-0 text-primary"
-            placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
-          <span class="font-title-md text-on-surface-variant pt-2">h</span>
-        </div>
-      </div>
-
-      <!-- Game Card -->
-      <div class="input-card rounded-xl p-card-padding flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">videogame_asset</span>
-          </div>
-          <div>
-            <p class="font-title-md text-on-surface">Game</p>
-            <span class="text-label-caps text-on-surface-variant uppercase">Gaming</span>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <input id="game_h" name="game_h"
-            class="bg-transparent border-none text-right font-hero-num-md text-hero-num-md w-24 p-0 tabular-nums focus:ring-0 text-primary"
-            placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
-          <span class="font-title-md text-on-surface-variant pt-2">h</span>
-        </div>
-      </div>
-
-      <div class="my-4 border-t border-outline-variant/20"></div>
-
-      <!-- Hourly Wage Card -->
-      <div
-        class="input-card rounded-xl p-card-padding flex items-center justify-between bg-surface-container-low border-dashed border-primary/30">
-        <div class="flex items-center gap-4">
-          <div class="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-tertiary">
-            <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
-          </div>
-          <div>
-            <p class="font-label-caps text-on-surface-variant uppercase">내 시급</p>
-            <p class="font-title-md text-on-surface">기본 설정</p>
-          </div>
-        </div>
-        <div class="flex items-end gap-1">
-          <input id="hourly_wage" name="hourly_wage"
-            class="bg-transparent border-none text-right font-title-md text-on-surface w-24 p-0 tabular-nums focus:ring-0"
-            type="number" value="{{ hourly_wage }}" min="0">
-          <span class="font-body-lg text-on-surface-variant mb-0.5">원/h</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Bottom CTA -->
-  <footer
-    class="fixed bottom-0 left-0 w-full p-container-padding bg-surface/80 backdrop-blur-xl border-t border-outline-variant/10 z-50">
-    <button type="submit"
-      class="w-full h-[52px] bg-gradient-to-r from-primary-container to-[#8c0a46] rounded-xl flex items-center justify-center font-title-md text-white shadow-lg shadow-primary/20 active:scale-[0.98] transition-transform">
-      분석하기
-    </button>
-  </footer>
-</form>
-{% endblock content %}
-
-{% block scripts %}
-<script>
-  document.querySelectorAll('.input-card').forEach(card => {
-    card.addEventListener('mouseenter', () => {
-      card.style.boxShadow = '0 0 20px rgba(197, 192, 255, 0.05)';
+  <script>
+    document.querySelectorAll('.input-card').forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        card.style.boxShadow = '0 0 20px rgba(197, 192, 255, 0.05)';
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.boxShadow = 'none';
+      });
     });
-    card.addEventListener('mouseleave', () => {
-      card.style.boxShadow = 'none';
-    });
-  });
 
-  document.querySelectorAll('input[type="number"]').forEach(input => {
-    input.addEventListener('input', (e) => {
-      if (e.target.value < 0) e.target.value = 0;
-      if (e.target.name !== 'hourly_wage' && e.target.value > 168) e.target.value = 168;
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+      input.addEventListener('input', (e) => {
+        if (e.target.value < 0) e.target.value = 0;
+        if (e.target.name !== 'hourly_wage' && e.target.value > 168) e.target.value = 168;
+      });
     });
-  });
-</script>
-{% endblock scripts %}
+  </script>
+</body>
+
+</html>
