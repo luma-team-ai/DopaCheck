@@ -72,8 +72,8 @@
         <div class="text-right">
           {% if item.price %}
           <p class="text-sm font-semibold text-on-surface">{{ "{:,}".format(item.price | int) }}원</p>
-          {% elif all_zero and item_count > 0 %}
-          <p class="text-sm font-semibold text-on-surface">{{ "{:,}".format(food_total // item_count) }}원</p>
+          {% elif not all_zero %}
+          <p class="text-sm text-on-surface-variant">-</p>
           {% endif %}
           {% if item.quantity and item.quantity > 1 %}
           <p class="text-[11px] text-on-surface-variant">× {{ item.quantity }}</p>
@@ -84,6 +84,12 @@
       <div class="border-t border-outline-variant/30"></div>
       {% endif %}
       {% endfor %}
+      {% if all_zero and item_count > 0 %}
+      <div class="border-t border-outline-variant/30 mt-3 pt-3 flex justify-between items-center">
+        <p class="text-sm text-on-surface-variant">음식 합계</p>
+        <p class="text-sm font-semibold text-on-surface">{{ "{:,}".format(food_total) }}원</p>
+      </div>
+      {% endif %}
     </div>
   </div>
   {% endif %}
