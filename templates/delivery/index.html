@@ -284,19 +284,28 @@
         const form = document.getElementById('upload-form');
         const overlay = document.getElementById('loading-overlay');
         const msg = document.getElementById('loading-msg');
+        const fileError = document.getElementById('file-error');
 
         zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('bg-surface-container-high'); });
         zone.addEventListener('dragleave', () => zone.classList.remove('bg-surface-container-high'));
         zone.addEventListener('drop', (e) => {
           e.preventDefault();
           zone.classList.remove('bg-surface-container-high');
-          if (e.dataTransfer.files.length > 0) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event('change')); }
+          const file = e.dataTransfer.files[0];
+          if (!file) return;
+          if (!['image/jpeg', 'image/png'].includes(file.type)) {
+            fileError.textContent = 'JPG 또는 PNG 파일만 업로드 가능합니다.';
+            fileError.classList.remove('hidden');
+            return;
+          }
+          fileError.classList.add('hidden');
+          input.files = e.dataTransfer.files;
+          input.dispatchEvent(new Event('change'));
         });
         input.addEventListener('change', () => {
           if (input.files.length > 0) label.textContent = input.files[0].name;
         });
 
-        const fileError = document.getElementById('file-error');
         const steps = ['영수증 읽는 중...', '메뉴 항목 분석 중...', '칼로리 계산 중...', '결과 정리 중...'];
         let intervalId = null;
         form.addEventListener('submit', (e) => {
