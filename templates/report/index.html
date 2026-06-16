@@ -419,17 +419,24 @@
       </div>
     </div>
 
-    <!-- ───────── 공유 버튼 (FR-19) ───────── -->
-    <div class="flex gap-3 mb-8">
-      <button onclick="saveAsImage()"
-        class="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary-container text-on-primary-container font-bold text-sm hover:opacity-90 active:scale-95 transition-all">
-        <span class="material-symbols-outlined text-base">photo_camera</span>
-        이미지 저장
-      </button>
+    <!-- ───────── 액션 버튼 (FR-19) ───────── -->
+    <div class="flex flex-col gap-3 mb-8">
+      <div class="flex gap-3">
+        <button onclick="saveAsImage()"
+          class="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-primary-container text-on-primary-container font-bold text-sm hover:opacity-90 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-base">photo_camera</span>
+          이미지 저장
+        </button>
+        <a href="{{ url_for('history.history_list') }}"
+          class="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-outline-variant text-on-surface-variant font-bold text-sm hover:bg-surface-container active:scale-95 transition-all text-decoration-none">
+          <span class="material-symbols-outlined text-base">history</span>
+          히스토리 보기
+        </a>
+      </div>
       <button onclick="shareToSns()"
-        class="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/10 active:scale-95 transition-all">
+        class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border border-primary/30 text-primary font-bold text-sm hover:bg-primary/10 active:scale-95 transition-all">
         <span class="material-symbols-outlined text-base">share</span>
-        SNS 공유
+        공유
       </button>
     </div>
   </main>
