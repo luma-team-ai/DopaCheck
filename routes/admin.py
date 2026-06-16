@@ -446,14 +446,25 @@ _VALID_TARGET_TYPES = frozenset({"delivery", "time", "both"})
 @admin_bp.route("/challenges")
 @admin_required
 def challenges_page():
-    """챌린지 목록."""
+    """챌린지 목록 (참여자 수 포함)."""
     csrf_token = get_or_create_csrf_token()
-    with db() as cursor:
-        cursor.execute(
-            "SELECT id, title, description, target_type, target_value, is_ai_generated"
-            " FROM challenges ORDER BY title"
-        )
-        challenges = cursor.fetchall() or []
+    try:
+        with db() as cursor:
+            cursor.execute(
+                """
+                SELECT c.id, c.title, c.description, c.target_type, c.target_value,
+                       c.is_ai_generated,
+                       COUNT(uc.id) AS participant_count
+                FROM challenges c
+                LEFT JOIN user_challenges uc ON c.id = uc.challenge_id
+                GROUP BY c.id, c.title, c.description, c.target_type, c.target_value, c.is_ai_generated
+                ORDER BY c.title
+                """
+            )
+            challenges = cursor.fetchall() or []
+    except Exception as e:
+        logger.warning("챌린지 목록 조회 실패: %s", e)
+        challenges = []
     return render_template(
         "admin/challenges.html",
         challenges=challenges,
@@ -499,7 +510,15 @@ def challenges_ai_suggest():
     verify_csrf()
     try:
         with db() as cursor:
-            cursor.execute("SELECT title FROM challenges LIMIT 20")
+            cursor.execute(
+                """
+                SELECT c.title, COUNT(uc.id) AS participant_count
+                FROM challenges c
+                LEFT JOIN user_challenges uc ON c.id = uc.challenge_id
+                GROUP BY c.id, c.title
+                LIMIT 20
+                """
+            )
             existing = cursor.fetchall() or []
     except Exception as e:
         logger.warning("챌린지 목록 조회 실패: %s", e)
@@ -528,6 +547,7 @@ def challenges_delete(challenge_id: str):
 
     try:
         with db() as cursor:
+            cursor.execute("DELETE FROM user_challenges WHERE challenge_id = %s", (challenge_id,))
             cursor.execute("DELETE FROM challenges WHERE id = %s", (challenge_id,))
     except Exception as e:
         logger.warning("챌린지 삭제 실패: %s", e)

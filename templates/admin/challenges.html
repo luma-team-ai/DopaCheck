@@ -83,6 +83,7 @@
       -webkit-mask-composite: xor;
       mask-composite: exclude;
       opacity: 0.5;
+      pointer-events: none;
     }
     .primary-gradient { background: linear-gradient(135deg, #6b5bff 0%, #8c0a46 100%); }
     .type-btn { transition: background-color 0.15s, color 0.15s, border-color 0.15s; }
@@ -381,13 +382,14 @@
                 <p class="text-on-surface-variant text-xs mt-0.5">${escapeHtml(s.description || '')}</p>
                 <p class="text-on-surface-variant text-[11px] mt-1">목표: ${s.target_value || 0}회/단위</p>
               </div>
-              <button type="button"
-                onclick="addChallenge(this, ${JSON.stringify(s).replace(/</g,'\\u003c')})"
-                class="flex-shrink-0 h-10 px-3 rounded-lg bg-primary-container/20 text-primary text-xs font-bold hover:bg-primary-container/40 transition-colors flex items-center gap-1">
+              <button type="button" class="add-btn flex-shrink-0 h-10 px-3 rounded-lg bg-primary-container/20 text-primary text-xs font-bold hover:bg-primary-container/40 transition-colors flex items-center gap-1">
                 <span class="material-symbols-outlined text-[16px]">add</span>추가
               </button>
             </div>
           `;
+          card.querySelector('.add-btn').addEventListener('click', function() {
+            addChallenge(this, s);
+          });
           results.appendChild(card);
         });
         results.classList.remove('hidden');
