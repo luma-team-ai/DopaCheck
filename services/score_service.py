@@ -52,7 +52,9 @@ def recalculate_score(user_id: int) -> None:
         active_challenges = cursor.fetchall() or []
         time_hours = time_total_min / 60
 
-        # 줄이기 챌린지는 주 종료(일요일) 이후에만 달성 판정 — 그 전엔 0회여도 완료 처리 금지
+        # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
+        # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
+        # 주 종료(일요일) 이후에만 달성 판정 — 그 전엔 0회여도 완료 처리 금지
         week_end_date = date.fromisoformat(week_end)
         week_is_over = kst_today() >= week_end_date
 
@@ -63,12 +65,15 @@ def recalculate_score(user_id: int) -> None:
                 progress = delivery_count
                 done = week_is_over and delivery_count <= tv
             elif tt == "time":
-                # target_value 단위는 분(min) — time_total_min과 단위 일치
+                # target_value 단위: 분(min) — time_total_min과 단위 일치
                 progress = time_total_min
                 done = week_is_over and time_total_min <= tv
             else:  # "both"
+                # target_value 단위: 배달은 횟수, 시간은 시(hour) — seed.sql "3시간 이하" 참고.
+                # time 타입(분 단위)과 달리 both 타입은 시간 단위이므로 time_hours로 비교한다.
+                # int() 절삭 시 3.1h → 3h ≤ 3 가 되어 목표 초과를 달성으로 오판 — float 비교 유지.
                 progress = min(delivery_count, int(time_hours))
-                done = week_is_over and delivery_count <= tv and int(time_hours) <= tv
+                done = week_is_over and delivery_count <= tv and time_hours <= tv
 
             if done:
                 cursor.execute(
