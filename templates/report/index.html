@@ -285,11 +285,11 @@
             <span class="w-8 text-right text-secondary font-semibold shrink-0">{{ this_score.time_contribution
               }}점</span>
           </div>
-          <!-- 챌린지 보너스 -->
+          <!-- 챌린지 감점 -->
           <div class="flex items-center gap-1 text-xs text-on-surface-variant">
-            <span class="w-16 shrink-0">챌린지 보너스</span>
+            <span class="w-16 shrink-0">챌린지 감점</span>
             <div class="contribution-bar-track">
-              <div class="contribution-bar-fill bg-tertiary" style="width:{{ this_score.challenge_bonus }}%;"></div>
+              <div class="contribution-bar-fill bg-tertiary" style="width:{{ this_score.challenge_bonus * -1 }}%;"></div>
             </div>
             <span class="w-8 text-right text-tertiary font-semibold shrink-0">{{ this_score.challenge_bonus }}점</span>
           </div>

@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS dopamine_scores (
   score                 INT      NOT NULL CHECK (score BETWEEN 0 AND 100),
   delivery_contribution INT      NOT NULL DEFAULT 0,
   time_contribution     INT      NOT NULL DEFAULT 0,
-  challenge_bonus       INT      NOT NULL DEFAULT 0, -- 챌린지 달성 감점(음수 저장, 0~-20)
+  challenge_bonus       INT      NOT NULL DEFAULT 0 CHECK (challenge_bonus BETWEEN -20 AND 0), -- 챌린지 달성 감점(음수 저장, 0~-20)
   week_start            DATE     NOT NULL,
   created_at            DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_score_user FOREIGN KEY (user_id) REFERENCES users(id),
