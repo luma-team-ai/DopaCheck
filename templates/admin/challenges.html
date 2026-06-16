@@ -113,18 +113,68 @@
   <main class="relative z-10 mt-[56px] pt-6 px-container-padding max-w-[480px] mx-auto">
 
     <!-- 헤더 액션 -->
-    <div class="flex justify-between items-center mb-8">
+    <div class="flex justify-between items-center mb-6">
       <div>
         <span class="text-label-caps font-label-caps text-on-surface-variant uppercase">Overview</span>
         <h2 class="text-title-md font-title-md text-on-surface">전체 챌린지 {{ challenges|length }}개</h2>
       </div>
-      <button
-        class="primary-gradient h-[52px] px-6 rounded-xl flex items-center gap-2 text-white font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
-        onclick="toggleForm()">
-        <span class="material-symbols-outlined text-[20px]">add</span>
-        <span>새 챌린지 추가</span>
-      </button>
+      <div class="flex gap-2">
+        <button id="aiBtnOuter"
+          class="h-[52px] px-4 rounded-xl flex items-center gap-2 bg-surface-container-high border border-outline-variant/30 text-primary font-semibold hover:bg-surface-bright transition-colors active:scale-95"
+          onclick="toggleAiPanel()">
+          <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+          <span class="text-sm">AI 추천</span>
+        </button>
+        <button
+          class="primary-gradient h-[52px] px-5 rounded-xl flex items-center gap-2 text-white font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+          onclick="toggleManualForm()">
+          <span class="material-symbols-outlined text-[20px]">edit</span>
+          <span class="text-sm">수기 추가</span>
+        </button>
+      </div>
     </div>
+
+    <!-- AI 추천 패널 -->
+    <section class="hidden mb-6" id="aiPanel">
+      <div class="glass-card ai-border p-card-padding rounded-2xl relative overflow-hidden">
+        <div class="flex justify-between items-center mb-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+            <h2 class="text-[15px] font-semibold text-on-surface">AI 챌린지 추천</h2>
+          </div>
+          <button type="button" class="text-on-surface-variant hover:text-on-surface transition-colors" onclick="toggleAiPanel()">
+            <span class="material-symbols-outlined text-sm">close</span>
+          </button>
+        </div>
+        <p class="text-xs text-on-surface-variant mb-4">기존 챌린지를 분석해 겹치지 않는 새 챌린지를 추천합니다.</p>
+
+        <!-- 로딩 -->
+        <div class="hidden py-8 flex flex-col items-center gap-3" id="aiLoading">
+          <div class="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-on-surface-variant text-sm">AI가 챌린지를 분석 중...</span>
+        </div>
+
+        <!-- 에러 -->
+        <div class="hidden" id="aiError">
+          <p class="text-error text-sm text-center py-4" id="aiErrorMsg"></p>
+          <button onclick="loadAiSuggestions()" class="w-full h-10 rounded-xl border border-outline-variant/30 text-on-surface-variant text-sm hover:bg-surface-container-high transition-colors">
+            다시 시도
+          </button>
+        </div>
+
+        <!-- 추천 결과 -->
+        <div class="hidden space-y-3" id="aiResults"></div>
+
+        <!-- 초기 버튼 -->
+        <div id="aiInitial">
+          <button onclick="loadAiSuggestions()"
+            class="w-full h-[52px] rounded-xl primary-gradient text-white font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-[0.98] transition-all">
+            <span class="material-symbols-outlined text-[20px]">lightbulb</span>
+            추천받기
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- 챌린지 목록 -->
     <section class="space-y-stack-gap mb-section-gap">
@@ -171,12 +221,12 @@
       {% endif %}
     </section>
 
-    <!-- 새 챌린지 추가 폼 (기본 숨김) -->
+    <!-- 수기 추가 폼 (기본 숨김) -->
     <section class="hidden mb-section-gap" id="challengeForm">
       <div class="glass-card ai-border p-card-padding rounded-2xl relative overflow-hidden">
         <div class="flex justify-between items-center mb-6">
-          <h2 class="text-title-md font-title-md text-on-surface">새 챌린지 추가</h2>
-          <button type="button" class="text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1" onclick="toggleForm()">
+          <h2 class="text-title-md font-title-md text-on-surface">수기 챌린지 추가</h2>
+          <button type="button" class="text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1" onclick="toggleManualForm()">
             <span class="material-symbols-outlined text-sm">close</span>
             <span class="text-label-caps">닫기</span>
           </button>
@@ -254,51 +304,150 @@
   </div>
 
   <script>
-    function toggleForm() {
+    // ── 수기 추가 폼 토글 ─────────────────────────────────────────────────────
+    function toggleManualForm() {
       const form = document.getElementById('challengeForm');
       const isHidden = form.classList.contains('hidden');
       form.classList.toggle('hidden');
-      if (isHidden) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (isHidden) {
+        document.getElementById('aiPanel').classList.add('hidden');
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
-    const typeStyles = {
-      delivery: 'active-delivery',
-      time: 'active-time',
-      both: 'active-both'
-    };
+    const typeStyles = { delivery: 'active-delivery', time: 'active-time', both: 'active-both' };
     function selectType(type) {
       document.getElementById('target_type_input').value = type;
       ['delivery', 'time', 'both'].forEach(t => {
         const btn = document.getElementById('btn-' + t);
         btn.className = 'type-btn h-10 rounded-lg border text-[12px] font-bold';
-        if (t === type) {
-          btn.classList.add(typeStyles[t]);
-        } else {
-          btn.classList.add('border-white/10', 'bg-surface-container-high', 'text-on-surface-variant');
-        }
+        if (t === type) btn.classList.add(typeStyles[t]);
+        else btn.classList.add('border-white/10', 'bg-surface-container-high', 'text-on-surface-variant');
       });
     }
 
-    // 삭제 모달
+    // ── AI 추천 패널 ──────────────────────────────────────────────────────────
+    function toggleAiPanel() {
+      const panel = document.getElementById('aiPanel');
+      const isHidden = panel.classList.contains('hidden');
+      panel.classList.toggle('hidden');
+      if (isHidden) {
+        document.getElementById('challengeForm').classList.add('hidden');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    let _aiLoaded = false;
+
+    async function loadAiSuggestions() {
+      const loading = document.getElementById('aiLoading');
+      const error   = document.getElementById('aiError');
+      const results = document.getElementById('aiResults');
+      const initial = document.getElementById('aiInitial');
+
+      loading.classList.remove('hidden');
+      error.classList.add('hidden');
+      results.classList.add('hidden');
+      initial.classList.add('hidden');
+
+      try {
+        const res = await fetch('{{ url_for("admin.challenges_ai_suggest") }}', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': '{{ csrf_token }}' },
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'AI 추천 실패');
+
+        results.innerHTML = '';
+        (data.suggestions || []).forEach(s => {
+          const TYPE_CFG = {
+            delivery: { bg:'bg-secondary/10', text:'text-secondary', border:'border-secondary/20', label:'DELIVERY' },
+            time:     { bg:'bg-tertiary/10',  text:'text-tertiary',  border:'border-tertiary/20',  label:'TIME' },
+            both:     { bg:'bg-primary/10',   text:'text-primary',   border:'border-primary/20',   label:'BOTH' },
+          };
+          const tc = TYPE_CFG[s.target_type] || TYPE_CFG.both;
+          const card = document.createElement('div');
+          card.className = 'glass-card rounded-xl p-4';
+          card.innerHTML = `
+            <div class="flex items-start gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span class="text-[10px] px-2 py-0.5 ${tc.bg} ${tc.text} border ${tc.border} rounded-full font-bold">${tc.label}</span>
+                  <div class="h-[18px] px-2 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center">
+                    <span class="text-[9px] text-white font-bold">AI 추천</span>
+                  </div>
+                </div>
+                <p class="text-on-surface font-semibold text-sm">${escapeHtml(s.title)}</p>
+                <p class="text-on-surface-variant text-xs mt-0.5">${escapeHtml(s.description || '')}</p>
+                <p class="text-on-surface-variant text-[11px] mt-1">목표: ${s.target_value || 0}회/단위</p>
+              </div>
+              <button type="button"
+                onclick="addChallenge(this, ${JSON.stringify(s).replace(/</g,'\\u003c')})"
+                class="flex-shrink-0 h-10 px-3 rounded-lg bg-primary-container/20 text-primary text-xs font-bold hover:bg-primary-container/40 transition-colors flex items-center gap-1">
+                <span class="material-symbols-outlined text-[16px]">add</span>추가
+              </button>
+            </div>
+          `;
+          results.appendChild(card);
+        });
+        results.classList.remove('hidden');
+        _aiLoaded = true;
+      } catch (e) {
+        document.getElementById('aiErrorMsg').textContent = e.message;
+        error.classList.remove('hidden');
+        initial.classList.remove('hidden');
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
+    function addChallenge(btn, s) {
+      btn.disabled = true;
+      btn.textContent = '추가 중...';
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = '{{ url_for("admin.challenges_create") }}';
+      const fields = {
+        csrf_token: '{{ csrf_token }}',
+        title: s.title,
+        description: s.description || '',
+        target_type: s.target_type,
+        target_value: s.target_value,
+        is_ai_generated: '1',
+      };
+      Object.entries(fields).forEach(([k, v]) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden';
+        inp.name = k;
+        inp.value = v;
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+      form.submit();
+    }
+
+    function escapeHtml(s) {
+      return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── 삭제 모달 ─────────────────────────────────────────────────────────────
     let _pendingForm = null;
     document.querySelectorAll('.delete-form').forEach(form => {
       form.addEventListener('submit', function(e) {
         e.preventDefault();
         _pendingForm = form;
-        const title = form.dataset.title || '이 챌린지';
         document.getElementById('deleteModalText').textContent =
-          `'${title}' 챌린지를 삭제하면 복구할 수 없습니다.`;
+          `'${form.dataset.title || '이 챌린지'}' 챌린지를 삭제하면 복구할 수 없습니다.`;
         const modal = document.getElementById('deleteModal');
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         document.body.style.overflow = 'hidden';
       });
     });
-
     document.getElementById('deleteConfirmBtn').addEventListener('click', function() {
       if (_pendingForm) _pendingForm.submit();
     });
-
     function hideDeleteModal() {
       const modal = document.getElementById('deleteModal');
       modal.classList.add('hidden');

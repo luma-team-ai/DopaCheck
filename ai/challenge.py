@@ -60,3 +60,27 @@ def recommend(history: dict) -> dict:
         raise ValueError(f"챌린지 추천 응답 파싱 실패: {e}") from e
 
     return {"success": True, "recommendations": recommendations}
+
+
+def suggest_new_challenges(existing: list[dict]) -> list[dict]:
+    """관리자용: 기존 챌린지와 겹치지 않는 새 챌린지 3개를 추천한다."""
+    titles_str = "\n".join(f"- {c['title']}" for c in existing) if existing else "없음"
+    prompt = (
+        f"현재 등록된 챌린지 목록:\n{titles_str}\n\n"
+        "위 챌린지들과 겹치지 않는 새로운 챌린지 3개를 한국어로 추천해주세요.\n"
+        "도파민 절제를 목표로 배달앱 사용 줄이기 또는 SNS·게임 시간 줄이기 주제여야 합니다.\n"
+        "각 챌린지는 현실적이고 구체적인 목표값을 가져야 합니다.\n\n"
+        "JSON 배열 형식으로만 응답하세요 (다른 텍스트 없이):\n"
+        '[{"title": "제목", "description": "구체적인 설명", '
+        '"target_type": "delivery 또는 time 또는 both", "target_value": 숫자}, ...]'
+    )
+    response = get_client().messages.create(
+        model=MODEL_CHALLENGE,
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    try:
+        text = extract_text(response)
+        return json.loads(extract_json(text))
+    except (json.JSONDecodeError, ValueError) as e:
+        raise ValueError(f"AI 챌린지 추천 응답 파싱 실패: {e}") from e
