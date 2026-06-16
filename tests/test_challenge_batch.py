@@ -11,7 +11,8 @@ WEEK_RANGES = (THIS_WEEK, LAST_WEEK)
 def _make_db(fetchall_val, fetchone_side_effect):
     cursor = MagicMock()
     cursor.fetchall.return_value = fetchall_val
-    cursor.fetchone.side_effect = fetchone_side_effect
+    # 배치는 본 작업 전 GET_LOCK 결과를 먼저 fetchone 한다 → 락 획득 응답을 맨 앞에 주입.
+    cursor.fetchone.side_effect = [{"got": 1}, *fetchone_side_effect]
 
     @contextmanager
     def _db():
@@ -160,6 +161,27 @@ def test_빈_목록_0반환():
     assert result == 0
     update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE" in str(c)]
     assert len(update_calls) == 0
+
+
+def test_락_미획득시_즉시스킵():
+    """GET_LOCK이 0(다른 워커 보유 중)이면 0 반환하고 pending 조회/UPDATE 미실행."""
+    from scheduler.challenge_batch import settle_last_week_challenges
+
+    cursor = MagicMock()
+    cursor.fetchone.return_value = {"got": 0}
+
+    @contextmanager
+    def _db():
+        yield cursor
+
+    with patch("scheduler.challenge_batch.db", _db), \
+         patch("scheduler.challenge_batch.get_week_ranges", return_value=WEEK_RANGES):
+        result = settle_last_week_challenges()
+
+    assert result == 0
+    calls = [str(c) for c in cursor.execute.call_args_list]
+    assert not any("user_challenges uc JOIN" in c for c in calls)
+    assert not any("UPDATE" in c for c in calls)
 
 
 def test_completed_at_지난주_일요일로_설정():
