@@ -92,6 +92,15 @@ def recalculate_score(user_id: int) -> None:
         # DB 쿼리가 매 페이지 진입마다 나가던 문제(#194 P2)를 막는다.
         # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
         # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
+        #
+        # judge_* 선초기화(#203 봇 P1) — 이 변수들은 아래 for 루프 안에서만 참조되고,
+        # 루프와 if 블록이 동일하게 active_challenges에 게이트되므로 빈 리스트에선 둘 다
+        # 실행되지 않아 실제 NameError는 없다. 그래도 빈 경로 NameError를 원천 차단한다.
+        # judge_start 기본값은 먼 미래("9999-12-31")로 둬, 혹시 참조돼도 가입주차 비교가
+        # False가 되어 '판정 skip'(fail-safe, 오완료 아님)으로 흐르게 한다.
+        judge_start = "9999-12-31"
+        judge_delivery_count = judge_time_total_min = 0
+        judge_time_hours = 0.0
         if active_challenges:
             week_end_date = date.fromisoformat(week_end)
             if kst_today() >= week_end_date:
