@@ -309,7 +309,10 @@
           overlay.classList.remove('hidden');
           overlay.classList.add('flex');
           let i = 0;
-          intervalId = setInterval(() => { i = (i + 1) % steps.length; msg.textContent = steps[i]; }, 1500);
+          intervalId = setInterval(() => {
+            if (i < steps.length - 1) { i++; msg.textContent = steps[i]; }
+            else { clearInterval(intervalId); intervalId = null; }
+          }, 1500);
         });
 
         window.addEventListener('pageshow', (e) => {
