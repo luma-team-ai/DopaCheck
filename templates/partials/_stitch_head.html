@@ -1,37 +1,131 @@
-{# Stitch 디자인 공통 head — tailwind 토큰·폰트·공통 스타일.
-   login.html 및 delivery 앱셸(_app_base.html)에서 {% include %} 로 재사용한다.
-   토큰 출처: dopacheck Stitch Design System (DESIGN.md). #}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
-<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&amp;family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+{# 모바일 앱셸 공통 head — delivery·time·challenge 등 다른 화면과 동일한 CDN Tailwind 설정 사용.
+   _app_base.html(history 화면)에서 include. #}
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet">
 <style>
   body {
-    font-family: 'Pretendard', 'Inter', sans-serif;
-    background-color: #13121c;
-    color: #e5e0ee;
-    -webkit-font-smoothing: antialiased;
+    font-family: "Pretendard", "Inter", sans-serif;
+    background-color: #0A0A0F;
+    color: #e4e1ed;
     overflow-x: hidden;
-    min-height: max(884px, 100dvh);
+    overflow-y: auto;
+    min-height: 100dvh;
   }
-  .font-display-lg { font-family: 'Plus Jakarta Sans', 'Pretendard', sans-serif; }
+  .glass-card {
+    background: #14141C;
+    border: 1px solid rgba(71, 69, 85, 0.3);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+  }
+  .gradient-btn {
+    background: linear-gradient(135deg, #6b5bff 0%, #ff95b4 100%);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  .gradient-btn:active { transform: scale(0.98); }
+  .noise-overlay {
+    position: fixed; inset: 0; pointer-events: none; opacity: 0.03;
+    background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei");
+    z-index: 99;
+  }
+  .orb { position: fixed; border-radius: 50%; filter: blur(100px); opacity: 0.15; z-index: -1; }
+  .orb-1 { width: 400px; height: 400px; background: #6b5bff; top: -100px; right: -100px; }
+  .orb-2 { width: 300px; height: 300px; background: #8c0a46; bottom: 100px; left: -50px; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-  /* Glass surfaces */
-  .glass-card { background: rgba(22, 22, 31, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(197, 192, 255, 0.1); }
-  .glass-panel { background: rgba(22, 22, 31, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(197, 192, 255, 0.1); }
-  /* Gradient CTA */
-  .gradient-button { background: linear-gradient(135deg, #6b5bff 0%, #ff95b4 100%); transition: transform 0.2s ease, opacity 0.2s ease; }
-  .gradient-button:active { transform: scale(0.96); }
-  .gradient-text { background: linear-gradient(135deg, #c5c0ff 0%, #ffb1c5 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .glow-text { text-shadow: 0 0 24px rgba(197, 192, 255, 0.35); }
-  /* Input focus glow */
-  .glow-border:focus-within { border-color: #c5c0ff; box-shadow: 0 0 15px rgba(197, 192, 255, 0.2); }
-  /* Dashed upload zone */
-  .upload-dashed {
-    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='24' ry='24' stroke='%23918EA1' stroke-width='2' stroke-dasharray='12%2c 12' stroke-linecap='square'/%3e%3c/svg%3e");
-    border-radius: 24px;
-  }
-  /* Ambient orbs */
-  .bg-orb { position: fixed; border-radius: 50%; filter: blur(80px); opacity: 0.15; z-index: -1; animation: drift 20s infinite alternate ease-in-out; }
-  @keyframes drift { from { transform: translate(-10%, -10%); } to { transform: translate(20%, 20%); } }
 </style>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "tertiary-container": "#bb5a00",
+          "surface-container-high": "#2a2933",
+          "tertiary": "#ffb689",
+          "on-secondary-fixed": "#3f001b",
+          "inverse-primary": "#5340e7",
+          "inverse-surface": "#e5e0ee",
+          "surface-container": "#1f1f28",
+          "on-tertiary": "#512300",
+          "secondary-fixed": "#ffd9e1",
+          "on-background": "#e5e0ee",
+          "error-container": "#93000a",
+          "background": "#0A0A0F",
+          "on-error": "#690005",
+          "surface-dim": "#13121c",
+          "surface-bright": "#393842",
+          "primary-fixed-dim": "#c5c0ff",
+          "outline-variant": "#474555",
+          "tertiary-fixed": "#ffdbc8",
+          "on-error-container": "#ffdad6",
+          "on-primary-fixed-variant": "#3a1bd0",
+          "on-primary-container": "#fffdff",
+          "primary-fixed": "#e3dfff",
+          "primary": "#c5c0ff",
+          "on-tertiary-fixed-variant": "#743500",
+          "on-surface": "#e4e1ed",
+          "surface-variant": "#35343e",
+          "outline": "#918ea1",
+          "inverse-on-surface": "#302f39",
+          "on-tertiary-container": "#fffdff",
+          "secondary": "#ffb1c5",
+          "secondary-fixed-dim": "#ffb1c5",
+          "tertiary-fixed-dim": "#ffb689",
+          "surface": "#13121c",
+          "on-surface-variant": "#c8c4d8",
+          "surface-container-lowest": "#0e0d16",
+          "primary-container": "#6b5bff",
+          "on-secondary-fixed-variant": "#8c0a46",
+          "secondary-container": "#8c0a46",
+          "on-secondary": "#650030",
+          "surface-container-highest": "#35343e",
+          "surface-container-low": "#1b1a24",
+          "on-secondary-container": "#ff95b4",
+          "error": "#ffb4ab",
+          "on-primary-fixed": "#140067",
+          "surface-tint": "#c5c0ff",
+          "on-tertiary-fixed": "#311300",
+          "on-primary": "#2500a2"
+        },
+        spacing: {
+          "card-padding": "24px",
+          "unit": "4px",
+          "section-gap": "40px",
+          "stack-gap": "16px",
+          "container-padding": "20px",
+          "edge-padding": "20px",
+          "stack-md": "16px",
+          "base": "8px",
+          "stack-lg": "24px",
+          "stack-sm": "8px",
+          "gutter": "16px",
+          "section-margin": "40px"
+        },
+        fontFamily: {
+          "display-lg-mobile": ["Plus Jakarta Sans"],
+          "label-caps": ["Inter"],
+          "body-lg": ["Inter"],
+          "title-md": ["Inter"],
+          "display-lg": ["Plus Jakarta Sans"],
+          "body-md": ["Pretendard"],
+          "label-md": ["Pretendard"],
+          "headline-md": ["Pretendard"],
+          "headline-lg": ["Pretendard"]
+        },
+        fontSize: {
+          "display-lg-mobile": ["28px", { lineHeight: "130%", fontWeight: "700" }],
+          "label-caps": ["12px", { lineHeight: "100%", letterSpacing: "0.05em", fontWeight: "600" }],
+          "body-lg": ["16px", { lineHeight: "160%", fontWeight: "400" }],
+          "title-md": ["20px", { lineHeight: "150%", fontWeight: "600" }],
+          "display-lg": ["32px", { lineHeight: "130%", fontWeight: "700" }],
+          "label-md": ["14px", { lineHeight: "20px", letterSpacing: "0.01em", fontWeight: "500" }],
+          "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "700" }],
+          "headline-lg": ["28px", { lineHeight: "36px", letterSpacing: "-0.01em", fontWeight: "700" }]
+        }
+      }
+    }
+  }
+</script>
