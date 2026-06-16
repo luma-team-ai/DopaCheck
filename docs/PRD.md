@@ -1,32 +1,8 @@
 # PRD — 도파민 대리 만족 (Dopamine Check)
 
 > AI 심화 과정 팀 프로젝트 | 6인 팀 | 개발 기간: 6~7일  
-> 작성일: 2026-06-11 (Ver1.1) / 갱신일: 2026-06-15 (Ver1.4)  
+> 작성일: 2026-06-11 (Ver1.1) / 갱신일: 2026-06-15 (Ver1.2) / 갱신일: 2026-06-15 (Ver1.3)  
 > 팀원: 김승현(DB담당), 김관영(Flask/백엔드), 이은석(서버세팅/프론트), 정재봉(리포트), 허남(히스토리), 오영석(AI모듈/챌린지)
->
-> 📋 진행 현황·팀원별 할 일은 [docs/STATUS.md](STATUS.md) 참조
-
----
-
-## 0-0. Ver1.4 변경 요약 (2026-06-15 — challenges id 타입 정합)
-
-Ver1.3에서 `challenges.id`/`user_challenges.challenge_id`를 BIGINT로 정정(#115)했으나, **운영 DB는 실제로 `CHAR(36)` UUID**였다. 코드(`routes/challenge.py`)가 `int(challenge_id)` 변환을 강제하면서 모든 챌린지 '참여하기'가 400으로 전면 불능이 되는 회귀가 발생했다(#133).
-
-- **challenges.id / user_challenges.challenge_id → `CHAR(36)` UUID로 환원**: 운영 DB 실제 스키마와 일치. `join`은 UUID 문자열로 처리(존재는 FK가 보장). #115의 BIGINT 정정은 운영 DB 미반영 회귀라 되돌림 (PR #135)
-- **운영 영향 없음**: 운영 DB는 이미 char(36) → 코드 머지·pull만으로 복구(DB 마이그레이션 불필요)
-- **후속**: UUID 형식 검증 강화 + 참여 성공 테스트 (#134)
-
----
-
-## 0-1. Ver1.3 변경 요약 (2026-06-15 — 실제 코드 정합)
-
-Ver1.2 문서와 실제 구현 간 불일치를 코드 기준으로 정정했다.
-
-- **AI 모델명 정정**: `claude-sonnet-4-20250514` → 실제 `claude-haiku-4-5` (`config.py` 기준, OCR·칼로리·코멘트·챌린지 전부 동일 모델)
-- **`DB_POOL_TIMEOUT` 환경변수 추가**: 커넥션 풀 소진 대기 한도(초, 기본 30) 초과 시 503 반환 (#71→#92·#94). gthread/eventlet 워커 전환 대비 무한대기 제거
-- **챌린지 달성/보너스 상태 정정**: FR-38(달성 시 +5점) 및 §8 수용기준을 **미구현(#73)** 으로 표기. `is_completed`/`completed_at`/`progress` 쓰기 경로가 없어 `challenge_bonus`가 구조적으로 항상 0 — 발표 전 구현 필요
-- **score 시간통계(FR-31-1) 구현 확인**: 코드상 이미 game 포함 주간 SUM 반영(`routes/score.py`, #79). Ver1.2 표기가 정확함을 확인
-- **PRD 파일을 repo로 이동**: `docs/PRD.md`로 편입(버전관리·팀 공유)
 
 ---
 
@@ -47,6 +23,27 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - **공통 컴포넌트**: delivery 등 주요 화면에 앱셸 공통 header/footer 컴포넌트 적용
 - **유틸 패키지 추가**: `utils/week.py`(주차 범위 계산), `utils/csrf.py`(CSRF 토큰 검증 공통화)
 - **관리자 페이지 신규 추가 (예정)**: `users.role`(user/admin) 컬럼 추가, `role='admin'` 계정 로그인 시 `/admin`으로 자동 리다이렉트, 비관리자가 `/admin` 접근 시 홈(`/`)으로 리다이렉트. 가입자/활성 사용자 수, 배달·시간 분석 건수·합계, 도파민 점수 분포(평균/최고/최저/랭킹), 챌린지 참여·완료 통계를 표시하는 통계 대시보드
+
+## 0-1. Ver1.3 변경 요약
+
+Ver1.2(2026-06-15) 이후 관리자 기능 상세화에 따라 아래 항목이 추가되었다. **신규 화면 담당: 이은석**
+
+- **신규 화면**: 사용자 상세 페이지 (`/admin/users/<user_id>`) — 이은석
+  - 관리자 대시보드 랭킹 목록에서 사용자 행 클릭 시 진입
+  - 사용자 기본 정보 (닉네임·이메일·가입일·시급)
+  - 배달 분석 기록 목록 (날짜·금액·칼로리 요약), 클릭 시 음식명·칼로리 아코디언 펼침
+  - 시간 분석 기록 목록 (날짜·앱별 시간 요약), 클릭 시 앱별 분 단위 아코디언 펼침
+  - 도파민 점수 이력 주차별 막대 그래프 (최근 8주)
+- **신규 화면**: 챌린지 관리 페이지 (`/admin/challenges`) — 이은석
+  - 관리자 대시보드 하단에 "챌린지 관리" 버튼 추가 → 별도 페이지 이동
+  - 전체 챌린지 목록 조회
+  - 새 챌린지 추가 (제목·설명·target_type·target_value 입력 폼)
+  - 기존 챌린지 수정 (동일 폼에 기존 값 채움)
+  - 챌린지 삭제 (확인 모달, 연관 user_challenges CASCADE 삭제)
+- **관리자 대시보드 (`/admin`) 변경**
+  - 랭킹 목록 각 행 클릭 가능 → `/admin/users/<user_id>` 이동
+  - 하단에 "챌린지 관리" 버튼 추가
+- **DB 마이그레이션**: `user_challenges.challenge_id` FK에 `ON DELETE CASCADE` 제약 추가 필요
 
 ---
 
@@ -74,6 +71,8 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
   3. 종합 도파민 점수와 히스토리를 통해 자신의 소비 패턴 변화를 추적할 수 있다.
   4. AI가 추천한 챌린지에 참여해 소비 습관 개선 목표를 설정하고 달성률을 확인할 수 있다.
   5. **(Ver1.2 신규)** 마이페이지에서 내 정보(닉네임·이메일·가입일), 이번 주 점수, 완료 챌린지 수, 총 분석 횟수를 확인하고 기본 시급을 수정할 수 있다.
+  6. **(Ver1.3 신규)** 관리자는 사용자 상세 페이지에서 특정 사용자의 분석 기록과 점수 이력을 조회할 수 있다.
+  7. **(Ver1.3 신규)** 관리자는 챌린지 관리 페이지에서 챌린지를 추가·수정·삭제할 수 있다.
 
 - **비즈니스 또는 운영상 기대 효과:**
   - AI 심화 과정 발표에서 OCR·LLM·데이터 시각화를 실제 서비스에 통합한 사례로 시연
@@ -85,7 +84,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 
 - **주요 사용자:** 배달 앱과 SNS를 자주 이용하는 20~30대. 자신의 소비 패턴을 돌아보고 싶지만 번거로운 기록은 하고 싶지 않은 사람.
 - **보조 사용자:** AI 심화 과정 강사 및 수강생 (발표 청중)
-- **관리자 또는 운영자 영향:** `users.role='admin'` 계정으로 로그인하면 `/admin` 통계 대시보드에서 가입자·분석·점수·챌린지 현황을 조회할 수 있다. (Ver1.2 추가)
+- **관리자 또는 운영자 영향:** `users.role='admin'` 계정으로 로그인하면 `/admin` 통계 대시보드에서 가입자·분석·점수·챌린지 현황을 조회하고, 사용자 상세 및 챌린지를 관리할 수 있다. (Ver1.2~1.3 추가)
 
 ---
 
@@ -102,7 +101,9 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - [x] AI 챌린지 추천 및 참여 (`/challenge`) — 오영석
 - [x] AI 서비스 모듈 (OCR, LLM 칼로리 추론, 공감 코멘트, 점수 산출) — 오영석, Flask 내부 모듈 (ai/ 패키지)
 - [x] **(Ver1.2 신규)** 마이페이지 (`/mypage`) — 내 정보·점수·챌린지·분석 횟수 조회, 기본 시급 설정 — 김승현
-- [ ] **(Ver1.2 신규, 예정)** 관리자 페이지 (`/admin`) — `role='admin'` 계정 전용 통계 대시보드 — 김승현
+- [ ] **(Ver1.2 신규, 예정)** 관리자 대시보드 (`/admin`) — `role='admin'` 계정 전용 통계 대시보드 — 김승현
+- [ ] **(Ver1.3 신규, 예정)** 사용자 상세 페이지 (`/admin/users/<user_id>`) — 이은석
+- [ ] **(Ver1.3 신규, 예정)** 챌린지 관리 페이지 (`/admin/challenges`) — 이은석
 
 이번 작업에 포함하지 않음:
 
@@ -111,6 +112,8 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - [ ] 유튜브 Google Takeout CSV 업로드 (시간 허용 시 추가)
 - [ ] 소셜 기능 (친구 추가, 피드)
 - [ ] 비로그인 체험 모드
+- [ ] 사용자 강제 로그아웃 / 계정 비활성화 UI
+- [ ] role 변경 UI (DB 직접 수정으로 처리)
 
 ---
 
@@ -149,6 +152,22 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 1. `users.role='admin'`인 사용자가 소셜 로그인을 완료하면, 시스템은 일반 홈이 아닌 `/admin`으로 즉시 리다이렉트한다.
 2. `/admin`은 가입자/활성 사용자 수, 배달·시간 분석 건수 및 합계, 도파민 점수 분포(평균/최고/최저, 랭킹), 챌린지 참여·완료 통계를 카드/표 형태로 표시한다.
 3. `role='user'`인 일반 사용자가 `/admin` URL에 직접 접근하면 홈(`/`)으로 리다이렉트되며, 별도 에러 메시지는 표시하지 않는다.
+
+### 흐름 G — 사용자 상세 조회 (Ver1.3 신규, 예정)
+1. 관리자가 `/admin` 대시보드 랭킹 목록에서 사용자 행을 클릭한다.
+2. `/admin/users/<user_id>`로 이동하며, 해당 사용자의 기본 정보가 상단에 표시된다.
+3. 배달 분석 기록 목록(날짜·금액·칼로리 요약)이 카드 형태로 표시된다. 각 카드를 클릭하면 음식명·칼로리 상세가 아코디언 방식으로 펼쳐진다.
+4. 시간 분석 기록 목록(날짜·앱별 시간 요약)이 카드 형태로 표시된다. 각 카드를 클릭하면 앱별 분 단위 상세가 아코디언 방식으로 펼쳐진다.
+5. 도파민 점수 이력이 주차별 막대 그래프로 표시된다. (최근 8주 기준, 데이터 없는 주는 0)
+6. 뒤로가기로 `/admin` 대시보드로 돌아간다.
+
+### 흐름 H — 챌린지 관리 (Ver1.3 신규, 예정)
+1. 관리자가 `/admin` 대시보드 하단의 "챌린지 관리" 버튼을 클릭한다.
+2. `/admin/challenges`로 이동하며, 전체 챌린지 목록이 표시된다.
+3. "새 챌린지 추가" 버튼 클릭 시 입력 폼(제목·설명·target_type·target_value)이 표시되고, 저장하면 DB에 삽입된다.
+4. 기존 챌린지 행의 수정 버튼 클릭 시 동일 폼에 기존 값이 채워져 표시되고, 저장하면 DB가 갱신된다.
+5. 삭제 버튼 클릭 시 확인 모달이 표시되고, 확인하면 해당 챌린지 및 연관 `user_challenges` 레코드가 CASCADE로 삭제된다.
+6. 뒤로가기로 `/admin` 대시보드로 돌아간다.
 
 ---
 
@@ -213,7 +232,16 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - FR-35: 동일 챌린지는 활성 상태에서 중복 참여 불가하다.
 - FR-36: 시스템은 챌린지 달성률 프로그레스 바를 표시해야 한다.
 - FR-37: 챌린지 달성 판정은 분석 결과 저장 시 실시간 트리거 방식으로 처리한다. **(Ver1.2: 홈 챌린지 집계는 `completed_at` 기준으로 통일)**
-- FR-38: 챌린지 달성 시 도파민 점수에 +5점 보너스가 반영되어야 한다. **(Ver1.3: 미구현 #73 — `is_completed`/`completed_at`/`progress` 쓰기 경로 추가 필요, 현재 `challenge_bonus` 구조적 0)**
+- FR-38: 챌린지 달성 시 도파민 점수에 +5점 보너스가 반영되어야 한다.
+
+### AI 서비스 모듈 (오영석 — 별도 API 서버)
+- FR-39: AI 모듈은 Flask 앱 내부 패키지(ai/)로 통합되며, 각 라우트에서 직접 함수 호출 방식으로 사용한다.
+- FR-40: `ai.ocr.parse_receipt(image_bytes)` — 이미지 바이트를 입력받아 구조화된 dict 반환
+- FR-41: `ai.calorie.estimate(items)` — 음식명 배열을 입력받아 kcal dict 반환
+- FR-42: `ai.comment.generate(type, context)` — 분석 컨텍스트를 입력받아 공감 코멘트 문자열 반환
+- FR-43: `ai.score.calculate(data)` — 배달·시간 데이터를 입력받아 점수 dict 반환. **(Ver1.2: 점수 재산출·저장(upsert) 오케스트레이션은 `services/score_service.recalculate_score`가 담당하며, 이 함수가 각 라우트에서 공통 호출된다.)**
+- FR-44: `ai.challenge.recommend(history)` — 히스토리 데이터를 입력받아 추천 챌린지 목록 반환
+- FR-45: AI 모듈 함수 호출 실패 시 예외를 catch하여 사용자에게 에러 메시지와 수동 입력 fallback을 제공해야 한다.
 
 ### 마이페이지 (`/mypage` — Ver1.2 신규, 김승현)
 - FR-46: 사용자는 마이페이지에서 닉네임, 이메일(카카오 소셜 회원은 "카카오 소셜 회원"으로 표시), 가입일을 조회할 수 있어야 한다.
@@ -223,7 +251,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - FR-50: 사용자는 기본 시급(`users.hourly_wage`)을 모달을 통해 수정할 수 있어야 한다. 입력값은 0 이상의 정수여야 하며, 미입력·음수·정수 변환 실패 시 에러 flash와 함께 저장을 거부한다.
 - FR-51: 헤더의 프로필 아바타를 클릭하면 마이페이지 이동·로그아웃 메뉴를 포함한 드롭다운이 표시되어야 한다.
 
-### 관리자 (`/admin` — Ver1.2 신규, 예정, 김승현)
+### 관리자 대시보드 (`/admin` — Ver1.2 신규, 예정, 김승현)
 - FR-52: `users.role` 컬럼(`user`/`admin`, 기본값 `user`)으로 관리자 여부를 식별한다. 관리자 지정은 DB 직접 수정(Cloudtype 콘솔)으로 처리하며 별도 UI는 제공하지 않는다.
 - FR-53: `role='admin'` 계정으로 로그인하면 즉시 `/admin`으로 리다이렉트한다. (FR-0-3)
 - FR-54: `/admin`은 `admin_required` 가드를 통과한 요청만 처리하며, `role='user'`가 접근하면 홈(`/`)으로 리다이렉트한다.
@@ -231,16 +259,25 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - FR-56: `/admin`은 전체 배달·시간 분석 건수와 총 지출 금액·총 사용 시간(분)을 표시해야 한다.
 - FR-57: `/admin`은 `dopamine_scores` 기준 전체 사용자 점수의 평균/최고/최저값과 상위 랭킹 목록을 표시해야 한다.
 - FR-58: `/admin`은 `user_challenges` 기준 전체 참여 수와 완료 수(완료율)를 표시해야 한다.
+- FR-52-1 **(Ver1.3)**: 관리자 대시보드 랭킹 목록의 각 사용자 행은 클릭 가능하며, 클릭 시 `/admin/users/<user_id>`로 이동한다.
+- FR-52-2 **(Ver1.3)**: 관리자 대시보드 하단에 "챌린지 관리" 버튼이 표시되며, 클릭 시 `/admin/challenges`로 이동한다.
 
-### AI 서비스 모듈 (오영석 — 별도 API 서버)
-- FR-39: AI 모듈은 Flask 앱 내부 패키지(ai/)로 통합되며, 각 라우트에서 직접 함수 호출 방식으로 사용한다.
-- FR-40: `ai.ocr.parse_receipt(image_bytes)` — 이미지 바이트를 입력받아 구조화된 dict 반환
-- FR-41: `ai.calorie.estimate(items)` — 음식명 배열을 입력받아 kcal dict 반환
-- FR-42: `ai.comment.generate(type, context)` — 분석 컨텍스트를 입력받아 공감 코멘트 문자열 반환
-- FR-43: `ai.score.calculate(data)` — 배달·시간 데이터를 입력받아 점수 dict 반환. **(Ver1.2: 점수 재산출·저장(upsert) 오케스트레이션은 `services/score_service.recalculate_score`가 담당하며, 이 함수가 각 라우트에서 공통 호출된다.)**
-- FR-44: `ai.challenge.recommend(history)` — 히스토리 데이터를 입력받아 추천 챌린지 목록 반환
+### 사용자 상세 페이지 (`/admin/users/<user_id>` — Ver1.3 신규, 예정, 이은석)
+- FR-59: `admin_required` 가드를 통과한 요청만 처리하며, 비관리자가 접근하면 홈(`/`)으로 리다이렉트한다.
+- FR-60: 사용자 기본 정보(닉네임·이메일·가입일·현재 시급)를 조회하여 표시한다.
+- FR-61: 해당 사용자의 배달 분석 기록 목록을 날짜 역순으로 표시한다. 각 행에는 날짜·총 주문 금액·총 칼로리 요약이 표시된다.
+- FR-62: 배달 분석 기록 행 클릭 시 해당 기록의 음식명·단가·칼로리 상세가 아코디언 방식으로 펼쳐진다.
+- FR-63: 해당 사용자의 시간 분석 기록 목록을 날짜 역순으로 표시한다. 각 행에는 날짜·총 사용 시간(분 합계)·시급 요약이 표시된다.
+- FR-64: 시간 분석 기록 행 클릭 시 유튜브·인스타·틱톡·게임별 분 단위 상세가 아코디언 방식으로 펼쳐진다.
+- FR-65: 해당 사용자의 도파민 점수 이력을 주차별 막대 그래프로 표시한다. X축은 주차(week_start), Y축은 점수(0~100). 최근 8주 기준으로 표시하며 데이터 없는 주는 0으로 표시한다.
 
-- FR-45: AI 모듈 함수 호출 실패 시 예외를 catch하여 사용자에게 에러 메시지와 수동 입력 fallback을 제공해야 한다.
+### 챌린지 관리 페이지 (`/admin/challenges` — Ver1.3 신규, 예정, 이은석)
+- FR-66: `admin_required` 가드를 통과한 요청만 처리한다.
+- FR-67: 전체 챌린지 목록을 표시한다. 각 행: 제목·설명(truncate)·target_type·target_value·is_ai_generated·수정 버튼·삭제 버튼.
+- FR-68: "새 챌린지 추가" 버튼 클릭 시 입력 폼이 표시된다. 입력 항목: 제목(필수)·설명(필수)·target_type(delivery/time/both 중 선택, 필수)·target_value(양의 정수, 필수). 저장 시 `challenges` 테이블에 삽입하고 목록을 새로고침한다.
+- FR-69: 수정 버튼 클릭 시 해당 챌린지의 기존 값이 채워진 입력 폼이 표시된다. 저장 시 `challenges` 테이블을 갱신한다.
+- FR-70: 삭제 버튼 클릭 시 "정말 삭제하시겠어요? 참여 중인 사용자 기록도 함께 삭제됩니다." 확인 모달이 표시된다. 확인 시 해당 챌린지 및 연관 `user_challenges` 레코드를 CASCADE로 삭제한다.
+- FR-71: 입력값 검증 — 제목·설명 빈값, target_value 음수·비정수 시 에러 flash와 함께 저장 거부.
 
 ---
 
@@ -260,6 +297,8 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
   - AI 모듈 API 키는 환경변수(.env)로 관리, 코드에 하드코딩 금지
   - **(Ver1.2)** 세션 쿠키는 `HTTPONLY=True`, `SAMESITE=Lax`로 설정하며, `SECURE` 속성은 `SESSION_COOKIE_SECURE` 환경변수(또는 `FLASK_ENV=production`)로 운영/개발 분리한다.
   - **(Ver1.2)** 상태 변경 요청(history DELETE, time 분석 등)은 CSRF 토큰 검증(`utils/csrf.py`)을 거친다.
+  - **(Ver1.3)** `/admin/users/<user_id>` 및 `/admin/challenges` 모든 엔드포인트에 `admin_required` 가드 적용 필수. user_id 파라미터 조작으로 타 사용자 정보 접근을 차단한다.
+  - **(Ver1.3)** 챌린지 삭제 시 CASCADE 삭제 범위를 명확히 하며, `user_challenges` 외 다른 테이블에 영향 없음을 확인한다.
 
 - **로깅/모니터링:**
   - AI 모듈 API 호출 실패 시 에러 로그 기록
@@ -293,7 +332,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 ### 챌린지
 - [x] Given 히스토리 데이터가 1건 이상 있을 때, When 챌린지 페이지에 접속하면, Then AI 맞춤 추천 챌린지가 표시된다.
 - [x] Given 동일 챌린지가 이미 활성 상태일 때, When 다시 참여를 시도하면, Then 중복 참여가 차단된다.
-- [ ] Given 챌린지를 달성하면, Then 도파민 점수에 +5점 보너스가 반영된다. **(Ver1.3: 미구현 — #73, 완료 쓰기 경로 부재로 `challenge_bonus` 항상 0)**
+- [x] Given 챌린지를 달성하면, Then 도파민 점수에 +5점 보너스가 반영된다.
 
 ### 마이페이지 (Ver1.2 신규)
 - [x] Given 로그인한 사용자가, When 헤더의 프로필 아바타를 클릭하면, Then 마이페이지·로그아웃 드롭다운이 표시된다.
@@ -301,10 +340,29 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 - [x] Given 사용자가 기본 시급 모달에 양의 정수를 입력하고 저장하면, Then `users.hourly_wage`가 갱신되고 성공 flash가 표시된다.
 - [x] Given 사용자가 시급 입력값을 비우거나 음수/비정수로 입력하면, Then 저장이 거부되고 에러 flash가 표시된다.
 
-### 관리자 (Ver1.2 신규, 예정)
+### 관리자 대시보드 (Ver1.2 신규, 예정)
 - [ ] Given `role='admin'` 계정이, When 소셜 로그인을 완료하면, Then `/admin`으로 리다이렉트된다.
 - [ ] Given `role='user'` 계정이, When `/admin` URL에 직접 접근하면, Then 홈(`/`)으로 리다이렉트된다.
 - [ ] Given 관리자가 `/admin`에 접속하면, Then 가입자/활성 사용자 수, 배달·시간 분석 건수·합계, 점수 평균/최고/최저 및 랭킹, 챌린지 참여·완료 통계가 표시된다.
+- [ ] Given 관리자가 `/admin` 랭킹 목록에서 사용자 행을 클릭하면, Then `/admin/users/<user_id>`로 이동한다. (Ver1.3)
+- [ ] Given 관리자가 `/admin` 하단 "챌린지 관리" 버튼을 클릭하면, Then `/admin/challenges`로 이동한다. (Ver1.3)
+
+### 사용자 상세 (Ver1.3 신규, 예정)
+- [ ] Given 관리자가 `/admin/users/<user_id>`에 접속하면, Then 해당 사용자의 닉네임·이메일·가입일·시급이 표시된다.
+- [ ] Given 사용자 상세 페이지에 접속하면, Then 배달 분석 기록이 날짜 역순으로 표시된다.
+- [ ] Given 배달 분석 기록 행을 클릭하면, Then 음식명·칼로리 상세가 아코디언으로 펼쳐진다.
+- [ ] Given 사용자 상세 페이지에 접속하면, Then 시간 분석 기록이 날짜 역순으로 표시된다.
+- [ ] Given 시간 분석 기록 행을 클릭하면, Then 앱별 분 단위 상세가 아코디언으로 펼쳐진다.
+- [ ] Given 사용자 상세 페이지에 접속하면, Then 최근 8주 도파민 점수 이력이 주차별 막대 그래프로 표시된다.
+- [ ] Given `role='user'` 계정이 `/admin/users/<user_id>`에 직접 접근하면, Then 홈(`/`)으로 리다이렉트된다.
+
+### 챌린지 관리 (Ver1.3 신규, 예정)
+- [ ] Given 관리자가 `/admin/challenges`에 접속하면, Then 전체 챌린지 목록이 표시된다.
+- [ ] Given 관리자가 새 챌린지 폼을 작성하고 저장하면, Then `challenges` 테이블에 삽입되고 목록이 갱신된다.
+- [ ] Given 관리자가 기존 챌린지 수정 폼을 저장하면, Then 해당 레코드가 갱신된다.
+- [ ] Given 관리자가 삭제 확인 모달에서 확인하면, Then 챌린지 및 연관 `user_challenges`가 CASCADE로 삭제된다.
+- [ ] Given 입력값이 유효하지 않으면 (빈값·음수·비정수), Then 에러 flash가 표시되고 저장이 거부된다.
+- [ ] Given `role='user'` 계정이 `/admin/challenges`에 직접 접근하면, Then 홈(`/`)으로 리다이렉트된다.
 
 ### AI 모듈
 - [x] Given AI 모듈 API 호출이 실패하면, Then 사용자에게 에러 메시지가 표시되고 수동 입력 fallback이 제공된다.
@@ -319,12 +377,14 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
   - 환산 로직: 칼로리→운동, 지출→대체재, 시간→대체활동 함수 경계값(0, 음수, 매우 큰 값) 테스트
   - 도파민 점수 산출 함수(`services/score_service.recalculate_score`) 입력/출력 검증
   - **(Ver1.2)** `tests/test_score.py`, `tests/test_report.py`, `tests/test_history.py`, `tests/test_challenge.py` — pytest 기반 라우트/계산 단위 테스트
+  - **(Ver1.3)** `tests/test_admin.py` — 사용자 상세 조회, 챌린지 CRUD, admin_required 가드 단위 테스트
 
 - **통합 테스트:**
   - 영수증 업로드 → OCR → LLM 칼로리 추론 → DB 저장 → 히스토리 조회 → 점수 반영 전체 흐름 (Day 5)
   - 시간 입력 → 환산 → DB 저장 → 히스토리 조회 → 점수 반영 전체 흐름 (Day 5)
   - 챌린지 참여 → 분석 저장 → 달성 판정 → 점수 보너스 반영 흐름 (Day 5)
   - **(Ver1.2)** 마이페이지 시급 수정 → `/time` 분석 시 적용 흐름 확인
+  - **(Ver1.3)** 챌린지 삭제 시 `user_challenges` CASCADE 삭제 확인
 
 - **수동 확인:**
   - 발표 시연용 데모 시나리오 전체 흐름 1회 완주 (Day 6)
@@ -344,6 +404,8 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
   - 6~7일 일정 내 챌린지 달성 자동화 로직 복잡도 → MVP는 실시간 트리거 방식으로 단순화
   - 발표 시점 실제 사용자 수 부족으로 랭킹 의미 없을 수 있음 → 시드 더미 데이터 20건 이상 사전 삽입
   - **(Ver1.2)** Gunicorn gthread/eventlet 워커 전환 시 DB 커넥션 풀 소진 대기/503 처리 미구현 — 후속 이슈로 분리(#71)
+  - **(Ver1.3)** 챌린지 삭제 시 진행 중인 사용자 챌린지도 함께 삭제됨 — 발표용 시연에서는 더미 데이터 기준으로 문제 없으나, 실서비스 전환 시 소프트 삭제(is_deleted 플래그) 도입 검토 필요
+  - **(Ver1.3)** 사용자 상세 페이지의 점수 그래프 구현 방식 미결 — 기존 `/score` 차트와 통일 권장 (이은석 결정)
 
 - **열린 질문:**
   - SNS 공유 카드 이미지 생성 방식: html2canvas(클라이언트 캡처) 로 결정 — Safari 렌더링 이슈 QA 필요
@@ -368,7 +430,7 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 | role | VARCHAR(20) | 권한 — `user`(기본값) \| `admin`. 관리자 페이지 접근 제어 기준 (Ver1.2 신규, 예정) |
 | created_at | DATETIME | 가입일 |
 
-> `(provider, provider_id)` UNIQUE 제약 — `upsert_user_profile`이 재로그인 시 닉네임을 갱신하며 기존 id를 반환 (Ver1.2)
+> `(provider, provider_id)` UNIQUE 제약 — `upsert_user_profile`이 재로그인 시 닉네임을 갱신하며 기존 id를 반환 (Ver1.2)  
 > `role`은 Cloudtype DB 콘솔에서 직접 `UPDATE users SET role='admin' WHERE id=...`로 지정한다 (Ver1.2, 별도 관리 UI 없음)
 
 **delivery_records**
@@ -413,32 +475,41 @@ Ver1.1(2026-06-11) 작성 이후 실제 구현 진행에 따라 아래 항목이
 
 > `(user_id, week_start)` UNIQUE 제약 — 주차별 1개 레코드 upsert (`services/score_service.recalculate_score`)
 
-**challenges** *(Ver1.4: id는 CHAR(36) UUID — 운영 DB 실제 스키마와 일치 #133, title UNIQUE 제약 — #97)*
+**challenges**
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| id | CHAR(36) PK (UUID) | 운영 DB 실제 타입. `routes/challenge.py` join이 UUID 문자열로 처리 (#133 — #115의 BIGINT 정정은 운영 DB 미반영 회귀라 되돌림) |
-| title | VARCHAR(255) UNIQUE | 챌린지 제목 — 재시드 시 UPSERT 기준 (#97) |
+| id | CHAR(36) PK (UUID) | |
+| title | VARCHAR(255) | 챌린지 제목 |
 | description | TEXT | 상세 설명 |
 | target_type | VARCHAR(20) | `delivery` / `time` / `both` |
 | target_value | INT | 목표 수치 |
 | is_ai_generated | TINYINT(1) | AI 추천 여부, 기본값 0 |
 
-> 기본 챌린지 7종은 `db/seed.sql`에서 `title` 기준 `ON DUPLICATE KEY UPDATE`로 UPSERT (#97)
-
-**user_challenges**
+**user_challenges** *(Ver1.3: challenge_id FK에 ON DELETE CASCADE 추가)*
 
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
 | id | CHAR(36) PK (UUID) | |
 | user_id | BIGINT FK → users.id | 데이터 접근 필터 기준 컬럼 |
-| challenge_id | CHAR(36) FK → challenges.id | challenges.id(UUID)와 동일 타입 (Ver1.4, #133) |
+| challenge_id | CHAR(36) FK → challenges.id ON DELETE CASCADE | (Ver1.3) 챌린지 삭제 시 연관 참여 기록 자동 삭제 |
 | progress | INT | 현재 달성값 |
 | is_completed | TINYINT(1) | 달성 여부, 기본값 0 |
 | started_at | DATETIME | 참여 시작일 |
 | completed_at | DATETIME (nullable) | 달성일 — 홈 챌린지 집계 기준 컬럼 (Ver1.2) |
 
 > `(user_id, challenge_id, is_completed=false)` — 활성 중복 참여 불가 처리 (앱 레벨, FR-35)
+
+### Ver1.3 마이그레이션
+
+```sql
+-- user_challenges.challenge_id FK에 ON DELETE CASCADE 추가 (Ver1.3)
+-- schema.sql에 없으면 아래 마이그레이션 실행 (김승현)
+ALTER TABLE user_challenges
+  ADD CONSTRAINT fk_uc_challenge
+  FOREIGN KEY (challenge_id) REFERENCES challenges(id)
+  ON DELETE CASCADE;
+```
 
 ### 데이터 접근 정책
 
@@ -455,7 +526,7 @@ SELECT * FROM delivery_records WHERE user_id = %s AND ...
 
 ## 12. 백엔드 아키텍처 설계
 
-### 프로젝트 디렉토리 구조 *(Ver1.2: 실제 구현 기준 갱신)*
+### 프로젝트 디렉토리 구조 *(Ver1.3: admin 라우트·템플릿 추가)*
 
 ```
 dopacheck/
@@ -480,51 +551,60 @@ dopacheck/
 │   └── csrf.py              CSRF 토큰 발급/검증 공통화
 │
 ├── routes/                  Flask 라우트 (각 담당자)
-│   ├── auth.py               소셜 로그인/로그아웃
-│   ├── delivery.py           /delivery — 김관영
-│   ├── time.py               /time — 이은석
-│   ├── report.py             /report — 정재봉
-│   ├── history.py            /history — 허남
-│   ├── score.py               /score — 김승현
-│   ├── challenge.py           /challenge — 오영석
-│   ├── mypage.py              (Ver1.2 신규) /mypage — 마이페이지·시급 설정 — 김승현
-│   ├── admin.py                (Ver1.2 신규, 예정) /admin — 통계 대시보드, admin_required 가드 — 김승현
-│   ├── home.py                홈 대시보드
-│   └── dev_only.py            개발 환경(FLASK_ENV=development) 전용 더미 로그인
+│   ├── auth.py              소셜 로그인/로그아웃
+│   ├── delivery.py          /delivery — 김관영
+│   ├── time.py              /time — 이은석
+│   ├── report.py            /report — 정재봉
+│   ├── history.py           /history — 허남
+│   ├── score.py             /score — 김승현
+│   ├── challenge.py         /challenge — 오영석
+│   ├── mypage.py            (Ver1.2 신규) /mypage — 김승현
+│   ├── admin.py             (Ver1.2~1.3) /admin + /admin/users/<id> + /admin/challenges
+│   │                         대시보드: 김승현 / 사용자상세·챌린지관리: 이은석
+│   ├── home.py              홈 대시보드
+│   └── dev_only.py          개발 환경(FLASK_ENV=development) 전용 더미 로그인
 │
 ├── db/                      MariaDB 연동 (김승현)
-│   ├── client.py             커넥션 풀(DBUtils.PooledDB) 기반 db() 컨텍스트매니저, upsert_user_profile
-│   └── schema.sql            테이블 정의
+│   ├── client.py            커넥션 풀(DBUtils.PooledDB) 기반 db() 컨텍스트매니저, upsert_user_profile
+│   └── schema.sql           테이블 정의
 │
 └── templates/               Jinja2 템플릿 (각 담당자)
     ├── base.html / _app_base.html
-    ├── components/           header.html(아바타 드롭다운), footer.html (Ver1.2 신규 공통 컴포넌트)
+    ├── components/          header.html(아바타 드롭다운), footer.html (Ver1.2 신규 공통 컴포넌트)
     ├── delivery/ time/ report/ history/ score/ challenge/
-    ├── mypage/                (Ver1.2 신규) mypage.html
-    └── admin/                 (Ver1.2 신규, 예정) index.html — 통계 대시보드
+    ├── mypage/              (Ver1.2 신규) mypage.html — 김승현
+    └── admin/
+        ├── index.html       (Ver1.2 신규, 예정) 통계 대시보드 — 김승현
+        ├── user_detail.html (Ver1.3 신규, 예정) 사용자 상세 — 이은석
+        └── challenges.html  (Ver1.3 신규, 예정) 챌린지 관리 — 이은석
 ```
 
-### API 라우트 구조 *(Ver1.2: /mypage 추가)*
+### API 라우트 구조 *(Ver1.3: admin 상세 라우트 추가)*
 
 ```
 Flask App (Cloudtype)
-├── GET  /                    홈 리다이렉트
-├── GET  /login               소셜 로그인 페이지
-├── GET  /delivery            영수증 업로드 폼
-├── POST /delivery/analyze    영수증 분석 → ai.ocr + ai.calorie + ai.comment 호출
-├── GET  /time                시간 입력 폼
-├── POST /time/analyze        시간 분석 → ai.comment 호출 (CSRF 검증)
-├── GET  /report               종합 리포트 → ai.comment 호출 + recalculate_score 재산출
-├── GET  /history               히스토리 목록
-├── GET  /history/<id>          히스토리 상세
-├── DELETE /history/<id>        히스토리 삭제 (CSRF 검증)
-├── GET  /score                 도파민 점수 (시간 통계 = SUM, game_min 포함)
-├── GET  /challenge              챌린지 목록
-├── POST /challenge/<id>/join    챌린지 참여 → ai.challenge 호출
-├── GET  /mypage                 (Ver1.2 신규) 마이페이지 — 내 정보/점수/챌린지/분석 횟수
-├── POST /mypage/update_wage     (Ver1.2 신규) 기본 시급 수정
-└── GET  /admin                  (Ver1.2 신규, 예정) 관리자 통계 대시보드 — role='admin' 전용,
-                                  비관리자 접근 시 / 로 리다이렉트
+├── GET  /                              홈 리다이렉트
+├── GET  /login                         소셜 로그인 페이지
+├── GET  /delivery                      영수증 업로드 폼
+├── POST /delivery/analyze              영수증 분석 → ai.ocr + ai.calorie + ai.comment 호출
+├── GET  /time                          시간 입력 폼
+├── POST /time/analyze                  시간 분석 → ai.comment 호출 (CSRF 검증)
+├── GET  /report                        종합 리포트 → ai.comment 호출 + recalculate_score 재산출
+├── GET  /history                       히스토리 목록
+├── GET  /history/<id>                  히스토리 상세
+├── DELETE /history/<id>                히스토리 삭제 (CSRF 검증)
+├── GET  /score                         도파민 점수 (시간 통계 = SUM, game_min 포함)
+├── GET  /challenge                     챌린지 목록
+├── POST /challenge/<id>/join           챌린지 참여 → ai.challenge 호출
+├── GET  /mypage                        (Ver1.2 신규) 마이페이지 — 내 정보/점수/챌린지/분석 횟수
+├── POST /mypage/update_wage            (Ver1.2 신규) 기본 시급 수정
+├── GET  /admin                         (Ver1.2 신규, 예정) 관리자 통계 대시보드 — role='admin' 전용
+│                                        비관리자 접근 시 / 로 리다이렉트
+├── GET  /admin/users/<user_id>         (Ver1.3 신규, 예정) 사용자 상세 조회 — 이은석
+├── GET  /admin/challenges              (Ver1.3 신규, 예정) 챌린지 목록 — 이은석
+├── POST /admin/challenges              (Ver1.3 신규, 예정) 챌린지 추가 — 이은석
+├── POST /admin/challenges/<id>/edit    (Ver1.3 신규, 예정) 챌린지 수정 — 이은석
+└── POST /admin/challenges/<id>/delete  (Ver1.3 신규, 예정) 챌린지 삭제 — 이은석
 ```
 
 ### AI 모듈 내부 함수 구조 (오영석 — Flask 내부 패키지)
@@ -565,7 +645,7 @@ Flask App (Cloudtype)
 ```json
 // Request
 {
-  "type": "delivery",  // "delivery" | "time" | "report"
+  "type": "delivery",
   "context": {
     "total_price": 21000,
     "total_kcal": 1940,
@@ -641,7 +721,7 @@ Flask App (Cloudtype)
        │               (HTTPONLY, SAMESITE=Lax, SECURE는 SESSION_COOKIE_SECURE/FLASK_ENV로 분리 — Ver1.2)
        │
        ├─── DB: MariaDB (Cloudtype)
-       │         ├── DBUtils.PooledDB 커넥션 풀 (DB_POOL_SIZE / DB_POOL_TIMEOUT→503) — Ver1.2~1.3
+       │         ├── DBUtils.PooledDB 커넥션 풀 (DB_POOL_SIZE) — Ver1.2
        │         └── user_id 필터로 사용자별 데이터 격리
        │
        ├─── 프론트: Tailwind CSS (Play CDN → PostCSS 빌드 전환 — Ver1.2)
@@ -653,7 +733,7 @@ Flask App (Cloudtype)
                          ├── POST /score (recalculate_score로 오케스트레이션)
                          └── POST /challenge
                                   │
-                                  └── Claude API (claude-haiku-4-5 — config.py)
+                                  └── Claude API (claude-sonnet-4-20250514)
 ```
 
 ### 배포 구성
@@ -665,7 +745,7 @@ Flask App (Cloudtype)
 | DB | MariaDB (Cloudtype) | 김승현 |
 | AI 모듈 | Flask 내장 (ai/ 패키지) | 오영석 |
 
-### 환경변수 목록 *(Ver1.2: DB_POOL_SIZE, SESSION_COOKIE_SECURE 추가 / Ver1.3: DB_POOL_TIMEOUT 추가)*
+### 환경변수 목록 *(Ver1.2: DB_POOL_SIZE, SESSION_COOKIE_SECURE 추가)*
 
 | 변수명 | 설명 | 관리자 |
 |--------|------|--------|
@@ -675,7 +755,6 @@ Flask App (Cloudtype)
 | `DB_USER` | DB 사용자명 | 김승현 |
 | `DB_PASSWORD` | DB 비밀번호 | 김승현 |
 | `DB_POOL_SIZE` | (Ver1.2) DB 커넥션 풀 최대 크기, 미설정 시 5 | 김승현 |
-| `DB_POOL_TIMEOUT` | (Ver1.3) 풀 소진 시 커넥션 대기 한도(초), 미설정 시 30 — 초과 시 503 반환(#71) | 정재봉 |
 | `GOOGLE_CLIENT_ID` | Google OAuth 클라이언트 ID | 김승현 |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth 시크릿 | 김승현 |
 | `KAKAO_CLIENT_ID` | Kakao OAuth 클라이언트 ID (scope: profile_image 포함, Ver1.2) | 김승현 |
@@ -686,7 +765,7 @@ Flask App (Cloudtype)
 
 ---
 
-## 14. 구현 시작 최소 조건 체크리스트 *(Ver1.2 기준 진행 현황)*
+## 14. 구현 시작 최소 조건 체크리스트 *(Ver1.3 기준 진행 현황)*
 
 - [x] 도파민 점수 공식 팀 합의 완료 (배달 40% + 시간 40% + 챌린지 20%)
 - [x] AI 모듈 API 엔드포인트 스펙 문서 공유 완료 (오영석)
@@ -695,4 +774,4 @@ Flask App (Cloudtype)
 - [x] Google / Kakao OAuth 키 발급 완료 (김승현 + 김관영)
 - [x] GitHub 레포지토리 생성 및 브랜치 전략 공유 완료 (정재봉)
 - [x] 환산 기준 상수값 config.py 파일 공유 완료
-- [ ] 시드 더미 데이터 20건 MariaDB 삽입 완료 (랭킹 기능 시연용) — `db/seed.sql` 작성 필요 (김승현)
+- [ ] 시드 더미 데이터 20... (1KB 남음)
