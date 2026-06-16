@@ -5,8 +5,9 @@ import uuid as _uuid
 from datetime import datetime, timedelta
 from functools import wraps
 
-from flask import Blueprint, abort, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
 
+from ai.challenge import suggest_new_challenges
 from db.client import db
 from routes.auth import login_required
 from utils.csrf import get_or_create_csrf_token, verify_csrf
@@ -446,14 +447,25 @@ _VALID_TARGET_TYPES = frozenset({"delivery", "time", "both"})
 @admin_bp.route("/challenges")
 @admin_required
 def challenges_page():
-    """챌린지 목록."""
+    """챌린지 목록 (참여자 수 포함)."""
     csrf_token = get_or_create_csrf_token()
-    with db() as cursor:
-        cursor.execute(
-            "SELECT id, title, description, target_type, target_value, is_ai_generated"
-            " FROM challenges ORDER BY title"
-        )
-        challenges = cursor.fetchall() or []
+    try:
+        with db() as cursor:
+            cursor.execute(
+                """
+                SELECT c.id, c.title, c.description, c.target_type, c.target_value,
+                       c.is_ai_generated,
+                       COUNT(uc.id) AS participant_count
+                FROM challenges c
+                LEFT JOIN user_challenges uc ON c.id = uc.challenge_id
+                GROUP BY c.id, c.title, c.description, c.target_type, c.target_value, c.is_ai_generated
+                ORDER BY c.title
+                """
+            )
+            challenges = cursor.fetchall() or []
+    except Exception as e:
+        logger.error("챌린지 목록 조회 실패: %s", e)
+        abort(503)
     return render_template(
         "admin/challenges.html",
         challenges=challenges,
@@ -477,18 +489,49 @@ def challenges_create():
         target_value = max(0, int(target_value_raw))
     except ValueError:
         target_value = 0
+    is_ai_generated = 1 if request.form.get("is_ai_generated") == "1" else 0
 
     try:
         with db() as cursor:
             cursor.execute(
                 "INSERT INTO challenges (id, title, description, target_type, target_value, is_ai_generated)"
-                " VALUES (UUID(), %s, %s, %s, %s, 0)",
-                (title, description, target_type, target_value),
+                " VALUES (UUID(), %s, %s, %s, %s, %s)",
+                (title, description, target_type, target_value, is_ai_generated),
             )
     except Exception as e:
         logger.warning("챌린지 생성 실패: %s", e)
 
     return redirect(url_for("admin.challenges_page"))
+
+
+@admin_bp.route("/challenges/ai-suggest", methods=["POST"])
+@admin_required
+def challenges_ai_suggest():
+    """기존 챌린지 목록을 참고해 AI가 새 챌린지 3개를 추천한다."""
+    verify_csrf()
+    try:
+        with db() as cursor:
+            cursor.execute(
+                """
+                SELECT c.title, COUNT(uc.id) AS participant_count
+                FROM challenges c
+                LEFT JOIN user_challenges uc ON c.id = uc.challenge_id
+                GROUP BY c.id, c.title
+                LIMIT 20
+                """
+            )
+            existing = cursor.fetchall() or []
+    except Exception as e:
+        logger.warning("챌린지 목록 조회 실패: %s", e)
+        existing = []
+
+    try:
+        suggestions = suggest_new_challenges(existing)
+    except Exception as e:
+        logger.warning("AI 챌린지 추천 실패: %s", e)
+        return jsonify({"error": "AI 추천에 실패했습니다. 잠시 후 다시 시도해주세요."}), 503
+
+    return jsonify({"suggestions": suggestions})
 
 
 @admin_bp.route("/challenges/<challenge_id>/delete", methods=["POST"])
@@ -504,6 +547,7 @@ def challenges_delete(challenge_id: str):
 
     try:
         with db() as cursor:
+            cursor.execute("DELETE FROM user_challenges WHERE challenge_id = %s", (challenge_id,))
             cursor.execute("DELETE FROM challenges WHERE id = %s", (challenge_id,))
     except Exception as e:
         logger.warning("챌린지 삭제 실패: %s", e)
