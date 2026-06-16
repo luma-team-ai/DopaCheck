@@ -58,8 +58,9 @@ def recalculate_score(user_id: int) -> None:
                 progress = delivery_count
                 done = delivery_count >= tv
             elif tt == "time":
-                progress = int(time_hours)
-                done = time_hours >= tv
+                # target_value 단위는 분(min) — time_total_min과 단위 일치 (이전 time_hours 비교는 단위 불일치 버그)
+                progress = time_total_min
+                done = time_total_min >= tv
             else:  # "both"
                 progress = min(delivery_count, int(time_hours))
                 done = delivery_count >= tv and time_hours >= tv
