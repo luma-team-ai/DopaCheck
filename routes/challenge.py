@@ -79,7 +79,7 @@ def challenge_page():
     try:
         with db() as cursor:
             cursor.execute(
-                "SELECT c.id, c.title, c.description, c.target_type, c.target_value"
+                "SELECT c.id, c.title, c.description, c.target_type, c.target_value, c.created_at"
                 " FROM challenges c"
                 " WHERE c.is_ai_generated = 0"
                 "   OR EXISTS ("
