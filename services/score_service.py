@@ -1,10 +1,10 @@
 """점수 재산출 서비스 — 라우트 계층에서 분리 (Issue #58)."""
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import ai.score as ai_score
 from db.client import db
-from utils.week import get_week_ranges, kst_bounds, kst_today
+from utils.week import get_week_ranges, kst_bounds, kst_today, week_bounds
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ def recalculate_score(user_id: int) -> None:
 
         # ── 챌린지 진행도 갱신 + 달성 판정 (FR-36~38, #73) ─────────────────────────
         cursor.execute(
-            "SELECT uc.id, c.target_type, c.target_value"
+            "SELECT uc.id, uc.started_at, c.target_type, c.target_value"
             " FROM user_challenges uc JOIN challenges c ON c.id = uc.challenge_id"
             " WHERE uc.user_id = %s AND uc.is_completed = 0",
             (user_id,)
@@ -94,26 +94,48 @@ def recalculate_score(user_id: int) -> None:
         )
         judge_time_hours = judge_time_total_min / 60
 
+        # progress(목록 화면 표시값)는 '이번 주' 기준으로 별도 계산한다 (#194 P1-2).
+        # 완료 판정(done)만 judge_week(완전히 끝난 주)를 쓰고, 표시값까지 judge_week를
+        # 쓰면 월~토에 지난주 숫자가 보이고 일요일에 점프하는 문제가 생기므로 분리한다.
+        time_hours = time_total_min / 60  # 이번 주 시간 총합(시) — both progress용
+
         # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
         # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
         for ch in active_challenges:
+            # ── 가입 주차 필터 (#194 P1-1) ──────────────────────────────────────
+            # judge_week가 이 챌린지의 가입 주(started_at이 속한 주)보다 이전이면,
+            # 그 주엔 아직 참여하지 않았으므로 완료 판정에서 제외한다. 미적용 시
+            # judge_week=지난주 + judge 0건이면 줄이기형 '0 <= tv'가 참이 되어
+            # 이번 주에 새로 참여한 챌린지가 지난주 데이터로 즉시 완료되는 버그 발생.
+            started_at = ch["started_at"]
+            # DATETIME 컬럼은 pymysql DictCursor가 datetime으로 반환 — .date()로 정규화.
+            # (혹시 date로 들어오는 경우도 방어적으로 처리)
+            joined_date = started_at.date() if isinstance(started_at, datetime) else started_at
+            joined_week_start = week_bounds(joined_date)[0]
+            if judge_start < joined_week_start:
+                # judge_week(ISO 문자열) < 가입 주 시작(ISO 문자열) — 사전식=시간순 비교.
+                continue
+
             tt = ch["target_type"]
             tv = ch["target_value"] or 1
             if tt == "delivery":
-                progress = judge_delivery_count
+                # progress=이번 주 표시값, done=judge_week 기준 (#194 P1-2)
+                progress = delivery_count
                 done = judge_delivery_count <= tv
             elif tt == "time":
-                # target_value 단위: 분(min) — judge_time_total_min과 단위 일치
-                progress = judge_time_total_min
+                # target_value 단위: 분(min). progress=이번 주, done=judge_week.
+                progress = time_total_min
                 done = judge_time_total_min <= tv
             else:  # "both"
                 # target_value 단위: 배달은 횟수, 시간은 시(hour) — seed.sql "3시간 이하" 참고.
-                # time 타입(분 단위)과 달리 both 타입은 시간 단위이므로 time_hours로 비교한다.
+                # progress=이번 주 값, done=judge_week 값.
                 # int() 절삭 시 3.1h → 3h ≤ 3 가 되어 목표 초과를 달성으로 오판 — float 비교 유지.
-                progress = min(judge_delivery_count, int(judge_time_hours))
+                progress = min(delivery_count, int(time_hours))
                 done = judge_delivery_count <= tv and judge_time_hours <= tv
 
             if done:
+                # 주의(#194 P2): judge_week=지난주 완료 시 completed_at=NOW()(이번 주)라
+                # 지난주 달성이 이번 주 challenge_completed(보너스)에 산입됨 — 후속 검토(#194 P2).
                 cursor.execute(
                     "UPDATE user_challenges"
                     " SET progress = %s, is_completed = 1, completed_at = NOW()"
