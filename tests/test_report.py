@@ -187,8 +187,10 @@ def test_주간_집계_및_비교차트_데이터(logged_in_client):
     """DB 없이 빈 데이터 폴백으로 /report가 정상 렌더링되어야 한다 (FR-16, FR-20)."""
     res = logged_in_client.get("/report")
     assert res.status_code == 200
-    # 비교 차트 Canvas가 렌더링되어야 함
-    assert b"compareChart" in res.data
+    # 비교 차트 Canvas가 렌더링되어야 함 (#142 재디자인: 단일 compareChart → 배달·시간·점수 3분할)
+    assert b"chartDelivery" in res.data
+    assert b"chartTime" in res.data
+    assert b"chartScore" in res.data
     # 공유 카드 영역이 존재해야 함
     assert b'id="share-card"' in res.data
 
