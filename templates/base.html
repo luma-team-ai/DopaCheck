@@ -2,7 +2,7 @@
 <html class="dark" lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>{% block title %}도파민 체크{% endblock %} | DopaCheck</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
   <!-- Tailwind CSS (PostCSS 빌드 산출물) -->
@@ -92,9 +92,9 @@
     </div>
 
     {% if session.get('user') %}
-    <!-- Mobile Nav Dropdown -->
+    <!-- Mobile Nav Dropdown (display:none by default, .open shows it — see style.css) -->
     <nav id="mobile-menu"
-         class="sm:hidden flex-col gap-1 px-container-padding pb-3 bg-background/95 backdrop-blur-md border-t border-outline-variant/10"
+         class="gap-1 px-container-padding pb-3 bg-background/95 backdrop-blur-md border-t border-outline-variant/10"
          aria-label="모바일 메뉴">
       <a href="{{ url_for('delivery.delivery_page') }}"
          class="flex items-center gap-2 px-3 py-2.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high text-sm font-medium transition-colors">
