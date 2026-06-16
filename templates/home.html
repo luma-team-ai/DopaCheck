@@ -261,20 +261,20 @@
       </h2>
       <div class="grid grid-cols-2 gap-3 pb-2">
         <!-- Stat Pill 1 (Delivery) -->
-        <div class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full">
+        <button onclick="openModal('delivery')" class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full active:scale-95 transition-all hover:bg-white/5 cursor-pointer">
           <span class="material-symbols-outlined text-secondary">fastfood</span>
           <span class="font-label-md text-label-md whitespace-nowrap">배달 <span class="text-secondary font-bold">{{ "{:,}".format(delivery_total) }}원</span></span>
-        </div>
+        </button>
         <!-- Stat Pill 2 (Screen Time) -->
-        <div class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full">
+        <button onclick="openModal('time')" class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full active:scale-95 transition-all hover:bg-white/5 cursor-pointer">
           <span class="material-symbols-outlined text-[#ffd9e1]">smartphone</span>
           <span class="font-label-md text-label-md whitespace-nowrap">사용 <span class="text-[#ffd9e1] font-bold">{{ time_str }}</span></span>
-        </div>
+        </button>
         <!-- Stat Pill 3 (Challenges) -->
-        <div class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full col-span-2">
+        <button onclick="openModal('challenge')" class="flex items-center justify-center gap-2.5 bg-surface-container-low border border-outline-variant/30 rounded-full py-2.5 px-4 w-full col-span-2 active:scale-95 transition-all hover:bg-white/5 cursor-pointer">
           <span class="material-symbols-outlined text-tertiary">verified</span>
           <span class="font-label-md text-label-md whitespace-nowrap">챌린지 <span class="text-tertiary font-bold">{{ completed_challenges }}/{{ total_challenges }} 달성</span></span>
-        </div>
+        </button>
       </div>
     </section>
 
@@ -291,21 +291,210 @@
   {% set active_tab = 'home' %}
   {% include "components/footer.html" %}
 
+  <!-- ── 공용 백드롭 (z-[60]으로 header/footer z-50 위에 올림) ── -->
+  <div id="modal-backdrop" onclick="closeModal()" class="fixed inset-0 bg-black/70 z-[60] hidden opacity-0 transition-opacity duration-300"></div>
+
+  <!-- ── 배달 기록 모달 ── -->
+  <div id="modal-delivery" class="fixed inset-0 z-[61] hidden items-center justify-center px-4 pointer-events-none">
+    <div class="w-full max-w-[380px] rounded-3xl overflow-hidden pointer-events-auto scale-95 opacity-0 transition-all duration-300" style="background:#14141C; border:1px solid rgba(71,69,85,0.4);">
+      <div class="flex items-center justify-between px-5 pt-5 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-secondary" style="font-size:20px">receipt_long</span>
+          <h3 class="text-base font-bold text-on-surface">이번 주 배달 기록</h3>
+        </div>
+        <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+          <span class="material-symbols-outlined text-on-surface-variant" style="font-size:20px">close</span>
+        </button>
+      </div>
+      <div id="list-delivery" class="px-5 space-y-1 overflow-y-auto" style="max-height:55vh">
+        <p class="text-sm text-on-surface-variant py-4 text-center">불러오는 중...</p>
+      </div>
+      <div class="px-5 pt-3 pb-5">
+        <a href="{{ url_for('history.history_list') }}?type_filter=delivery" class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold transition-colors" style="border:1px solid rgba(197,192,255,0.4); color:#c5c0ff;">
+          <span class="material-symbols-outlined" style="font-size:18px">history</span>
+          히스토리 전체 보기
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 사용 시간 기록 모달 ── -->
+  <div id="modal-time" class="fixed inset-0 z-[61] hidden items-center justify-center px-4 pointer-events-none">
+    <div class="w-full max-w-[380px] rounded-3xl overflow-hidden pointer-events-auto scale-95 opacity-0 transition-all duration-300" style="background:#14141C; border:1px solid rgba(71,69,85,0.4);">
+      <div class="flex items-center justify-between px-5 pt-5 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#ffd9e1]" style="font-size:20px">schedule</span>
+          <h3 class="text-base font-bold text-on-surface">이번 주 사용 시간 기록</h3>
+        </div>
+        <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+          <span class="material-symbols-outlined text-on-surface-variant" style="font-size:20px">close</span>
+        </button>
+      </div>
+      <div id="list-time" class="px-5 space-y-1 overflow-y-auto" style="max-height:55vh">
+        <p class="text-sm text-on-surface-variant py-4 text-center">불러오는 중...</p>
+      </div>
+      <div class="px-5 pt-3 pb-5">
+        <a href="{{ url_for('history.history_list') }}?type_filter=time" class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold transition-colors" style="border:1px solid rgba(197,192,255,0.4); color:#c5c0ff;">
+          <span class="material-symbols-outlined" style="font-size:18px">history</span>
+          히스토리 전체 보기
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 챌린지 기록 모달 ── -->
+  <div id="modal-challenge" class="fixed inset-0 z-[61] hidden items-center justify-center px-4 pointer-events-none">
+    <div class="w-full max-w-[380px] rounded-3xl overflow-hidden pointer-events-auto scale-95 opacity-0 transition-all duration-300" style="background:#14141C; border:1px solid rgba(71,69,85,0.4);">
+      <div class="flex items-center justify-between px-5 pt-5 pb-3">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-tertiary" style="font-size:20px">emoji_events</span>
+          <h3 class="text-base font-bold text-on-surface">이번 주 챌린지 기록</h3>
+        </div>
+        <button onclick="closeModal()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+          <span class="material-symbols-outlined text-on-surface-variant" style="font-size:20px">close</span>
+        </button>
+      </div>
+      <div id="list-challenge" class="px-5 space-y-1 overflow-y-auto" style="max-height:55vh">
+        <p class="text-sm text-on-surface-variant py-4 text-center">불러오는 중...</p>
+      </div>
+      <div class="px-5 pt-3 pb-5">
+        <a href="{{ url_for('history.history_list') }}" class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold transition-colors" style="border:1px solid rgba(197,192,255,0.4); color:#c5c0ff;">
+          <span class="material-symbols-outlined" style="font-size:18px">history</span>
+          히스토리 전체 보기
+        </a>
+      </div>
+    </div>
+  </div>
+
   <!-- Interactive Score Animation -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      // 원형 스코어 링 애니메이션
       const ring = document.querySelector('.score-progress');
       const scoreCircle = document.querySelector('.score-circle');
       if (ring && scoreCircle) {
         ring.style.transition = 'all 1.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
         setTimeout(() => {
           const score = parseInt(scoreCircle.dataset.score || '0', 10);
-          const rotationAngle = (score / 100) * 360 - 45;
-          ring.style.transform = `rotate(${rotationAngle}deg)`;
+          ring.style.transform = `rotate(${(score / 100) * 360 - 45}deg)`;
         }, 300);
       }
     });
+  </script>
+
+  <script>
+    const backdrop = document.getElementById('modal-backdrop');
+    let cache = null;        // API 응답 캐시
+    let cacheTs = 0;         // 캐시 저장 시각 (ms)
+    const CACHE_TTL = 60000; // 60초 TTL
+    let currentModal = null; // 현재 열린 모달 엘리먼트
+
+    function esc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function openModal(type) {
+      const el = document.getElementById('modal-' + type);
+      if (!el) return;
+      currentModal = el;
+
+      // 백드롭 표시
+      backdrop.classList.remove('hidden');
+      requestAnimationFrame(() => { backdrop.style.opacity = '1'; });
+
+      // 모달 표시 (flex 필요)
+      el.classList.remove('hidden');
+      el.style.display = 'flex';
+      const card = el.firstElementChild;
+      requestAnimationFrame(() => {
+        card.style.opacity = '1';
+        card.style.transform = 'scale(1)';
+      });
+
+      // 데이터 로드 (60초 TTL 캐시)
+      const now = Date.now();
+      if (cache && (now - cacheTs) < CACHE_TTL) {
+        renderType(type, cache);
+      } else {
+        fetch('/home/this-week-summary')
+          .then(r => r.json())
+          .then(data => { cache = data; cacheTs = Date.now(); renderType(type, data); })
+          .catch(() => {
+            document.getElementById('list-' + type).innerHTML =
+              '<p class="text-sm text-on-surface-variant py-4 text-center">데이터를 불러올 수 없습니다.</p>';
+          });
+      }
+    }
+
+    function closeModal() {
+      if (!currentModal) return;
+      const card = currentModal.firstElementChild;
+      card.style.opacity = '0';
+      card.style.transform = 'scale(0.95)';
+      backdrop.style.opacity = '0';
+      setTimeout(() => {
+        currentModal.style.display = '';
+        currentModal.classList.add('hidden');
+        backdrop.classList.add('hidden');
+        currentModal = null;
+      }, 280);
+    }
+
+    // ESC 키로 닫기
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    function renderType(type, data) {
+      if (type === 'delivery') renderDelivery(data.delivery || []);
+      else if (type === 'time') renderTime(data.time || []);
+      else if (type === 'challenge') renderChallenge(data.challenges || []);
+    }
+
+    function itemRow(iconHtml, summary, sub, badgeHtml) {
+      return `
+        <div class="flex items-center gap-3 py-3 border-b border-outline-variant/10 last:border-0">
+          ${iconHtml}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-on-surface truncate">${esc(summary)}</p>
+            <p class="text-xs text-on-surface-variant mt-0.5">${esc(sub)}</p>
+          </div>
+          ${badgeHtml}
+          <span class="material-symbols-outlined text-on-surface-variant/40 flex-shrink-0" style="font-size:16px">chevron_right</span>
+        </div>`;
+    }
+
+    function renderDelivery(list) {
+      const el = document.getElementById('list-delivery');
+      if (!list.length) { el.innerHTML = '<p class="text-sm text-on-surface-variant py-4 text-center">이번 주 배달 기록이 없습니다.</p>'; return; }
+      el.innerHTML = list.map(r => itemRow(
+        `<div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(255,177,197,0.15)"><span class="material-symbols-outlined text-secondary" style="font-size:20px">receipt_long</span></div>`,
+        r.summary,
+        `${r.date_label}${r.time_label ? ' · ' + r.time_label : ''}`,
+        ''
+      )).join('');
+    }
+
+    function renderTime(list) {
+      const el = document.getElementById('list-time');
+      if (!list.length) { el.innerHTML = '<p class="text-sm text-on-surface-variant py-4 text-center">이번 주 사용 시간 기록이 없습니다.</p>'; return; }
+      el.innerHTML = list.map(r => itemRow(
+        `<div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(255,217,225,0.12)"><span class="material-symbols-outlined" style="font-size:20px;color:#ffd9e1">schedule</span></div>`,
+        r.summary,
+        `${r.date_label}${r.time_label ? ' · ' + r.time_label : ''} · 총 ${r.total}`,
+        ''
+      )).join('');
+    }
+
+    function renderChallenge(list) {
+      const el = document.getElementById('list-challenge');
+      if (!list.length) { el.innerHTML = '<p class="text-sm text-on-surface-variant py-4 text-center">이번 주 챌린지 기록이 없습니다.</p>'; return; }
+      el.innerHTML = list.map(r => itemRow(
+        `<div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(47,224,166,0.12)"><span class="material-symbols-outlined text-tertiary" style="font-size:20px">emoji_events</span></div>`,
+        r.title,
+        r.date_label,
+        r.is_completed
+          ? `<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style="background:rgba(74,222,128,0.15);color:#4ade80">달성</span>`
+          : `<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style="background:rgba(71,69,85,0.3);color:#928f9a">진행 중</span>`
+      )).join('');
+    }
   </script>
 </body>
 </html>

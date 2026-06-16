@@ -1,11 +1,12 @@
 # routes/home.py
 import logging
 from datetime import datetime, timedelta
-from flask import Blueprint, render_template, session, redirect, url_for
+
+from flask import Blueprint, jsonify, render_template, session, redirect, url_for
 
 from db.client import db
 from routes.auth import login_required
-from utils.week import get_week_ranges, kst_bounds
+from utils.week import KST, get_week_ranges, kst_bounds, kst_today
 
 logger = logging.getLogger(__name__)
 
@@ -171,3 +172,116 @@ def index():
         total_challenges=total_challenges,
         insight_title=insight_title
     )
+
+
+@home_bp.route("/this-week-summary")
+@login_required
+def this_week_summary():
+    """이번 주 핵심 모달용 상세 기록 JSON API."""
+    user_id = session.get("user_id")
+    this_week_range, _ = get_week_ranges()
+    this_start, this_end = this_week_range
+    this_gte_at, this_lt_at = kst_bounds(this_start, this_end)
+
+    def _fmt(raw):
+        try:
+            if isinstance(raw, datetime):
+                dt = (raw if raw.tzinfo else raw.replace(tzinfo=KST)).astimezone(KST)
+            else:
+                dt = datetime.fromisoformat(str(raw)).replace(tzinfo=KST)
+            d = dt.date()
+            today = kst_today()
+            if d == today:
+                date_label = f"오늘, {d.month}월 {d.day}일"
+            elif d == today - timedelta(days=1):
+                date_label = f"어제, {d.month}월 {d.day}일"
+            else:
+                date_label = f"{d.month}월 {d.day}일"
+            ampm = "오전" if dt.hour < 12 else "오후"
+            h12 = dt.hour % 12 or 12
+            return date_label, f"{ampm} {h12}:{dt.minute:02d}"
+        except Exception:
+            return "", ""
+
+    with db() as cursor:
+        cursor.execute(
+            "SELECT total_price, total_calories, created_at FROM delivery_records "
+            "WHERE user_id = %s AND created_at >= %s AND created_at < %s "
+            "ORDER BY created_at DESC LIMIT 10",
+            (user_id, this_gte_at, this_lt_at),
+        )
+        delivery_rows = cursor.fetchall() or []
+
+        cursor.execute(
+            "SELECT youtube_min, instagram_min, tiktok_min, game_min, created_at FROM time_records "
+            "WHERE user_id = %s AND created_at >= %s AND created_at < %s "
+            "ORDER BY created_at DESC LIMIT 10",
+            (user_id, this_gte_at, this_lt_at),
+        )
+        time_rows = cursor.fetchall() or []
+
+        cursor.execute(
+            """
+            SELECT c.title, uc.is_completed, uc.started_at, uc.completed_at
+            FROM user_challenges uc
+            JOIN challenges c ON c.id = uc.challenge_id
+            WHERE uc.user_id = %s AND (
+              (uc.started_at >= %s AND uc.started_at < %s)
+              OR (uc.is_completed = 1 AND uc.completed_at >= %s AND uc.completed_at < %s)
+            )
+            ORDER BY COALESCE(uc.completed_at, uc.started_at) DESC
+            LIMIT 20
+            """,
+            (user_id, this_gte_at, this_lt_at, this_gte_at, this_lt_at),
+        )
+        challenge_rows = cursor.fetchall() or []
+
+    delivery_list = []
+    for r in delivery_rows:
+        date_label, time_label = _fmt(r["created_at"])
+        price = r.get("total_price") or 0
+        kcal = r.get("total_calories") or 0
+        delivery_list.append({
+            "date_label": date_label,
+            "time_label": time_label,
+            "summary": f"배달 {price:,}원 · {kcal:,} kcal",
+        })
+
+    time_list = []
+    for r in time_rows:
+        date_label, time_label = _fmt(r["created_at"])
+        mins = [
+            ("유튜브", r.get("youtube_min") or 0),
+            ("인스타", r.get("instagram_min") or 0),
+            ("틱톡", r.get("tiktok_min") or 0),
+            ("게임", r.get("game_min") or 0),
+        ]
+        total_min = sum(m for _, m in mins)
+        active = [x for x in mins if x[1] > 0]
+        if active:
+            top = max(active, key=lambda x: x[1])
+            label = f"{top[0]} {top[1]}분"
+            if len(active) > 1:
+                label += f" 외 {len(active) - 1}개 앱"
+        else:
+            label = "기록 없음"
+        h, m = total_min // 60, total_min % 60
+        total_str = f"{h}h {m}m" if h > 0 else f"{m}m"
+        time_list.append({
+            "date_label": date_label,
+            "time_label": time_label,
+            "summary": label,
+            "total": total_str,
+        })
+
+    challenge_list = []
+    for r in challenge_rows:
+        ref = r.get("completed_at") if r.get("is_completed") else r.get("started_at")
+        date_label, _ = _fmt(ref) if ref else ("", "")
+        challenge_list.append({
+            "title": r["title"],
+            "is_completed": bool(r["is_completed"]),
+            "date_label": date_label,
+        })
+
+    return jsonify({"delivery": delivery_list, "time": time_list, "challenges": challenge_list})
