@@ -151,9 +151,9 @@ def index():
             last_score = last_score_record["score"]
             diff = score - last_score
             if diff > 0:
-                insight_title = f"도파민 점수가 지난 주보다 {diff}점 상승했어요!"
+                insight_title = f"도파민 점수가 지난 주보다 {diff}점 높아졌어요. 주의하세요!"
             elif diff < 0:
-                insight_title = f"도파민 점수가 지난 주보다 {abs(diff)}점 하락했어요!"
+                insight_title = f"도파민 점수가 지난 주보다 {abs(diff)}점 낮아졌어요. 잘 하고 있어요!"
             else:
                 insight_title = "도파민 수치가 지난 주와 동일하게 유지되고 있어요."
         else:
