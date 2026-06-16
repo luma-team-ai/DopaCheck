@@ -40,7 +40,8 @@
   {% block bottom_action %}{% endblock %}
 
   <!-- Bottom Navigation -->
-  {% set active_tab = active_tab|default('delivery') %}
+  {% block active_tab %}{% endblock %}
+  {% set active_tab = self.active_tab()|trim if self.active_tab is defined and self.active_tab()|trim else 'delivery' %}
   {% include "components/footer.html" %}
 
   {% block scripts %}{% endblock %}

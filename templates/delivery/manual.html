@@ -1,174 +1,381 @@
-{% extends "_app_base.html" %}
-{% block title %}배달 직접 입력{% endblock %}
-{% block page_title %}직접 입력{% endblock %}
-{% block content %}
-<!-- Warning Card -->
-<section class="mt-section-gap mb-stack-gap">
-  <div class="glass-panel rounded-xl p-card-padding flex items-start gap-4 border-l-4 border-l-tertiary">
-    <span class="material-symbols-outlined text-tertiary mt-1">warning</span>
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>배달 직접 입력 | DopaCheck</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@100..900&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Plus+Jakarta+Sans:wght@700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: "Pretendard", "Inter", sans-serif;
+      background-color: #0A0A0F;
+      color: #e4e1ed;
+      overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100dvh;
+    }
+    .glass-card {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 20px;
+    }
+    .primary-gradient {
+      background: linear-gradient(135deg, #6b5bff 0%, #c5c0ff 100%);
+    }
+    .noise-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei);
+      z-index: 99;
+    }
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      opacity: 0.15;
+      z-index: -1;
+    }
+    .orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #6b5bff;
+      top: -100px;
+      right: -100px;
+    }
+    .orb-2 {
+      width: 300px;
+      height: 300px;
+      background: #8c0a46;
+      bottom: 100px;
+      left: -50px;
+    }
+
+    /* ── 직접 입력 전용 ── */
+    .glass-panel {
+      background: #14141C;
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+    }
+    .glow-border:focus-within {
+      border-color: #c5c0ff;
+      box-shadow: 0 0 15px rgba(197, 192, 255, 0.15);
+    }
+    .gradient-text {
+      background: linear-gradient(135deg, #c5c0ff 0%, #ffb1c5 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .gradient-button {
+      background: linear-gradient(135deg, #6b5bff 0%, #ff95b4 100%);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .gradient-button:active {
+      transform: scale(0.98);
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "tertiary-container": "#bb5a00",
+            "surface-container-high": "#2a2933",
+            "tertiary": "#ffb689",
+            "on-secondary-fixed": "#3f001b",
+            "inverse-primary": "#5340e7",
+            "inverse-surface": "#e5e0ee",
+            "surface-container": "#1f1f28",
+            "on-tertiary": "#512300",
+            "secondary-fixed": "#ffd9e1",
+            "on-background": "#e5e0ee",
+            "error-container": "#93000a",
+            "background": "#13121c",
+            "on-error": "#690005",
+            "surface-dim": "#13121c",
+            "surface-bright": "#393842",
+            "primary-fixed-dim": "#c5c0ff",
+            "outline-variant": "#474555",
+            "tertiary-fixed": "#ffdbc8",
+            "on-error-container": "#ffdad6",
+            "on-primary-fixed-variant": "#3a1bd0",
+            "on-primary-container": "#fffdff",
+            "primary-fixed": "#e3dfff",
+            "primary": "#c5c0ff",
+            "on-tertiary-fixed-variant": "#743500",
+            "on-surface": "#e5e0ee",
+            "surface-variant": "#35343e",
+            "outline": "#918ea1",
+            "inverse-on-surface": "#302f39",
+            "on-tertiary-container": "#fffdff",
+            "secondary": "#ffb1c5",
+            "secondary-fixed-dim": "#ffb1c5",
+            "tertiary-fixed-dim": "#ffb689",
+            "surface": "#13121c",
+            "on-surface-variant": "#c8c4d8",
+            "surface-container-lowest": "#0e0d16",
+            "primary-container": "#6b5bff",
+            "on-secondary-fixed-variant": "#8c0a46",
+            "secondary-container": "#8c0a46",
+            "on-secondary": "#650030",
+            "surface-container-highest": "#35343e",
+            "surface-container-low": "#1b1a24",
+            "on-secondary-container": "#ff95b4",
+            "error": "#ffb4ab",
+            "on-primary-fixed": "#140067",
+            "surface-tint": "#c5c0ff",
+            "on-tertiary-fixed": "#311300",
+            "on-primary": "#2500a2"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "card-padding": "24px",
+            "unit": "4px",
+            "section-gap": "40px",
+            "stack-gap": "16px",
+            "container-padding": "20px",
+            "edge-padding": "20px",
+            "stack-md": "16px",
+            "base": "8px",
+            "stack-lg": "24px",
+            "stack-sm": "8px",
+            "gutter": "16px",
+            "section-margin": "40px"
+          },
+          "fontFamily": {
+            "display-lg-mobile": ["Plus Jakarta Sans"],
+            "hero-num": ["Plus Jakarta Sans"],
+            "label-caps": ["Inter"],
+            "body-lg": ["Inter"],
+            "hero-num-md": ["Plus Jakarta Sans"],
+            "title-md": ["Inter"],
+            "display-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Pretendard"],
+            "display-xl": ["Pretendard"],
+            "label-md": ["Pretendard"],
+            "headline-md": ["Pretendard"],
+            "headline-lg": ["Pretendard"],
+            "display-md": ["Pretendard"]
+          },
+          "fontSize": {
+            "display-lg-mobile": ["28px", { "lineHeight": "130%", "fontWeight": "700" }],
+            "hero-num": ["96px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "label-caps": ["12px", { "lineHeight": "100%", "letterSpacing": "0.05em", "fontWeight": "600" }],
+            "body-lg": ["16px", { "lineHeight": "160%", "fontWeight": "400" }],
+            "hero-num-md": ["56px", { "lineHeight": "110%", "letterSpacing": "-0.04em", "fontWeight": "800" }],
+            "title-md": ["20px", { "lineHeight": "150%", "fontWeight": "600" }],
+            "display-lg": ["32px", { "lineHeight": "130%", "fontWeight": "700" }],
+            "display-md-mobile": ["48px", {"lineHeight": "56px", "fontWeight": "800"}],
+            "display-xl": ["96px", {"lineHeight": "100px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+            "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+            "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "headline-lg": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+            "display-md": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+            "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+          }
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  {% set page_title = "직접 입력" %}
+  {% include "components/header.html" %}
+
+  <!-- Main Container -->
+  <main class="pt-[80px] pb-[100px] px-container-padding max-w-[600px] mx-auto space-y-stack-lg">
+    <!-- Back to Form Link -->
     <div>
-      <p class="font-title-md text-on-surface font-bold mb-1">영수증을 읽지 못했어요.</p>
-      <p class="text-on-surface-variant text-sm">정보를 정확하게 분석하기 위해<br>직접 입력해 주세요.</p>
-    </div>
-  </div>
-</section>
-
-<form id="manual-form" action="{{ url_for('delivery.analyze') }}" method="post">
-  <input type="hidden" name="manual_input" value="1">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  {# JS 가 제출 직전 채워넣는 서버 계약 필드 #}
-  <input type="hidden" name="food_names" id="food-names-hidden">
-  <input type="hidden" name="total_price" id="total-price-hidden">
-
-  <!-- 항목 입력 -->
-  <section class="space-y-4" id="rows-container">
-    <div class="flex justify-between items-end mb-2 px-1">
-      <h2 class="font-title-md text-on-surface">항목 입력</h2>
-      <span class="text-label-caps text-on-surface-variant">KRW (₩)</span>
+      <a href="{{ url_for('delivery.delivery_page') }}" class="inline-flex items-center gap-2 text-primary hover:text-primary-fixed-dim transition-colors text-sm font-semibold text-decoration-none">
+        <span class="material-symbols-outlined text-base">arrow_back</span>
+        영수증 업로드로 돌아가기
+      </a>
     </div>
 
-    <!-- 항목 행 (JS 가 복제) -->
-    <div class="form-row glass-panel rounded-xl p-4 relative">
-      <div class="grid grid-cols-12 gap-3">
-        <div class="col-span-12">
-          <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">음식명</label>
-          <input type="text" maxlength="100" class="food-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline outline-none transition-all" placeholder="예: 마라탕">
-        </div>
-        <div class="col-span-7">
-          <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">가격</label>
-          <input type="number" min="0" class="price-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface outline-none transition-all" placeholder="0">
-        </div>
-        <div class="col-span-3">
-          <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">수량</label>
-          <input type="number" min="1" value="1" class="qty-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-center text-on-surface outline-none transition-all">
-        </div>
-        <div class="col-span-2 flex items-end justify-center pb-2">
-          <button type="button" class="remove-row-btn text-on-surface-variant hover:text-error active:scale-90 transition-all">
-            <span class="material-symbols-outlined">delete</span>
-          </button>
+    <!-- Warning Card -->
+    <section class="mt-4 mb-2">
+      <div class="glass-panel p-card-padding flex items-start gap-4 border-l-4 border-l-tertiary">
+        <span class="material-symbols-outlined text-tertiary mt-1">warning</span>
+        <div>
+          <p class="font-title-md text-on-surface font-bold mb-1">영수증을 읽지 못했어요.</p>
+          <p class="text-on-surface-variant text-sm">정보를 정확하게 분석하기 위해<br>직접 입력해 주세요.</p>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <button type="button" id="add-row-btn" class="w-full h-14 mt-4 rounded-xl border-2 border-dashed border-outline-variant/30 text-on-surface-variant flex items-center justify-center gap-2 hover:bg-surface-container/50 active:scale-[0.98] transition-all">
-    <span class="material-symbols-outlined">add</span>
-    <span class="font-bold">항목 추가</span>
-  </button>
+    <form id="manual-form" action="{{ url_for('delivery.analyze') }}" method="post">
+      <input type="hidden" name="manual_input" value="1">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="food_names" id="food-names-hidden">
+      <input type="hidden" name="total_price" id="total-price-hidden">
 
-  <!-- 배달비 (시안 외 추가 — 기존 기능 유지) -->
-  <div class="mt-4 glass-panel rounded-xl p-4 flex items-center justify-between gap-3">
-    <label for="delivery-fee" class="text-sm text-on-surface-variant">배달비</label>
-    <div class="flex items-center gap-1">
-      <input type="number" min="0" value="0" id="delivery-fee" name="delivery_fee" class="glow-border w-28 bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3 py-2 text-right text-on-surface outline-none transition-all">
-      <span class="text-on-surface-variant text-sm">원</span>
-    </div>
-  </div>
+      <!-- 항목 입력 -->
+      <section class="space-y-4" id="rows-container">
+        <div class="flex justify-between items-end mb-2 px-1">
+          <h2 class="font-title-md text-on-surface">항목 입력</h2>
+          <span class="text-label-caps text-on-surface-variant">KRW (₩)</span>
+        </div>
 
-  <!-- 총 합계 -->
-  <section class="mt-section-gap py-6 border-t border-outline-variant/20">
-    <div class="flex items-center justify-between">
-      <span class="font-title-md text-on-surface">총 합계</span>
-      <div class="text-right">
-        <span class="font-hero-num-md text-hero-num-md gradient-text" id="total-amount">0</span>
-        <span class="text-on-surface-variant ml-1">원</span>
+        <!-- 항목 행 (JS 가 복제) -->
+        <div class="form-row glass-panel p-4 relative">
+          <div class="grid grid-cols-12 gap-3">
+            <div class="col-span-12">
+              <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">음식명</label>
+              <input type="text" maxlength="100" class="food-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline outline-none transition-all" placeholder="예: 마라탕">
+            </div>
+            <div class="col-span-7">
+              <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">가격</label>
+              <input type="number" min="0" class="price-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface outline-none transition-all" placeholder="0">
+            </div>
+            <div class="col-span-3">
+              <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">수량</label>
+              <input type="number" min="1" value="1" class="qty-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-center text-on-surface outline-none transition-all">
+            </div>
+            <div class="col-span-2 flex items-end justify-center pb-2">
+              <button type="button" class="remove-row-btn text-on-surface-variant hover:text-error active:scale-90 transition-all">
+                <span class="material-symbols-outlined">delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <button type="button" id="add-row-btn" class="w-full h-14 mt-4 rounded-xl border-2 border-dashed border-outline-variant/30 text-on-surface-variant flex items-center justify-center gap-2 hover:bg-surface-container/50 active:scale-[0.98] transition-all">
+        <span class="material-symbols-outlined">add</span>
+        <span class="font-bold">항목 추가</span>
+      </button>
+
+      <!-- 배달비 -->
+      <div class="mt-4 glass-panel p-4 flex items-center justify-between gap-3">
+        <label for="delivery-fee" class="text-sm text-on-surface-variant">배달비</label>
+        <div class="flex items-center gap-1">
+          <input type="number" min="0" value="0" id="delivery-fee" name="delivery_fee" class="glow-border w-28 bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-3 py-2 text-right text-on-surface outline-none transition-all">
+          <span class="text-on-surface-variant text-sm">원</span>
+        </div>
       </div>
-    </div>
-  </section>
 
-  <button type="submit" class="gradient-button w-full h-[52px] rounded-full text-white font-bold text-lg shadow-lg shadow-primary/20 active:scale-95 transition-all">
-    분석하기
-  </button>
-</form>
-{% endblock %}
-
-{% block scripts %}
-<script>
-  (function () {
-    const rowsContainer = document.getElementById('rows-container');
-    const addBtn = document.getElementById('add-row-btn');
-    const totalDisplay = document.getElementById('total-amount');
-    const form = document.getElementById('manual-form');
-
-    function rowTemplate() {
-      const div = document.createElement('div');
-      div.className = 'form-row glass-panel rounded-xl p-4 relative';
-      div.innerHTML = `
-        <div class="grid grid-cols-12 gap-3">
-          <div class="col-span-12">
-            <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">음식명</label>
-            <input type="text" maxlength="100" class="food-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline outline-none transition-all" placeholder="예: 짜장면">
+      <!-- 총 합계 -->
+      <section class="mt-section-gap py-6 border-t border-outline-variant/20">
+        <div class="flex items-center justify-between">
+          <span class="font-title-md text-on-surface">총 합계</span>
+          <div class="text-right">
+            <span class="font-hero-num-md text-hero-num-md gradient-text" id="total-amount">0</span>
+            <span class="text-on-surface-variant ml-1">원</span>
           </div>
-          <div class="col-span-7">
-            <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">가격</label>
-            <input type="number" min="0" class="price-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface outline-none transition-all" placeholder="0">
-          </div>
-          <div class="col-span-3">
-            <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">수량</label>
-            <input type="number" min="1" value="1" class="qty-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-center text-on-surface outline-none transition-all">
-          </div>
-          <div class="col-span-2 flex items-end justify-center pb-2">
-            <button type="button" class="remove-row-btn text-on-surface-variant hover:text-error active:scale-90 transition-all">
-              <span class="material-symbols-outlined">delete</span>
-            </button>
-          </div>
-        </div>`;
-      return div;
-    }
+        </div>
+      </section>
 
-    function recalc() {
-      let total = 0;
-      document.querySelectorAll('.form-row').forEach((row) => {
-        const price = parseFloat(row.querySelector('.price-input').value) || 0;
-        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-        total += price * qty;
-      });
-      total += parseFloat(document.getElementById('delivery-fee').value) || 0;
-      totalDisplay.textContent = total.toLocaleString();
-      return total;
-    }
+      <button type="submit" class="gradient-button w-full h-[52px] rounded-full text-white font-bold text-lg shadow-lg shadow-primary/20 active:scale-95 transition-all">
+        분석하기
+      </button>
+    </form>
+  </main>
 
-    function bindRow(row) {
-      row.querySelectorAll('input').forEach((i) => i.addEventListener('input', recalc));
-      row.querySelector('.remove-row-btn').addEventListener('click', () => {
-        if (document.querySelectorAll('.form-row').length > 1) { row.remove(); recalc(); }
-      });
-    }
+  {% set active_tab = 'delivery' %}
+  {% include "components/footer.html" %}
 
-    // 첫 행 바인딩
-    document.querySelectorAll('.form-row').forEach(bindRow);
-    document.getElementById('delivery-fee').addEventListener('input', recalc);
+  <script>
+    (function () {
+      const rowsContainer = document.getElementById('rows-container');
+      const addBtn = document.getElementById('add-row-btn');
+      const totalDisplay = document.getElementById('total-amount');
+      const form = document.getElementById('manual-form');
 
-    addBtn.addEventListener('click', () => {
-      const row = rowTemplate();
-      rowsContainer.appendChild(row);
-      bindRow(row);
-      recalc();
-    });
-
-    // 제출 직전 서버 계약 필드(food_names/total_price) 직렬화.
-    // total_price 는 '음식명이 있는 행'만 합산 — 빈 행 가격이 섞여 items 와 금액이
-    // 어긋나는 것을 방지(라우트 items 는 food_names 기준으로만 생성됨).
-    form.addEventListener('submit', (e) => {
-      const names = [];
-      let total = 0;
-      document.querySelectorAll('.form-row').forEach((row) => {
-        const name = row.querySelector('.food-input').value.trim();
-        if (!name) return;
-        names.push(name);
-        const price = parseFloat(row.querySelector('.price-input').value) || 0;
-        const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
-        total += price * qty;
-      });
-      if (names.length === 0) {
-        e.preventDefault();
-        alert('음식명을 1개 이상 입력해주세요.');
-        return;
+      function rowTemplate() {
+        const div = document.createElement('div');
+        div.className = 'form-row glass-panel rounded-xl p-4 relative';
+        div.innerHTML = `
+          <div class="grid grid-cols-12 gap-3">
+            <div class="col-span-12">
+              <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">음식명</label>
+              <input type="text" maxlength="100" class="food-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface placeholder:text-outline outline-none transition-all" placeholder="예: 짜장면">
+            </div>
+            <div class="col-span-7">
+              <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">가격</label>
+              <input type="number" min="0" class="price-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-on-surface outline-none transition-all" placeholder="0">
+            </div>
+            <div class="col-span-3">
+              <label class="text-[10px] font-bold text-outline-variant uppercase tracking-wider mb-1 block">수량</label>
+              <input type="number" min="1" value="1" class="qty-input glow-border w-full bg-surface-container-lowest border border-outline-variant/30 rounded-lg px-4 py-3 text-center text-on-surface outline-none transition-all">
+            </div>
+            <div class="col-span-2 flex items-end justify-center pb-2">
+              <button type="button" class="remove-row-btn text-on-surface-variant hover:text-error active:scale-90 transition-all">
+                <span class="material-symbols-outlined">delete</span>
+              </button>
+            </div>
+          </div>`;
+        return div;
       }
-      const deliveryFee = parseFloat(document.getElementById('delivery-fee').value) || 0;
-      document.getElementById('food-names-hidden').value = names.join(',');
-      document.getElementById('total-price-hidden').value = total + deliveryFee;
-    });
-  })();
-</script>
-{% endblock %}
+
+      function recalc() {
+        let total = 0;
+        document.querySelectorAll('.form-row').forEach((row) => {
+          const price = parseFloat(row.querySelector('.price-input').value) || 0;
+          const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+          total += price * qty;
+        });
+        total += parseFloat(document.getElementById('delivery-fee').value) || 0;
+        totalDisplay.textContent = total.toLocaleString();
+        return total;
+      }
+
+      function bindRow(row) {
+        row.querySelectorAll('input').forEach((i) => i.addEventListener('input', recalc));
+        row.querySelector('.remove-row-btn').addEventListener('click', () => {
+          if (document.querySelectorAll('.form-row').length > 1) { row.remove(); recalc(); }
+        });
+      }
+
+      document.querySelectorAll('.form-row').forEach(bindRow);
+      document.getElementById('delivery-fee').addEventListener('input', recalc);
+
+      addBtn.addEventListener('click', () => {
+        const row = rowTemplate();
+        rowsContainer.appendChild(row);
+        bindRow(row);
+        recalc();
+      });
+
+      form.addEventListener('submit', (e) => {
+        const names = [];
+        let total = 0;
+        document.querySelectorAll('.form-row').forEach((row) => {
+          const name = row.querySelector('.food-input').value.trim();
+          if (!name) return;
+          names.push(name);
+          const price = parseFloat(row.querySelector('.price-input').value) || 0;
+          const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+          total += price * qty;
+        });
+        if (names.length === 0) {
+          e.preventDefault();
+          alert('음식명을 1개 이상 입력해주세요.');
+          return;
+        }
+        const deliveryFee = parseFloat(document.getElementById('delivery-fee').value) || 0;
+        document.getElementById('food-names-hidden').value = names.join(',');
+        document.getElementById('total-price-hidden').value = total + deliveryFee;
+      });
+    })();
+  </script>
+</body>
+</html>

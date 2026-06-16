@@ -92,7 +92,7 @@ def score_page():
         current_weekday = kst_today().weekday()
 
         for idx in range(7):
-            day_score = score if idx == current_weekday else None
+            day_score = score if idx == current_weekday else 0
             weekly_scores.append({
                 "day": days_names[idx],
                 "score": day_score,
