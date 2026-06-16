@@ -90,8 +90,8 @@ def recalculate_score(user_id: int) -> None:
         # '이번 주' 기준을 유지하고, 판정용 카운트만 judge_week 기준으로 분리한다.
         # judge 집계 2건은 활성 챌린지가 있을 때만 실행한다 — 비참여자에게 불필요한
         # DB 쿼리가 매 페이지 진입마다 나가던 문제(#194 P2)를 막는다.
-        # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
-        # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
+        # DopaCheck 챌린지는 전부 '줄이기' 방향 — 목표값 미만이어야 달성 (< tv).
+        # "한도 N번" 표시 시 N번을 달성하면 실패, N-1번 이하여야 성공.
         #
         # judge_* 선초기화(#203 봇 P1) — 이 변수들은 아래 for 루프 안에서만 참조되고,
         # 루프와 if 블록이 동일하게 active_challenges에 게이트되므로 빈 리스트에선 둘 다
@@ -117,7 +117,7 @@ def recalculate_score(user_id: int) -> None:
             # ── 가입 주차 필터 (#194 P1-1) ──────────────────────────────────────
             # judge_week가 이 챌린지의 가입 주(started_at이 속한 주)보다 이전이면,
             # 그 주엔 아직 참여하지 않았으므로 완료 판정에서 제외한다. 미적용 시
-            # judge_week=지난주 + judge 0건이면 줄이기형 '0 <= tv'가 참이 되어
+            # judge_week=지난주 + judge 0건이면 줄이기형 '0 < tv'가 참이 되어
             # 이번 주에 새로 참여한 챌린지가 지난주 데이터로 즉시 완료되는 버그 발생.
             started_at = ch["started_at"]
             if started_at is None:
@@ -134,18 +134,19 @@ def recalculate_score(user_id: int) -> None:
             tv = ch["target_value"] or 1
             if tt == "delivery":
                 # progress=이번 주 표시값, done=judge_week 기준 (#194 P1-2)
+                # 한도 tv번 초과 없이 마쳐야 달성 — tv번 사용 시 실패 (엄격 미만 < tv)
                 progress = delivery_count
-                done = judge_delivery_count <= tv
+                done = judge_delivery_count < tv
             elif tt == "time":
                 # target_value 단위: 분(min). progress=이번 주, done=judge_week.
                 progress = time_total_min
-                done = judge_time_total_min <= tv
+                done = judge_time_total_min < tv
             else:  # "both"
                 # target_value 단위: 배달은 횟수, 시간은 시(hour) — seed.sql "3시간 이하" 참고.
                 # progress=이번 주 값, done=judge_week 값.
-                # int() 절삭 시 3.1h → 3h ≤ 3 가 되어 목표 초과를 달성으로 오판 — float 비교 유지.
+                # float 비교 유지 — int() 절삭 시 3.1h → 3h < 3 = False 가 되어 미달성 오판 방지.
                 progress = min(delivery_count, int(time_hours))
-                done = judge_delivery_count <= tv and judge_time_hours <= tv
+                done = judge_delivery_count < tv and judge_time_hours < tv
 
             if done:
                 # 주의(#194 P2): judge_week=지난주 완료 시 completed_at=NOW()(이번 주)라

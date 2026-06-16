@@ -116,6 +116,24 @@ def handle_request_entity_too_large(error):
     except BuildError:
         return redirect("/")
 
+# 월요일 00:01 KST — 지난 주 미판정 챌린지 일괄 달성 판정 배치 (P1-B #194)
+# Werkzeug reloader는 부모 감시 프로세스도 app.py를 실행하므로 자식(WERKZEUG_RUN_MAIN=true)에서만 시작.
+# gunicorn 멀티워커(2개)는 둘 다 스케줄러를 기동하지만, 배치가 멱등(UPDATE WHERE is_completed=0)이라 안전.
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+    from scheduler.challenge_batch import settle_last_week_challenges
+
+    _scheduler = BackgroundScheduler(timezone="Asia/Seoul")
+    _scheduler.add_job(
+        settle_last_week_challenges,
+        CronTrigger(day_of_week="mon", hour=0, minute=1, timezone="Asia/Seoul"),
+        id="settle_last_week_challenges",
+        replace_existing=True,
+    )
+    _scheduler.start()
+
+
 if __name__ == "__main__":
     # 디버그 모드는 환경변수로 게이트 — 운영에서 debug=True 노출 방지 (#44 P3)
     debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"

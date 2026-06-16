@@ -2,6 +2,7 @@
 import logging
 import time
 import uuid as _uuid
+from datetime import datetime as _dt
 
 from flask import Blueprint, jsonify, render_template, request, session
 
@@ -10,6 +11,7 @@ from config import AI_RECOMMEND_CACHE_TTL
 from db.client import db
 from routes.auth import login_required
 from utils.csrf import get_or_create_csrf_token, verify_csrf
+from utils.week import get_week_ranges, kst_bounds
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +100,7 @@ def challenge_page():
     try:
         with db() as cursor:
             cursor.execute(
-                "SELECT challenge_id, progress, is_completed"
+                "SELECT challenge_id, progress, is_completed, started_at"
                 " FROM user_challenges WHERE user_id = %s",
                 (user_id,),
             )
@@ -110,6 +112,46 @@ def challenge_page():
     joined_ids = {uc["challenge_id"] for uc in user_challenges if not uc["is_completed"]}
     completed_ids = {uc["challenge_id"] for uc in user_challenges if uc["is_completed"]}
     progress_map = {uc["challenge_id"]: uc["progress"] for uc in user_challenges}
+
+    # 타입별 개별 진행도 — both 타입은 progress가 max(배달,시간) 단일값이라 표시 불가
+    # delivery/time도 일관성 위해 detail_map으로 통합 표시 (배달 N건 · SNS N분)
+    detail_map: dict = {}
+    if joined_ids:
+        try:
+            this_week_range, _ = get_week_ranges()
+            week_start, week_end = this_week_range
+            gte_at, lt_at = kst_bounds(week_start, week_end)
+            uc_by_ch = {uc["challenge_id"]: uc for uc in user_challenges if not uc["is_completed"]}
+
+            with db() as cursor:
+                for ch_id in joined_ids:
+                    uc = uc_by_ch.get(ch_id, {})
+                    started_at = uc.get("started_at")
+                    if started_at:
+                        gte_dt = _dt.fromisoformat(gte_at)
+                        started_dt = (started_at if isinstance(started_at, _dt)
+                                      else _dt.fromisoformat(str(started_at)))
+                        ch_gte = max(gte_dt, started_dt).strftime("%Y-%m-%d %H:%M:%S")
+                    else:
+                        ch_gte = gte_at
+
+                    cursor.execute(
+                        "SELECT COUNT(*) as cnt FROM delivery_records"
+                        " WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+                        (user_id, ch_gte, lt_at),
+                    )
+                    d = cursor.fetchone()["cnt"] or 0
+
+                    cursor.execute(
+                        "SELECT SUM(youtube_min + instagram_min + tiktok_min + game_min) as sum_min"
+                        " FROM time_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+                        (user_id, ch_gte, lt_at),
+                    )
+                    t = cursor.fetchone()["sum_min"] or 0
+
+                    detail_map[ch_id] = {"delivery": d, "time_min": t}
+        except Exception as e:
+            logger.warning("챌린지 진행도 상세 조회 실패: %s", e)
 
     # AI 추천 (FR-33) — 세션 캐시로 TTL 내 중복 LLM 호출 방지
     ai_recommendations = _get_ai_recommendations(user_id)
@@ -140,9 +182,9 @@ def challenge_page():
         joined_ids=joined_ids,
         completed_ids=completed_ids,
         progress_map=progress_map,
+        detail_map=detail_map,
         ai_recommendations=ai_recommendations,
         csrf_token=csrf_token,
-        # 하단 탭바 활성 표시
         active_tab="challenge",
     )
 
