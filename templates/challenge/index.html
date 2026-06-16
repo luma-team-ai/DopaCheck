@@ -489,8 +489,12 @@
             </span>
           </div>
           {% if ch.id in completed_ids %}
+          {% set unit = '회' if ch.target_type == 'delivery' else ('분' if ch.target_type == 'time' else '') %}
           <div class="progress-section">
-            <div class="progress-label"><span>달성률</span><span>100%</span></div>
+            <div class="progress-label">
+              <span style="font-weight:700;color:#2fe0a6">한도 {{ ch.target_value }}{{ unit }} 이내</span>
+              <span style="color:#2fe0a6">달성 ✓</span>
+            </div>
             <div class="progress-bar">
               <div class="progress-fill" style="width:100%"></div>
             </div>
