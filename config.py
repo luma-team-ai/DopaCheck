@@ -29,6 +29,12 @@ MODEL_CALORIE   = "claude-haiku-4-5"
 MODEL_COMMENT   = "claude-haiku-4-5"
 MODEL_CHALLENGE = "claude-haiku-4-5"
 
+# ── OCR 비전 입력 튜닝 (#188) — sonnet-4-6 native 해상도 기준 ──
+OCR_MAX_EDGE = 1568            # long edge 상한 px (sonnet급; Opus 4.7+는 2576)
+OCR_MAX_TOKENS = 1568          # 비전 토큰 상한 (Opus 4.7+는 4784)
+OCR_TEMPERATURE = 0            # 추출 결정성 (정확도)
+OCR_MAX_OUTPUT_TOKENS = 2048   # 긴 영수증 JSON 잘림 방지
+
 # ── 도파민 점수 공식 (FR-27) ─────────────────────────────
 SCORE_DELIVERY_WEIGHT = 0.4     # 배달 기여 40%
 SCORE_TIME_WEIGHT = 0.4         # 시간 기여 40%
