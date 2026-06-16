@@ -26,8 +26,9 @@
   .gradient-btn:active { transform: scale(0.98); }
   .noise-overlay {
     position: fixed; inset: 0; pointer-events: none; opacity: 0.03;
-    background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBM7npB9y6hKUQGArWQv1cDohyg0A7hrRPkkgzqZYmBeNihu9xjxUQ-zolXyUCv1Mjs78mcL3ae2KJsXhERI89Il2RHGgq4SqnO5nsuCM1SOotUwo8gQTQSVlwGhtLutmRp0DyFCZ0r4JenYyQE-rhHfnaI2hCz2644umKY05-JRfSnXuTW8EK_r2WPtIxLcVcBtQVz80wvzPgJyqpCIJ65gYwVWHCWUM9PMH2LhRO6Ufe2hreKckeP433rMdphhW_df08awDjDAqei");
-    z-index: 99;
+    /* 자체 SVG feTurbulence 노이즈 (외부 의존성 제거 — 구 AIDA 임시 URL 대체) */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    z-index: 1;
   }
   .orb { position: fixed; border-radius: 50%; filter: blur(100px); opacity: 0.15; z-index: -1; }
   .orb-1 { width: 400px; height: 400px; background: #6b5bff; top: -100px; right: -100px; }
