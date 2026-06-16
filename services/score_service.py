@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 import ai.score as ai_score
 from db.client import db
-from utils.week import get_week_ranges, kst_bounds
+from utils.week import get_week_ranges, kst_bounds, kst_today
 
 logger = logging.getLogger(__name__)
 
@@ -52,19 +52,23 @@ def recalculate_score(user_id: int) -> None:
         active_challenges = cursor.fetchall() or []
         time_hours = time_total_min / 60
 
+        # 줄이기 챌린지는 주 종료(일요일) 이후에만 달성 판정 — 그 전엔 0회여도 완료 처리 금지
+        week_end_date = date.fromisoformat(week_end)
+        week_is_over = kst_today() >= week_end_date
+
         for ch in active_challenges:
             tt = ch["target_type"]
             tv = ch["target_value"] or 1
             if tt == "delivery":
                 progress = delivery_count
-                done = delivery_count >= tv
+                done = week_is_over and delivery_count <= tv
             elif tt == "time":
-                # target_value 단위는 분(min) — time_total_min과 단위 일치 (이전 time_hours 비교는 단위 불일치 버그)
+                # target_value 단위는 분(min) — time_total_min과 단위 일치
                 progress = time_total_min
-                done = time_total_min >= tv
+                done = week_is_over and time_total_min <= tv
             else:  # "both"
                 progress = min(delivery_count, int(time_hours))
-                done = delivery_count >= tv and time_hours >= tv
+                done = week_is_over and delivery_count <= tv and int(time_hours) <= tv
 
             if done:
                 cursor.execute(
