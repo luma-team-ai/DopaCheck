@@ -210,7 +210,8 @@
       </a>
     </div>
 
-    <!-- Warning Card -->
+    <!-- Warning Card (OCR 실패 시에만 표시) -->
+    {% if ocr_failed %}
     <section class="mt-4 mb-2">
       <div class="glass-panel p-card-padding flex items-start gap-4 border-l-4 border-l-tertiary">
         <span class="material-symbols-outlined text-tertiary mt-1">warning</span>
@@ -220,6 +221,7 @@
         </div>
       </div>
     </section>
+    {% endif %}
 
     <form id="manual-form" action="{{ url_for('delivery.analyze') }}" method="post">
       <input type="hidden" name="manual_input" value="1">

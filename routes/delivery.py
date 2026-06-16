@@ -110,7 +110,8 @@ def delivery_page():
 def manual_page():
     """OCR 실패 시 수동 입력 폼 fallback. (FR-7)"""
     csrf_token = get_or_create_csrf_token()
-    return render_template("delivery/manual.html", csrf_token=csrf_token)
+    ocr_failed = request.args.get("ocr_failed") == "1"
+    return render_template("delivery/manual.html", csrf_token=csrf_token, ocr_failed=ocr_failed)
 
 
 @delivery_bp.route("/analyze", methods=["POST"])
@@ -161,7 +162,7 @@ def analyze():
     except Exception as e:
         logger.warning("OCR 실패 — fallback 수동 입력 폼으로 전환: %s", e)
         flash("영수증 인식에 실패했습니다. 직접 입력해주세요.", "warning")
-        return redirect(url_for("delivery.manual_page"))
+        return redirect(url_for("delivery.manual_page", ocr_failed=1))
 
     # ── 칼로리 추론 이후 공통 파이프라인 (FR-3~8) ─────────────
     food_names = [it["name"] for it in items if isinstance(it, dict) and it.get("name")]
