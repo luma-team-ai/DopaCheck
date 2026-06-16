@@ -168,7 +168,8 @@
       <h2 class="text-on-surface-variant font-label-caps text-label-caps mb-4 uppercase tracking-widest px-1">사용자 현황</h2>
       <div class="grid grid-cols-2 gap-4">
         <!-- 전체 가입자 -->
-        <div class="glass-card p-card-padding flex flex-col gap-2">
+        <a href="{{ url_for('admin.users_list') }}"
+           class="glass-card p-card-padding flex flex-col gap-2 hover:border-primary/30 transition-colors active:scale-95 active:duration-100">
           <div class="flex justify-between items-start">
             <span class="text-on-surface-variant text-sm font-medium">전체 가입자</span>
             <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">group</span>
@@ -177,7 +178,10 @@
             <span class="font-hero-num-md text-3xl gradient-text font-bold">{{ "{:,}".format(total_users) }}</span>
             <span class="text-on-surface-variant text-xs">명</span>
           </div>
-        </div>
+          <span class="text-primary text-[10px] font-semibold flex items-center gap-0.5 mt-1">
+            목록 보기 <span class="material-symbols-outlined text-[12px]">chevron_right</span>
+          </span>
+        </a>
         <!-- 활성 사용자 (최근 7일) -->
         <div class="glass-card p-card-padding flex flex-col gap-2">
           <div class="flex justify-between items-start">
@@ -287,7 +291,8 @@
         <div class="flex flex-col divide-y divide-outline-variant/20">
           {% if ranking_list %}
             {% for row in ranking_list %}
-              <div class="flex items-center justify-between p-4 {% if loop.index == 1 %}bg-primary/5{% endif %}">
+              <a href="{{ url_for('admin.user_detail', user_id=row.user_id) }}"
+                 class="flex items-center justify-between p-4 hover:bg-primary/5 transition-colors {% if loop.index == 1 %}bg-primary/5{% endif %}">
                 <div class="flex items-center gap-4">
                   <span class="font-bold text-xl gradient-text italic w-6">{{ loop.index }}</span>
                   <div class="w-10 h-10 rounded-full {% if loop.index == 1 %}bg-primary/20 border border-primary/30 text-primary{% else %}bg-surface-variant text-on-surface-variant{% endif %} flex items-center justify-center font-bold">
@@ -298,8 +303,11 @@
                     <span class="text-[10px] text-on-surface-variant/60">{{ row.email }}</span>
                   </div>
                 </div>
-                <span class="text-primary font-bold">{{ row.top_score }}점</span>
-              </div>
+                <div class="flex items-center gap-1">
+                  <span class="text-primary font-bold">{{ row.top_score }}점</span>
+                  <span class="material-symbols-outlined text-on-surface-variant text-base">chevron_right</span>
+                </div>
+              </a>
             {% endfor %}
           {% else %}
             <div class="p-6 text-center text-on-surface-variant text-sm">
@@ -312,7 +320,14 @@
 
     <!-- Section 5: 챌린지 통계 -->
     <section>
-      <h2 class="text-on-surface-variant font-label-caps text-label-caps mb-4 uppercase tracking-widest px-1">챌린지 통계</h2>
+      <div class="flex justify-between items-center mb-4 px-1">
+        <h2 class="text-on-surface-variant font-label-caps text-label-caps uppercase tracking-widest">챌린지 통계</h2>
+        <a href="{{ url_for('admin.challenges_page') }}"
+           class="flex items-center gap-1 text-primary text-label-caps font-label-caps hover:opacity-80 transition-opacity">
+          관리
+          <span class="material-symbols-outlined text-sm">chevron_right</span>
+        </a>
+      </div>
       <div class="glass-card p-card-padding flex items-center gap-8">
         <!-- Circular Progress -->
         <div class="relative w-[120px] h-[120px] flex-shrink-0">

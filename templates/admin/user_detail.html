@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>사용자 상세 — DopaCheck Admin</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-bright": "#393842", "error-container": "#93000a",
+            "inverse-surface": "#e5e0ee", "on-error-container": "#ffdad6",
+            "inverse-primary": "#5340e7", "primary-fixed-dim": "#c5c0ff",
+            "surface": "#13121c", "on-secondary-fixed": "#3f001b",
+            "surface-container-high": "#2a2933", "on-tertiary": "#512300",
+            "on-primary-fixed-variant": "#3a1bd0", "on-primary-fixed": "#140067",
+            "on-secondary-container": "#ff95b4", "surface-container": "#1f1f28",
+            "on-primary-container": "#fffdff", "primary-fixed": "#e3dfff",
+            "outline-variant": "#474555", "on-surface-variant": "#c8c4d8",
+            "tertiary-container": "#bb5a00", "surface-container-low": "#1b1a24",
+            "on-secondary-fixed-variant": "#8c0a46", "secondary-container": "#8c0a46",
+            "on-secondary": "#650030", "surface-container-highest": "#35343e",
+            "on-background": "#e5e0ee", "on-tertiary-container": "#fffdff",
+            "error": "#ffb4ab", "outline": "#918ea1", "tertiary": "#ffb689",
+            "background": "#13121c", "surface-container-lowest": "#0e0d16",
+            "secondary": "#ffb1c5", "surface-dim": "#13121c",
+            "secondary-fixed": "#ffd9e1", "tertiary-fixed-dim": "#ffb689",
+            "inverse-on-surface": "#302f39", "surface-tint": "#c5c0ff",
+            "tertiary-fixed": "#ffdbc8", "surface-variant": "#35343e",
+            "primary": "#c5c0ff", "primary-container": "#6b5bff",
+            "secondary-fixed-dim": "#ffb1c5", "on-surface": "#e5e0ee",
+            "on-error": "#690005", "on-primary": "#2500a2"
+          },
+          borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+          spacing: {
+            "section-gap": "40px", "stack-gap": "16px",
+            "card-padding": "24px", "unit": "4px", "container-padding": "20px"
+          },
+          fontFamily: {
+            "title-md": ["Inter", "Pretendard"],
+            "display-lg-mobile": ["PlusJakartaSans", "Pretendard"],
+            "label-caps": ["Inter", "Pretendard"],
+            "body-lg": ["Inter", "Pretendard"]
+          },
+          fontSize: {
+            "title-md": ["20px", { lineHeight: "150%", fontWeight: "600" }],
+            "display-lg-mobile": ["28px", { lineHeight: "130%", fontWeight: "700" }],
+            "label-caps": ["12px", { lineHeight: "100%", letterSpacing: "0.05em", fontWeight: "600" }],
+            "body-lg": ["16px", { lineHeight: "160%", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background-color: #0A0A0F;
+      min-height: max(884px, 100dvh);
+    }
+    .glass-card {
+      background: rgba(22, 22, 31, 0.7);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(197, 192, 255, 0.1);
+    }
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .accordion-active .accordion-content { max-height: 600px; }
+    .accordion-active .rotate-icon { transform: rotate(180deg); }
+  </style>
+</head>
+<body class="text-on-surface">
+  <div class="relative z-10 max-w-[480px] mx-auto min-h-screen pb-12 overflow-x-hidden">
+
+    <!-- Top App Bar -->
+    <header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex justify-between items-center px-container-padding h-[56px]">
+      <div class="flex items-center gap-4">
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="text-primary hover:opacity-80 transition-opacity active:scale-95 duration-150">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </a>
+        <h1 class="text-title-md font-title-md text-on-surface">사용자 상세</h1>
+      </div>
+      <div class="bg-error-container/20 border border-error-container/30 px-3 py-1 rounded-full">
+        <span class="text-label-caps font-label-caps text-error">ADMIN</span>
+      </div>
+    </header>
+
+    <main class="mt-[56px] pt-6 px-container-padding space-y-section-gap">
+
+      <!-- SECTION 1: 프로필 -->
+      <section>
+        <div class="glass-card rounded-xl p-card-padding flex flex-col items-center text-center">
+          <div class="w-14 h-14 bg-primary-container rounded-full flex items-center justify-center mb-4">
+            <span class="text-title-md font-title-md text-on-primary-container">
+              {{ (user.nickname or '?')[0] }}
+            </span>
+          </div>
+          <h2 class="text-display-lg-mobile font-display-lg-mobile text-on-surface">{{ user.nickname or '이름 없음' }}</h2>
+          <p class="text-body-lg font-body-lg text-on-surface-variant mb-6">{{ user.email }}</p>
+          <div class="flex gap-2 flex-wrap justify-center">
+            <span class="px-3 py-1.5 bg-surface-container rounded-full text-label-caps font-label-caps text-primary border border-primary/20">
+              가입일: {{ user.created_label }}
+            </span>
+            <span class="px-3 py-1.5 bg-surface-container rounded-full text-label-caps font-label-caps text-tertiary border border-tertiary/20">
+              시급: {{ "{:,}".format(user.hourly_wage) }}원
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: 배달 분석 내역 -->
+      <section class="space-y-stack-gap">
+        <div class="flex justify-between items-end">
+          <h3 class="text-title-md font-title-md text-on-surface">배달 분석 내역</h3>
+          <span class="bg-primary/10 text-primary text-label-caps font-label-caps px-2 py-0.5 rounded-md border border-primary/20">
+            {{ delivery_records|length }}건
+          </span>
+        </div>
+        {% if delivery_records %}
+        <div class="space-y-3">
+          {% for r in delivery_records %}
+          <div class="accordion-item glass-card rounded-xl overflow-hidden transition-all duration-300{% if loop.first %} accordion-active{% endif %}">
+            <div class="p-4 flex justify-between items-center cursor-pointer"
+                 onclick="this.parentElement.classList.toggle('accordion-active')">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-on-surface-variant">lunch_dining</span>
+                <div>
+                  <p class="text-body-lg font-title-md leading-none">배달 분석</p>
+                  <p class="text-label-caps font-label-caps text-on-surface-variant mt-1">{{ r.date_label }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-body-lg font-title-md text-tertiary">{{ "{:,}".format(r.total_price) }}원</span>
+                <span class="material-symbols-outlined text-on-surface-variant rotate-icon transition-transform duration-300">expand_more</span>
+              </div>
+            </div>
+            <div class="accordion-content bg-surface-container-low/50">
+              <div class="p-4 border-t border-white/5 space-y-3">
+                {% if r.items %}
+                  {% for item in r.items %}
+                  <div class="flex justify-between items-center">
+                    <span class="text-body-lg font-body-lg text-on-surface-variant">{{ item.name or item.get('menu', '항목') }}</span>
+                    <div class="text-right">
+                      <p class="text-body-lg font-title-md text-tertiary">{{ "{:,}".format(item.price or 0) }}원</p>
+                      {% if item.get('calories') %}
+                      <p class="text-label-caps font-label-caps text-on-surface-variant">{{ item.calories }}kcal</p>
+                      {% endif %}
+                    </div>
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  <p class="text-on-surface-variant text-sm text-center py-2">항목 정보 없음</p>
+                {% endif %}
+                {% if r.delivery_fee %}
+                <div class="flex justify-between items-center border-t border-white/5 pt-2">
+                  <span class="text-label-caps font-label-caps text-on-surface-variant">배달팁</span>
+                  <span class="text-label-caps font-label-caps text-tertiary">{{ "{:,}".format(r.delivery_fee) }}원</span>
+                </div>
+                {% endif %}
+                {% if r.total_calories %}
+                <div class="flex justify-between items-center">
+                  <span class="text-label-caps font-label-caps text-on-surface-variant">총 칼로리</span>
+                  <span class="text-label-caps font-label-caps text-on-surface">{{ "{:,}".format(r.total_calories) }}kcal</span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="glass-card rounded-xl p-6 text-center text-on-surface-variant text-sm">
+          배달 분석 기록이 없습니다.
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- SECTION 3: 시간 분석 내역 -->
+      <section class="space-y-stack-gap">
+        <div class="flex justify-between items-end">
+          <h3 class="text-title-md font-title-md text-on-surface">시간 분석 내역</h3>
+          <span class="bg-primary/10 text-primary text-label-caps font-label-caps px-2 py-0.5 rounded-md border border-primary/20">
+            {{ time_records|length }}건
+          </span>
+        </div>
+        {% if time_records %}
+        <div class="space-y-3">
+          {% for r in time_records %}
+          <div class="accordion-item glass-card rounded-xl overflow-hidden transition-all duration-300{% if loop.first %} accordion-active{% endif %}">
+            <div class="p-4 flex justify-between items-center cursor-pointer"
+                 onclick="this.parentElement.classList.toggle('accordion-active')">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-on-surface-variant">schedule</span>
+                <div>
+                  <p class="text-body-lg font-title-md leading-none">스크린 타임 분석</p>
+                  <p class="text-label-caps font-label-caps text-on-surface-variant mt-1">{{ r.date_label }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-body-lg font-title-md text-primary">{{ r.total_label }}</span>
+                <span class="material-symbols-outlined text-on-surface-variant rotate-icon transition-transform duration-300">expand_more</span>
+              </div>
+            </div>
+            <div class="accordion-content bg-surface-container-low/50">
+              <div class="p-4 border-t border-white/5">
+                <div class="grid grid-cols-2 gap-3">
+                  {% set yt_h = (r.youtube_min or 0) // 60 %}{% set yt_m = (r.youtube_min or 0) % 60 %}
+                  {% set ig_h = (r.instagram_min or 0) // 60 %}{% set ig_m = (r.instagram_min or 0) % 60 %}
+                  {% set tt_h = (r.tiktok_min or 0) // 60 %}{% set tt_m = (r.tiktok_min or 0) % 60 %}
+                  {% set gm_h = (r.game_min or 0) // 60 %}{% set gm_m = (r.game_min or 0) % 60 %}
+                  <div class="bg-surface-container p-3 rounded-lg border border-white/5">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                      <span class="text-label-caps font-label-caps">YouTube</span>
+                    </div>
+                    <p class="text-body-lg font-title-md text-primary">{% if yt_h %}{{ yt_h }}시간 {{ yt_m }}분{% else %}{{ yt_m }}분{% endif %}</p>
+                  </div>
+                  <div class="bg-surface-container p-3 rounded-lg border border-white/5">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="w-2 h-2 rounded-full bg-pink-500"></span>
+                      <span class="text-label-caps font-label-caps">Instagram</span>
+                    </div>
+                    <p class="text-body-lg font-title-md text-primary">{% if ig_h %}{{ ig_h }}시간 {{ ig_m }}분{% else %}{{ ig_m }}분{% endif %}</p>
+                  </div>
+                  <div class="bg-surface-container p-3 rounded-lg border border-white/5">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="w-2 h-2 rounded-full bg-slate-300"></span>
+                      <span class="text-label-caps font-label-caps text-on-surface-variant">TikTok</span>
+                    </div>
+                    <p class="text-body-lg font-title-md text-primary">{% if tt_h %}{{ tt_h }}시간 {{ tt_m }}분{% else %}{{ tt_m }}분{% endif %}</p>
+                  </div>
+                  <div class="bg-surface-container p-3 rounded-lg border border-white/5">
+                    <div class="flex items-center gap-2 mb-2">
+                      <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                      <span class="text-label-caps font-label-caps">Game</span>
+                    </div>
+                    <p class="text-body-lg font-title-md text-primary">{% if gm_h %}{{ gm_h }}시간 {{ gm_m }}분{% else %}{{ gm_m }}분{% endif %}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="glass-card rounded-xl p-6 text-center text-on-surface-variant text-sm">
+          시간 분석 기록이 없습니다.
+        </div>
+        {% endif %}
+      </section>
+
+      <!-- SECTION 4: 도파민 지수 히스토리 -->
+      <section class="space-y-stack-gap">
+        <h3 class="text-title-md font-title-md text-on-surface">도파민 지수 히스토리</h3>
+        <div class="glass-card rounded-xl p-card-padding">
+          {% if score_rows %}
+          <div class="h-48 flex items-end justify-between relative pt-8">
+            <div class="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-label-caps font-label-caps text-on-surface-variant/40">
+              <span>100</span>
+              <span>50</span>
+              <span>0</span>
+            </div>
+            <div class="flex-1 flex items-end justify-around pl-6 h-full border-b border-white/10 gap-1">
+              {% for s in score_rows %}
+              <div class="relative flex flex-col items-center w-6 h-full justify-end">
+                {% if loop.last %}
+                  <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-1.5 py-0.5 rounded text-[10px] font-bold whitespace-nowrap">
+                    {{ s.score }}
+                  </div>
+                  <div class="w-full bg-gradient-to-t from-primary-container to-primary rounded-t-sm shadow-[0_0_12px_rgba(107,91,255,0.4)]"
+                       style="height:{{ s.score }}%"></div>
+                {% else %}
+                  <div class="w-full bg-primary/20 rounded-t-sm hover:bg-primary/40 transition-colors"
+                       style="height:{{ s.score }}%"></div>
+                {% endif %}
+                <span class="text-[8px] text-on-surface-variant/60 mt-2 whitespace-nowrap">{{ s.week_label }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% else %}
+          <div class="py-8 text-center text-on-surface-variant text-sm">
+            도파민 점수 기록이 없습니다.
+          </div>
+          {% endif %}
+        </div>
+      </section>
+
+    </main>
+  </div>
+</body>
+</html>
