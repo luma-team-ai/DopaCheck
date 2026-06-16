@@ -90,22 +90,25 @@ def score_page():
         # 4. 이번 달 주차별 트렌드 (1주차~N주차 고정 표시, 데이터 있는 주차만 막대 채움)
         today = kst_today()
         first_day = today.replace(day=1)
-        ws_cursor = first_day - timedelta(days=first_day.weekday())
-        if ws_cursor.month < today.month:
-            ws_cursor += timedelta(weeks=1)
+        # 다음 달 1일 기준으로 while 종료 — 월 경계에서 1일이 일요일인 경우도 정확히 처리
+        if today.month == 12:
+            next_month_first = today.replace(year=today.year + 1, month=1, day=1)
+        else:
+            next_month_first = today.replace(month=today.month + 1, day=1)
 
+        ws_cursor = first_day - timedelta(days=first_day.weekday())
         month_weeks = []
-        while ws_cursor.month == today.month:
+        while ws_cursor < next_month_first:
             month_weeks.append(ws_cursor.isoformat())
             ws_cursor += timedelta(weeks=1)
 
         if month_weeks:
             placeholders = ",".join(["%s"] * len(month_weeks))
-            cursor.execute(
+            query = (
                 "SELECT week_start, score FROM dopamine_scores"
-                f" WHERE user_id = %s AND week_start IN ({placeholders})",
-                [user_id] + month_weeks
+                " WHERE user_id = %s AND week_start IN (" + placeholders + ")"
             )
+            cursor.execute(query, [user_id] + month_weeks)
             score_map = {
                 (r["week_start"].isoformat() if hasattr(r["week_start"], "isoformat") else str(r["week_start"])): r["score"]
                 for r in (cursor.fetchall() or [])
@@ -118,7 +121,7 @@ def score_page():
             sc = score_map.get(ws_str)
             weekly_scores.append({
                 "day": f"{idx}주차",
-                "score": sc if sc is not None else 0,
+                "score": sc,        # None = 기록 없음, 0 = 실제 0점으로 명확히 구분
                 "has_data": sc is not None,
                 "is_today": (ws_str == week_start),
             })
