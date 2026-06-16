@@ -302,18 +302,20 @@
       border-color: #c5c0ff;
       color: #c5c0ff;
     }
-    .sort-select {
-      padding: 6px 12px;
+    .sort-toggle {
+      padding: 6px 14px;
       border-radius: 20px;
       border: 1px solid #474555;
       background: #1f1f28;
       color: #c8c4d8;
       font-size: 13px;
       cursor: pointer;
-      outline: none;
+      white-space: nowrap;
+      transition: all 0.15s;
     }
-    .sort-select:focus {
-      border-color: #6b5bff;
+    .sort-toggle:hover {
+      border-color: #c5c0ff;
+      color: #c5c0ff;
     }
     .challenge-card.hidden { display: none; }
   </style>
@@ -467,10 +469,7 @@
           <button class="tab-btn" data-filter="time">SNS</button>
           <button class="tab-btn" data-filter="both">Both</button>
         </div>
-        <select class="sort-select" id="challengeSort">
-          <option value="newest">최신순</option>
-          <option value="oldest">오래된순</option>
-        </select>
+        <button class="sort-toggle" id="challengeSort" data-order="newest">최신순 ↓</button>
       </div>
 
       {% if challenges %}
@@ -599,7 +598,7 @@
       let activeFilter = 'all';
 
       function applyFilterSort() {
-        const sortVal = document.getElementById('challengeSort').value;
+        const sortVal = document.getElementById('challengeSort').dataset.order;
         const cards = Array.from(grid.querySelectorAll('.challenge-card'));
 
         // 정렬
@@ -630,8 +629,13 @@
         });
       });
 
-      // 정렬 변경
-      document.getElementById('challengeSort').addEventListener('change', applyFilterSort);
+      // 정렬 토글
+      document.getElementById('challengeSort').addEventListener('click', function () {
+        const next = this.dataset.order === 'newest' ? 'oldest' : 'newest';
+        this.dataset.order = next;
+        this.textContent = next === 'newest' ? '최신순 ↓' : '오래된순 ↑';
+        applyFilterSort();
+      });
 
       applyFilterSort();
     })();
