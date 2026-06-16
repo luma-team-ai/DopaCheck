@@ -338,8 +338,6 @@
       }
     }
 
-    let _aiLoaded = false;
-
     async function loadAiSuggestions() {
       const loading = document.getElementById('aiLoading');
       const error   = document.getElementById('aiError');
@@ -359,41 +357,67 @@
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'AI 추천 실패');
 
+        // tc.label은 화이트리스트에서만 가져오므로 XSS 안전
+        // s.target_value는 백엔드에서 int로 검증됐지만 프론트에서도 재검증
+        const TYPE_CFG = {
+          delivery: { bg:'bg-secondary/10', text:'text-secondary', border:'border-secondary/20', label:'DELIVERY' },
+          time:     { bg:'bg-tertiary/10',  text:'text-tertiary',  border:'border-tertiary/20',  label:'TIME' },
+          both:     { bg:'bg-primary/10',   text:'text-primary',   border:'border-primary/20',   label:'BOTH' },
+        };
+
         results.innerHTML = '';
         (data.suggestions || []).forEach(s => {
-          const TYPE_CFG = {
-            delivery: { bg:'bg-secondary/10', text:'text-secondary', border:'border-secondary/20', label:'DELIVERY' },
-            time:     { bg:'bg-tertiary/10',  text:'text-tertiary',  border:'border-tertiary/20',  label:'TIME' },
-            both:     { bg:'bg-primary/10',   text:'text-primary',   border:'border-primary/20',   label:'BOTH' },
-          };
-          const tc = TYPE_CFG[s.target_type] || TYPE_CFG.both;
+          const tc = TYPE_CFG[s.target_type] || { bg:'bg-outline/10', text:'text-outline', border:'border-outline/20', label:'UNKNOWN' };
+          const safeValue = Number.isFinite(Number(s.target_value)) ? Math.max(0, Math.floor(Number(s.target_value))) : 0;
+
           const card = document.createElement('div');
           card.className = 'glass-card rounded-xl p-4';
-          card.innerHTML = `
-            <div class="flex items-start gap-3">
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1.5 flex-wrap">
-                  <span class="text-[10px] px-2 py-0.5 ${tc.bg} ${tc.text} border ${tc.border} rounded-full font-bold">${tc.label}</span>
-                  <div class="h-[18px] px-2 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center">
-                    <span class="text-[9px] text-white font-bold">AI 추천</span>
-                  </div>
-                </div>
-                <p class="text-on-surface font-semibold text-sm">${escapeHtml(s.title)}</p>
-                <p class="text-on-surface-variant text-xs mt-0.5">${escapeHtml(s.description || '')}</p>
-                <p class="text-on-surface-variant text-[11px] mt-1">목표: ${s.target_value || 0}회/단위</p>
-              </div>
-              <button type="button" class="add-btn flex-shrink-0 h-10 px-3 rounded-lg bg-primary-container/20 text-primary text-xs font-bold hover:bg-primary-container/40 transition-colors flex items-center gap-1">
-                <span class="material-symbols-outlined text-[16px]">add</span>추가
-              </button>
-            </div>
-          `;
-          card.querySelector('.add-btn').addEventListener('click', function() {
-            addChallenge(this, s);
-          });
+
+          // 동적 값은 textContent로 설정 — innerHTML 삽입 없음
+          const typeBadge = document.createElement('span');
+          typeBadge.className = `text-[10px] px-2 py-0.5 ${tc.bg} ${tc.text} border ${tc.border} rounded-full font-bold`;
+          typeBadge.textContent = tc.label;
+
+          const aiBadge = document.createElement('div');
+          aiBadge.className = 'h-[18px] px-2 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center';
+          aiBadge.innerHTML = '<span class="text-[9px] text-white font-bold">AI 추천</span>';
+
+          const badgeRow = document.createElement('div');
+          badgeRow.className = 'flex items-center gap-2 mb-1.5 flex-wrap';
+          badgeRow.appendChild(typeBadge);
+          badgeRow.appendChild(aiBadge);
+
+          const titleEl = document.createElement('p');
+          titleEl.className = 'text-on-surface font-semibold text-sm';
+          titleEl.textContent = s.title;
+
+          const descEl = document.createElement('p');
+          descEl.className = 'text-on-surface-variant text-xs mt-0.5';
+          descEl.textContent = s.description || '';
+
+          const valueEl = document.createElement('p');
+          valueEl.className = 'text-on-surface-variant text-[11px] mt-1';
+          valueEl.textContent = `목표: ${safeValue}회/단위`;
+
+          const infoCol = document.createElement('div');
+          infoCol.className = 'flex-1 min-w-0';
+          infoCol.append(badgeRow, titleEl, descEl, valueEl);
+
+          const addBtn = document.createElement('button');
+          addBtn.type = 'button';
+          addBtn.className = 'add-btn flex-shrink-0 h-10 px-3 rounded-lg bg-primary-container/20 text-primary text-xs font-bold hover:bg-primary-container/40 transition-colors flex items-center gap-1';
+          addBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">add</span>추가';
+
+          const row = document.createElement('div');
+          row.className = 'flex items-start gap-3';
+          row.appendChild(infoCol);
+          row.appendChild(addBtn);
+
+          card.appendChild(row);
+          addBtn.addEventListener('click', function() { addChallenge(this, s); });
           results.appendChild(card);
         });
         results.classList.remove('hidden');
-        _aiLoaded = true;
       } catch (e) {
         document.getElementById('aiErrorMsg').textContent = e.message;
         error.classList.remove('hidden');

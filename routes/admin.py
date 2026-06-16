@@ -7,6 +7,7 @@ from functools import wraps
 
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, session, url_for
 
+from ai.challenge import suggest_new_challenges
 from db.client import db
 from routes.auth import login_required
 from utils.csrf import get_or_create_csrf_token, verify_csrf
@@ -463,8 +464,8 @@ def challenges_page():
             )
             challenges = cursor.fetchall() or []
     except Exception as e:
-        logger.warning("챌린지 목록 조회 실패: %s", e)
-        challenges = []
+        logger.error("챌린지 목록 조회 실패: %s", e)
+        abort(503)
     return render_template(
         "admin/challenges.html",
         challenges=challenges,
@@ -525,7 +526,6 @@ def challenges_ai_suggest():
         existing = []
 
     try:
-        from ai.challenge import suggest_new_challenges
         suggestions = suggest_new_challenges(existing)
     except Exception as e:
         logger.warning("AI 챌린지 추천 실패: %s", e)

@@ -91,8 +91,31 @@ def suggest_new_challenges(existing: list[dict]) -> list[dict]:
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
+    _VALID_TYPES = frozenset({"delivery", "time", "both"})
     try:
         text = extract_text(response)
-        return json.loads(extract_json(text))
+        items = json.loads(extract_json(text))
+        if not isinstance(items, list):
+            raise ValueError("응답이 배열이 아닙니다")
+        validated = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title") or "").strip()
+            description = str(item.get("description") or "").strip()
+            target_type = str(item.get("target_type") or "").strip()
+            try:
+                target_value = max(0, int(float(item.get("target_value") or 0)))
+            except (ValueError, TypeError):
+                target_value = 0
+            if not title or target_type not in _VALID_TYPES:
+                continue
+            validated.append({
+                "title": title,
+                "description": description,
+                "target_type": target_type,
+                "target_value": target_value,
+            })
+        return validated
     except (json.JSONDecodeError, ValueError) as e:
         raise ValueError(f"AI 챌린지 추천 응답 파싱 실패: {e}") from e
