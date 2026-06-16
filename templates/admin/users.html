@@ -84,11 +84,9 @@
 <body class="pb-10">
   <div class="gradient-orb orb-primary"></div>
   <div class="gradient-orb orb-tertiary"></div>
-  <div class="max-w-[480px] mx-auto min-h-screen flex flex-col relative">
+  {% include "components/header.html" %}
 
-    {% include "components/header.html" %}
-
-    <main class="mt-[56px] pt-10 px-container-padding flex-1">
+  <main class="pt-24 px-container-padding max-w-[480px] mx-auto">
 
       <!-- 검색 & 필터 (sticky) -->
       <div class="sticky top-[56px] bg-background pt-4 pb-2 z-40 space-y-3">
@@ -209,8 +207,7 @@
         {% endif %}
       </div>
 
-    </main>
-  </div>
+  </main>
 
 </body>
 </html>
