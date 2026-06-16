@@ -1,6 +1,6 @@
-{# 모바일 앱 셸 레이아웃 (Stitch) — delivery 화면이 상속한다.
+{# 모바일 앱 셸 레이아웃 (Stitch) — 공통 베이스 (현재 history 화면들이 상속).
    공통 header/footer 컴포넌트(components/header.html, footer.html) 사용.
-   하단탭 active_tab='delivery' 고정 (이 베이스는 delivery 전용). #}
+   하단탭은 자식이 {% block active_tab %}로 지정 (미지정 시 'delivery' 기본). #}
 <!DOCTYPE html>
 <html class="dark" lang="ko">
 <head>
