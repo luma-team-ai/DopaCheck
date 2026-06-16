@@ -478,7 +478,7 @@
         {% for ch in challenges %}
         <div class="challenge-card {% if ch.id in joined_ids %}joined{% endif %}"
              data-type="{{ ch.target_type }}"
-             data-created="{{ ch.created_at.isoformat() if ch.created_at else '' }}">
+             data-index="{{ loop.index }}">
           <h3>{{ ch.title }}</h3>
           {% if ch.description %}<p>{{ ch.description }}</p>{% endif %}
           <div class="challenge-meta">
@@ -604,9 +604,9 @@
 
         // 정렬
         cards.sort((a, b) => {
-          const da = a.dataset.created || '';
-          const db = b.dataset.created || '';
-          return sortVal === 'newest' ? db.localeCompare(da) : da.localeCompare(db);
+          const ia = parseInt(a.dataset.index, 10);
+          const ib = parseInt(b.dataset.index, 10);
+          return sortVal === 'newest' ? ib - ia : ia - ib;
         });
         cards.forEach(c => grid.appendChild(c));
 
