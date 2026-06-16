@@ -9,14 +9,39 @@ from utils.week import get_week_ranges, kst_bounds, kst_today
 logger = logging.getLogger(__name__)
 
 
+def _aggregate_counts(cursor, user_id: int, gte_at: str, lt_at: str) -> tuple[int, int]:
+    """주어진 [gte_at, lt_at) 경계로 배달 횟수·시간 총합(분)을 집계한다.
+
+    챌린지 완료 판정 전용 — '완전히 끝난 주'(judge_week)의 카운트를 따로 계산할 때 쓴다.
+    점수 계산용 집계(이번 주)와 단위·경계 패턴을 동일하게 유지한다.
+
+    Returns:
+        (delivery_count, time_total_min)
+    """
+    cursor.execute(
+        "SELECT COUNT(*) as cnt FROM delivery_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+        (user_id, gte_at, lt_at)
+    )
+    delivery_count = cursor.fetchone()["cnt"] or 0
+
+    cursor.execute(
+        "SELECT SUM(youtube_min + instagram_min + tiktok_min + game_min) as sum_min FROM time_records WHERE user_id = %s AND created_at >= %s AND created_at < %s",
+        (user_id, gte_at, lt_at)
+    )
+    time_total_min = cursor.fetchone()["sum_min"] or 0
+
+    return delivery_count, time_total_min
+
+
 def recalculate_score(user_id: int) -> None:
     """분석 결과 저장 시 호출되는 점수 재산출 공통 함수. (FR-31)
 
     delivery/time/challenge 라우트에서 저장 직후 호출한다.
-    1. 이번 주 배달·시간·챌린지 데이터 집계
-    2. dopamine_scores (user_id, week_start) upsert
+    1. 이번 주 배달·시간·챌린지 데이터 집계 (점수 계산용)
+    2. '완전히 끝난 주'(judge_week) 기준 챌린지 완료 판정
+    3. dopamine_scores (user_id, week_start) upsert
     """
-    this_week_range, _ = get_week_ranges()
+    this_week_range, last_week_range = get_week_ranges()
     week_start, week_end = this_week_range
     gte_at, lt_at = kst_bounds(week_start, week_end)
 
@@ -50,30 +75,43 @@ def recalculate_score(user_id: int) -> None:
             (user_id,)
         )
         active_challenges = cursor.fetchall() or []
-        time_hours = time_total_min / 60
+
+        # ── 챌린지 완료 판정은 '완전히 끝난 주'(judge_week) 기준 ──────────────────
+        # 호출이 전부 이벤트 기반(스케줄러 없음)이라, 사용자가 일요일에 앱을 안 열면
+        # 목표를 달성해도 영영 미완료가 되는 문제(#194 P1-B)를 막는다.
+        #   - 오늘이 일요일(이번 주 종료일)이면 → 이번 주 데이터로 판정.
+        #   - 오늘이 월~토면 → 지난주(완전히 끝난 주) 데이터로 판정.
+        # 점수 계산용 집계(delivery_total/time_total_min/delivery_count)는 그대로
+        # '이번 주' 기준을 유지하고, 판정용 카운트만 judge_week 기준으로 분리한다.
+        week_end_date = date.fromisoformat(week_end)
+        if kst_today() >= week_end_date:
+            judge_start, judge_end = week_start, week_end
+        else:
+            judge_start, judge_end = last_week_range
+        judge_gte, judge_lt = kst_bounds(judge_start, judge_end)
+        judge_delivery_count, judge_time_total_min = _aggregate_counts(
+            cursor, user_id, judge_gte, judge_lt
+        )
+        judge_time_hours = judge_time_total_min / 60
 
         # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
         # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
-        # 주 종료(일요일) 이후에만 달성 판정 — 그 전엔 0회여도 완료 처리 금지
-        week_end_date = date.fromisoformat(week_end)
-        week_is_over = kst_today() >= week_end_date
-
         for ch in active_challenges:
             tt = ch["target_type"]
             tv = ch["target_value"] or 1
             if tt == "delivery":
-                progress = delivery_count
-                done = week_is_over and delivery_count <= tv
+                progress = judge_delivery_count
+                done = judge_delivery_count <= tv
             elif tt == "time":
-                # target_value 단위: 분(min) — time_total_min과 단위 일치
-                progress = time_total_min
-                done = week_is_over and time_total_min <= tv
+                # target_value 단위: 분(min) — judge_time_total_min과 단위 일치
+                progress = judge_time_total_min
+                done = judge_time_total_min <= tv
             else:  # "both"
                 # target_value 단위: 배달은 횟수, 시간은 시(hour) — seed.sql "3시간 이하" 참고.
                 # time 타입(분 단위)과 달리 both 타입은 시간 단위이므로 time_hours로 비교한다.
                 # int() 절삭 시 3.1h → 3h ≤ 3 가 되어 목표 초과를 달성으로 오판 — float 비교 유지.
-                progress = min(delivery_count, int(time_hours))
-                done = week_is_over and delivery_count <= tv and time_hours <= tv
+                progress = min(judge_delivery_count, int(judge_time_hours))
+                done = judge_delivery_count <= tv and judge_time_hours <= tv
 
             if done:
                 cursor.execute(
