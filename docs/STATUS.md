@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-16 (#160 머지)
+> 마지막 갱신: 2026-06-16 (#168·#169 머지)
 
 <a id="sprint"></a>
 ## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
@@ -50,6 +50,8 @@
 ## 마지막 머지 PR
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
+- **#169** AI 챌린지 참여 UX 개선 — 추천 제외·목록 편입·XSS 방어 (FR-33~35, **#60/#161**) — 참여한 AI 챌린지를 일반 목록에 편입(`is_ai_generated=0 OR EXISTS(user_challenges)`)+추천 섹션 제외, both 표시 단위 시간→분(`target_value*60`), AI 추천 버튼 inline `onclick {{|tojson}}`→`data-*`+`dataset` **XSS 방어**, seed both 설명 정합화. **#160이 stale base로 실패했던 변경을 #159 기반으로 제대로 재작업**(누락·충돌 없음). code-reviewer CRITICAL/HIGH 0(P1 "both 달성률 단위"는 선재 설계공백→#161 후속). main 머지 후 pytest **148 PASS/1 skip**. (작성 50seok→정재봉 검수·머지)
+- **#168** time `/analyze` CSRF 회귀 테스트 추가 + skip 해제 (**#128 CLOSED**) — test 전용(`tests/test_time.py`), CSRF 미전송/오토큰→403·정상토큰→200 대조 + 환산 경계값(0·음수·168h). 프로덕션 무변경. 현재 main 머지 시 충돌 0, **148 PASS/1 skip**. Trivial. (작성 EunSeok→정재봉 머지)
 - **#160** admin 챌린지 관리 AI 추천 + 버그 수정 (**CLOSED**) — 관리자 페이지 AI 챌린지 추천(`suggest_new_challenges`/`/admin/challenges/ai-suggest`), 챌린지 삭제 FK 픽스(`user_challenges` 선삭제), `is_ai_generated` 폼 입력·참여자수 집계·XSS 방어·LLM 출력 검증 반영. code-reviewer 통과, pytest **143 PASS/3 skip**. ⚠️ **stale base**: #159(ai-join FR-33~35) 이전 base라 머지 충돌 해소 시 `routes/challenge.py`·`index.html`은 main(#159) 채택 → #160의 "유저 ai-join 제거"·"recommend 단위정규화 제거"는 **미반영(=#159 픽스 유지, 회귀 없음)**. 프론트·백 정합(404 없음). 작성자에 새 base 재작업 안내 코멘트. (작성 EunSeok→정재봉 검수·머지)
 - **🧹 제로베이스 정리** — 열린 PR 전부 처리 후 머지 완료된 원격 브랜치 9종 일괄 삭제(원격=main만), 로컬 잔여 워크트리(backend/102) 제거. main `90770a2`, pytest **143 PASS / 3 skip / 0 fail**, 작업트리 clean. ⚠️ **stale base 회귀 주의**: 이번 배치 PR(#145·#146·#148)이 모두 옛 base라 머지 시 최신작업 revert 위험 → 기능 커밋만 현재 main 위로 재적용하는 방식으로 처리.
 - **#156** history 헤더 타이틀(`page_title` 블록) 제거 (**CLOSED**) — 다른 화면 UI 일치. CLEAN·surgical(2줄), stale revert 없음. Trivial. (작성 vapsnamheo-dev→정재봉 머지)
