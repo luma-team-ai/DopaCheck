@@ -1,12 +1,16 @@
 # routes/admin.py
+import json
 import logging
+import uuid as _uuid
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Blueprint, render_template, session, redirect, url_for, flash
+
+from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
 from db.client import db
 from routes.auth import login_required
-from utils.week import kst_today
+from utils.csrf import get_or_create_csrf_token, verify_csrf
+from utils.week import KST, kst_today
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +159,7 @@ def admin_dashboard():
         # 사용자별 역대 최고 점수를 기준으로 상위 5명을 뽑아옵니다.
         cursor.execute(
             """
-            SELECT u.nickname, MAX(d.score) as top_score, u.email
+            SELECT u.id as user_id, u.nickname, MAX(d.score) as top_score, u.email
             FROM dopamine_scores d
             JOIN users u ON d.user_id = u.id
             GROUP BY d.user_id, u.nickname, u.email
@@ -201,3 +205,307 @@ def admin_dashboard():
         completion_rate=completion_rate,
         dashoffset=dashoffset
     )
+
+
+def _safe_int(value: str, default: int) -> int:
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
+
+@admin_bp.route("/users")
+@admin_required
+def users_list():
+    """전체 가입자 목록 — 검색·필터·정렬·페이지네이션."""
+    q = request.args.get("q", "").strip()
+    filter_type = request.args.get("filter", "all")
+    sort = request.args.get("sort", "desc")
+    page = min(max(1, _safe_int(request.args.get("page", "1"), 1)), 500)
+
+    if filter_type not in {"all", "recent", "danger", "challenge"}:
+        filter_type = "all"
+    if sort not in {"desc", "asc"}:
+        sort = "desc"
+
+    order_sql = "DESC" if sort == "desc" else "ASC"
+    per_page = 20
+    limit = page * per_page
+    seven_days_ago = (kst_today() - timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
+
+    where_parts: list[str] = []
+    params: list = []
+
+    if q:
+        where_parts.append("(u.nickname LIKE %s OR u.email LIKE %s)")
+        params += [f"%{q}%", f"%{q}%"]
+
+    if filter_type == "recent":
+        where_parts.append("u.created_at >= %s")
+        params.append(seven_days_ago)
+    elif filter_type == "danger":
+        where_parts.append(
+            "(SELECT score FROM dopamine_scores"
+            " WHERE user_id = u.id ORDER BY week_start DESC LIMIT 1) >= 70"
+        )
+    elif filter_type == "challenge":
+        where_parts.append(
+            "EXISTS (SELECT 1 FROM user_challenges"
+            " WHERE user_id = u.id AND is_completed = 0)"
+        )
+
+    where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    with db() as cursor:
+        cursor.execute("SELECT COUNT(*) as cnt FROM users")
+        total_users = cursor.fetchone()["cnt"] or 0
+
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM users WHERE created_at >= %s",
+            (seven_days_ago,),
+        )
+        new_users = cursor.fetchone()["cnt"] or 0
+
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM users u WHERE"
+            " (SELECT score FROM dopamine_scores"
+            " WHERE user_id = u.id ORDER BY week_start DESC LIMIT 1) >= 70"
+        )
+        danger_users = cursor.fetchone()["cnt"] or 0
+
+        cursor.execute(
+            f"SELECT COUNT(*) as cnt FROM users u {where_sql}", tuple(params)
+        )
+        filtered_count = cursor.fetchone()["cnt"] or 0
+
+        list_sql = (
+            "SELECT u.id, u.nickname, u.email, u.created_at,"
+            " (SELECT score FROM dopamine_scores"
+            "  WHERE user_id = u.id ORDER BY week_start DESC LIMIT 1) AS latest_score,"
+            " (SELECT COUNT(*) FROM delivery_records WHERE user_id = u.id) AS delivery_count,"
+            " COALESCE((SELECT SUM(youtube_min + instagram_min + tiktok_min)"
+            "  FROM time_records WHERE user_id = u.id), 0) AS sns_min_total,"
+            " (SELECT COUNT(*) FROM user_challenges"
+            "  WHERE user_id = u.id AND is_completed = 0) AS active_challenge_count,"
+            " (SELECT MAX(created_at) FROM delivery_records WHERE user_id = u.id) AS last_delivery_at,"
+            " (SELECT MAX(created_at) FROM time_records WHERE user_id = u.id) AS last_time_at"
+            f" FROM users u {where_sql}"
+            f" ORDER BY u.created_at {order_sql}"
+            " LIMIT %s"
+        )
+        cursor.execute(list_sql, tuple(params) + (limit,))
+        rows = cursor.fetchall() or []
+
+    today = kst_today()
+    for row in rows:
+        ld, lt = row.get("last_delivery_at"), row.get("last_time_at")
+        candidates = [x for x in [ld, lt] if x is not None]
+        if candidates:
+            last_act = max(candidates)
+            try:
+                act_date = (
+                    last_act.date()
+                    if isinstance(last_act, datetime)
+                    else datetime.fromisoformat(str(last_act)).date()
+                )
+                days = (today - act_date).days
+                row["last_label"] = (
+                    "오늘" if days == 0 else ("어제" if days == 1 else f"{days}일 전")
+                )
+            except Exception:
+                row["last_label"] = "기록없음"
+        else:
+            row["last_label"] = "기록없음"
+
+        score = row.get("latest_score")
+        if score is None:
+            row["score_label"], row["score_tier"] = "기록없음", "none"
+        elif score >= 70:
+            row["score_label"], row["score_tier"] = f"위험 {score}점", "danger"
+        elif score >= 41:
+            row["score_label"], row["score_tier"] = f"보통 {score}점", "normal"
+        else:
+            row["score_label"], row["score_tier"] = f"안전 {score}점", "safe"
+
+        row["sns_hours"] = round((row.get("sns_min_total") or 0) / 60, 1)
+        row["email_display"] = _mask_email(row["email"])
+
+    return render_template(
+        "admin/users.html",
+        users=rows,
+        total_users=total_users,
+        new_users=new_users,
+        danger_users=danger_users,
+        filtered_count=filtered_count,
+        q=q,
+        filter_type=filter_type,
+        sort=sort,
+        page=page,
+        has_more=(filtered_count > limit),
+    )
+
+
+def _fmt_dt(raw) -> str:
+    """DB DATETIME(naive) → KST 표시 문자열. 파싱 실패 시 빈 문자열."""
+    try:
+        if isinstance(raw, datetime):
+            dt = (raw if raw.tzinfo else raw.replace(tzinfo=KST)).astimezone(KST)
+        else:
+            dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00")).astimezone(KST)
+        return dt.strftime("%Y.%m.%d %H:%M")
+    except Exception:
+        return ""
+
+
+def _fmt_date(raw) -> str:
+    """DB DATE / DATETIME → 'YYYY.MM.DD' 표시 문자열."""
+    try:
+        if isinstance(raw, datetime):
+            return raw.strftime("%Y.%m.%d")
+        return str(raw)[:10].replace("-", ".")
+    except Exception:
+        return ""
+
+
+# ── 사용자 상세 (FR-55 확장) ─────────────────────────────────────────────
+@admin_bp.route("/users/<int:user_id>")
+@admin_required
+def user_detail(user_id: int):
+    """사용자 상세 — 프로필, 배달/시간 분석 내역, 도파민 점수 히스토리."""
+    with db() as cursor:
+        cursor.execute(
+            "SELECT id, nickname, email, hourly_wage, created_at FROM users WHERE id = %s",
+            (user_id,),
+        )
+        user = cursor.fetchone()
+        if not user:
+            abort(404)
+        user["created_label"] = _fmt_date(user["created_at"])
+        user["email_display"] = _mask_email(user["email"])
+
+        # 배달 분석 내역
+        cursor.execute(
+            "SELECT id, total_price, delivery_fee, total_calories, items, created_at"
+            " FROM delivery_records WHERE user_id = %s ORDER BY created_at DESC",
+            (user_id,),
+        )
+        delivery_records = cursor.fetchall() or []
+        for r in delivery_records:
+            raw = r.get("items")
+            if isinstance(raw, str):
+                try:
+                    r["items"] = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    r["items"] = []
+            elif not isinstance(raw, list):
+                r["items"] = []
+            r["date_label"] = _fmt_dt(r["created_at"])
+
+        # 시간 분석 내역
+        cursor.execute(
+            "SELECT id, youtube_min, instagram_min, tiktok_min, game_min, created_at"
+            " FROM time_records WHERE user_id = %s ORDER BY created_at DESC",
+            (user_id,),
+        )
+        time_records = cursor.fetchall() or []
+        for r in time_records:
+            total = (
+                (r.get("youtube_min") or 0)
+                + (r.get("instagram_min") or 0)
+                + (r.get("tiktok_min") or 0)
+                + (r.get("game_min") or 0)
+            )
+            r["total_min"] = total
+            h, m = divmod(total, 60)
+            r["total_label"] = f"{h}시간 {m}분" if h else f"{m}분"
+            r["date_label"] = _fmt_dt(r["created_at"])
+
+        # 도파민 점수 히스토리 (최근 8주, 오름차순)
+        cursor.execute(
+            "SELECT week_start, score FROM dopamine_scores"
+            " WHERE user_id = %s ORDER BY week_start DESC LIMIT 8",
+            (user_id,),
+        )
+        score_rows = list(reversed(cursor.fetchall() or []))
+        for r in score_rows:
+            r["week_label"] = _fmt_date(r["week_start"])[5:]  # MM.DD
+
+    return render_template(
+        "admin/user_detail.html",
+        user=user,
+        delivery_records=delivery_records,
+        time_records=time_records,
+        score_rows=score_rows,
+    )
+
+
+# ── 챌린지 관리 ───────────────────────────────────────────────────────────
+_VALID_TARGET_TYPES = frozenset({"delivery", "time", "both"})
+
+
+@admin_bp.route("/challenges")
+@admin_required
+def challenges_page():
+    """챌린지 목록."""
+    csrf_token = get_or_create_csrf_token()
+    with db() as cursor:
+        cursor.execute(
+            "SELECT id, title, description, target_type, target_value, is_ai_generated"
+            " FROM challenges ORDER BY title"
+        )
+        challenges = cursor.fetchall() or []
+    return render_template(
+        "admin/challenges.html",
+        challenges=challenges,
+        csrf_token=csrf_token,
+    )
+
+
+@admin_bp.route("/challenges", methods=["POST"])
+@admin_required
+def challenges_create():
+    """챌린지 생성."""
+    verify_csrf()
+    title = (request.form.get("title") or "").strip()
+    description = (request.form.get("description") or "").strip()
+    target_type = (request.form.get("target_type") or "").strip()
+    target_value_raw = (request.form.get("target_value") or "0").strip()
+
+    if not title or target_type not in _VALID_TARGET_TYPES:
+        return redirect(url_for("admin.challenges_page"))
+    try:
+        target_value = max(0, int(target_value_raw))
+    except ValueError:
+        target_value = 0
+
+    try:
+        with db() as cursor:
+            cursor.execute(
+                "INSERT INTO challenges (id, title, description, target_type, target_value, is_ai_generated)"
+                " VALUES (UUID(), %s, %s, %s, %s, 0)",
+                (title, description, target_type, target_value),
+            )
+    except Exception as e:
+        logger.warning("챌린지 생성 실패: %s", e)
+
+    return redirect(url_for("admin.challenges_page"))
+
+
+@admin_bp.route("/challenges/<challenge_id>/delete", methods=["POST"])
+@admin_required
+def challenges_delete(challenge_id: str):
+    """챌린지 삭제."""
+    verify_csrf()
+    challenge_id = (challenge_id or "").strip()
+    try:
+        _uuid.UUID(challenge_id)
+    except ValueError:
+        abort(400)
+
+    try:
+        with db() as cursor:
+            cursor.execute("DELETE FROM challenges WHERE id = %s", (challenge_id,))
+    except Exception as e:
+        logger.warning("챌린지 삭제 실패: %s", e)
+
+    return redirect(url_for("admin.challenges_page"))

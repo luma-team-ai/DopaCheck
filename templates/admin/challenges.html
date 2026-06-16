@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>챌린지 관리 — DopaCheck Admin</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-bright": "#393842", "error-container": "#93000a",
+            "inverse-surface": "#e5e0ee", "on-error-container": "#ffdad6",
+            "inverse-primary": "#5340e7", "primary-fixed-dim": "#c5c0ff",
+            "surface": "#13121c", "on-secondary-fixed": "#3f001b",
+            "surface-container-high": "#2a2933", "on-tertiary": "#512300",
+            "on-primary-fixed-variant": "#3a1bd0", "on-primary-fixed": "#140067",
+            "on-secondary-container": "#ff95b4", "surface-container": "#1f1f28",
+            "on-primary-container": "#fffdff", "primary-fixed": "#e3dfff",
+            "outline-variant": "#474555", "on-surface-variant": "#c8c4d8",
+            "tertiary-container": "#bb5a00", "surface-container-low": "#1b1a24",
+            "on-secondary-fixed-variant": "#8c0a46", "secondary-container": "#8c0a46",
+            "on-secondary": "#650030", "surface-container-highest": "#35343e",
+            "on-background": "#e5e0ee", "on-tertiary-container": "#fffdff",
+            "error": "#ffb4ab", "outline": "#918ea1", "tertiary": "#ffb689",
+            "background": "#13121c", "surface-container-lowest": "#0e0d16",
+            "secondary": "#ffb1c5", "surface-dim": "#13121c",
+            "secondary-fixed": "#ffd9e1", "tertiary-fixed-dim": "#ffb689",
+            "inverse-on-surface": "#302f39", "surface-tint": "#c5c0ff",
+            "tertiary-fixed": "#ffdbc8", "surface-variant": "#35343e",
+            "primary": "#c5c0ff", "primary-container": "#6b5bff",
+            "secondary-fixed-dim": "#ffb1c5", "on-surface": "#e5e0ee",
+            "on-error": "#690005", "on-primary": "#2500a2"
+          },
+          borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+          spacing: {
+            "section-gap": "40px", "stack-gap": "16px",
+            "card-padding": "24px", "unit": "4px", "container-padding": "20px"
+          },
+          fontFamily: {
+            "title-md": ["Inter", "Pretendard"],
+            "display-lg-mobile": ["PlusJakartaSans", "Pretendard"],
+            "label-caps": ["Inter", "Pretendard"],
+            "body-lg": ["Inter", "Pretendard"]
+          },
+          fontSize: {
+            "title-md": ["20px", { lineHeight: "150%", fontWeight: "600" }],
+            "display-lg-mobile": ["28px", { lineHeight: "130%", fontWeight: "700" }],
+            "label-caps": ["12px", { lineHeight: "100%", letterSpacing: "0.05em", fontWeight: "600" }],
+            "body-lg": ["16px", { lineHeight: "160%", fontWeight: "400" }]
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background-color: #13121c;
+      color: #e5e0ee;
+      min-height: max(884px, 100dvh);
+    }
+    .glass-card {
+      background: rgba(31, 31, 40, 0.6);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(197, 192, 255, 0.1);
+    }
+    .ai-border { position: relative; }
+    .ai-border::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(135deg, #c5c0ff, #8c0a46, #bb5a00);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      opacity: 0.5;
+    }
+    .primary-gradient { background: linear-gradient(135deg, #6b5bff 0%, #8c0a46 100%); }
+    .type-btn { transition: background-color 0.15s, color 0.15s, border-color 0.15s; }
+    .type-btn.active-delivery { background: rgba(255,177,197,0.2); border-color: rgba(255,177,197,0.4); color: #ffb1c5; }
+    .type-btn.active-time     { background: rgba(255,182,137,0.2); border-color: rgba(255,182,137,0.4); color: #ffb689; }
+    .type-btn.active-both     { background: rgba(197,192,255,0.2); border-color: rgba(197,192,255,0.4); color: #c5c0ff; }
+  </style>
+</head>
+<body class="pb-20 overflow-x-hidden">
+  <!-- Background Orbs -->
+  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
+    <div class="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] opacity-30"></div>
+    <div class="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-[100px] opacity-20"></div>
+    <div class="absolute -bottom-[10%] left-[20%] w-[60%] h-[40%] bg-tertiary/10 rounded-full blur-[150px] opacity-20"></div>
+  </div>
+
+  <!-- Top App Bar -->
+  <header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex justify-between items-center px-container-padding h-[56px]">
+    <div class="flex items-center gap-3">
+      <a href="{{ url_for('admin.admin_dashboard') }}" class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95">arrow_back</a>
+      <h1 class="text-title-md font-title-md text-on-surface">챌린지 관리</h1>
+    </div>
+    <div class="px-3 py-1 bg-primary-container/20 rounded-full">
+      <span class="text-label-caps font-label-caps text-primary tracking-wider">ADMIN</span>
+    </div>
+  </header>
+
+  <main class="relative z-10 mt-[56px] pt-6 px-container-padding max-w-[480px] mx-auto">
+
+    <!-- 헤더 액션 -->
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <span class="text-label-caps font-label-caps text-on-surface-variant uppercase">Overview</span>
+        <h2 class="text-title-md font-title-md text-on-surface">전체 챌린지 {{ challenges|length }}개</h2>
+      </div>
+      <button
+        class="primary-gradient h-[52px] px-6 rounded-xl flex items-center gap-2 text-white font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+        onclick="toggleForm()">
+        <span class="material-symbols-outlined text-[20px]">add</span>
+        <span>새 챌린지 추가</span>
+      </button>
+    </div>
+
+    <!-- 챌린지 목록 -->
+    <section class="space-y-stack-gap mb-section-gap">
+      {% if challenges %}
+        {% for c in challenges %}
+        <div class="glass-card px-4 rounded-xl flex items-center justify-between group transition-all hover:bg-surface-container-high/40" style="min-height:5rem;">
+          <div class="flex flex-col gap-1 overflow-hidden py-4">
+            <h3 class="text-on-surface font-semibold truncate">{{ c.title }}</h3>
+            <div class="flex items-center gap-2 flex-wrap">
+              {% if c.target_type == 'delivery' %}
+                <span class="text-[10px] px-2 py-0.5 bg-secondary/10 text-secondary border border-secondary/20 rounded-full font-bold">DELIVERY</span>
+              {% elif c.target_type == 'time' %}
+                <span class="text-[10px] px-2 py-0.5 bg-tertiary/10 text-tertiary border border-tertiary/20 rounded-full font-bold">TIME</span>
+              {% else %}
+                <span class="text-[10px] px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-full font-bold">BOTH</span>
+              {% endif %}
+              <span class="text-[10px] px-2 py-0.5 bg-on-surface-variant/10 text-on-surface-variant rounded-full">{{ c.target_value }}회</span>
+              {% if c.is_ai_generated %}
+              <div class="h-5 px-2 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center">
+                <span class="text-[9px] text-white font-bold tracking-tight">AI 추천</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="flex gap-2 flex-shrink-0 pl-2">
+            <!-- 삭제 폼 -->
+            <form method="POST"
+                  action="{{ url_for('admin.challenges_delete', challenge_id=c.id) }}"
+                  class="delete-form inline"
+                  data-title="{{ c.title|e }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+              <button type="submit"
+                      class="w-10 h-10 rounded-full bg-error-container/10 flex items-center justify-center text-error hover:bg-error-container/20 transition-colors">
+                <span class="material-symbols-outlined text-[20px]">delete</span>
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="glass-card rounded-xl p-8 text-center text-on-surface-variant text-sm">
+          등록된 챌린지가 없습니다. 새 챌린지를 추가해보세요.
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- 새 챌린지 추가 폼 (기본 숨김) -->
+    <section class="hidden mb-section-gap" id="challengeForm">
+      <div class="glass-card ai-border p-card-padding rounded-2xl relative overflow-hidden">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-title-md font-title-md text-on-surface">새 챌린지 추가</h2>
+          <button type="button" class="text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1" onclick="toggleForm()">
+            <span class="material-symbols-outlined text-sm">close</span>
+            <span class="text-label-caps">닫기</span>
+          </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin.challenges_create') }}" class="space-y-6">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}"/>
+
+          <div>
+            <label class="text-label-caps text-on-surface-variant block mb-2">CHALLENGE TITLE</label>
+            <input name="title" type="text" required
+                   class="w-full h-14 bg-surface-container-lowest border border-white/5 rounded-xl px-4 text-on-surface focus:outline-none focus:border-primary/50 transition-colors"
+                   placeholder="챌린지 제목을 입력하세요"/>
+          </div>
+
+          <div>
+            <label class="text-label-caps text-on-surface-variant block mb-2">DESCRIPTION</label>
+            <textarea name="description" rows="3"
+                      class="w-full bg-surface-container-lowest border border-white/5 rounded-xl p-4 text-on-surface focus:outline-none focus:border-primary/50 transition-colors resize-none"
+                      placeholder="챌린지에 대한 상세 설명을 입력하세요"></textarea>
+          </div>
+
+          <div>
+            <label class="text-label-caps text-on-surface-variant block mb-2">CHALLENGE TYPE</label>
+            <input type="hidden" name="target_type" id="target_type_input" value="delivery"/>
+            <div class="grid grid-cols-3 gap-2">
+              <button type="button" onclick="selectType('delivery')" id="btn-delivery"
+                      class="type-btn h-10 rounded-lg border text-[12px] font-bold active-delivery">DELIVERY</button>
+              <button type="button" onclick="selectType('time')" id="btn-time"
+                      class="type-btn h-10 rounded-lg border border-white/10 bg-surface-container-high text-on-surface-variant text-[12px] font-bold">TIME</button>
+              <button type="button" onclick="selectType('both')" id="btn-both"
+                      class="type-btn h-10 rounded-lg border border-white/10 bg-surface-container-high text-on-surface-variant text-[12px] font-bold">BOTH</button>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-label-caps text-on-surface-variant block mb-2">GOAL VALUE</label>
+            <div class="relative">
+              <input name="target_value" type="number" min="0" value="3"
+                     class="w-full h-14 bg-surface-container-lowest border border-white/5 rounded-xl px-4 text-on-surface focus:outline-none focus:border-primary/50 transition-colors"/>
+              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-medium text-sm">회 / 단위</span>
+            </div>
+          </div>
+
+          <button type="submit"
+                  class="primary-gradient w-full h-[52px] rounded-xl text-white font-bold text-lg shadow-xl shadow-primary/20 hover:opacity-90 active:scale-[0.98] transition-all">
+            저장하기
+          </button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 삭제 확인 모달 -->
+  <div class="fixed inset-0 z-[100] hidden items-center justify-center px-container-padding" id="deleteModal">
+    <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="hideDeleteModal()"></div>
+    <div class="glass-card w-[320px] p-6 rounded-3xl relative z-[110] flex flex-col items-center text-center">
+      <div class="w-16 h-16 rounded-full bg-error-container/15 flex items-center justify-center mb-4">
+        <span class="material-symbols-outlined text-error text-3xl">delete_forever</span>
+      </div>
+      <h3 class="text-title-md font-title-md text-on-surface mb-2">챌린지를 삭제할까요?</h3>
+      <p class="text-on-surface-variant text-sm mb-8 px-2" id="deleteModalText"></p>
+      <div class="flex flex-col w-full gap-2">
+        <button id="deleteConfirmBtn"
+                class="w-full h-14 bg-error text-on-error font-bold rounded-xl active:scale-95 transition-transform">
+          삭제
+        </button>
+        <button onclick="hideDeleteModal()"
+                class="w-full h-14 bg-surface-container-high text-on-surface font-medium rounded-xl hover:bg-surface-bright transition-colors">
+          취소
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleForm() {
+      const form = document.getElementById('challengeForm');
+      const isHidden = form.classList.contains('hidden');
+      form.classList.toggle('hidden');
+      if (isHidden) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    const typeStyles = {
+      delivery: 'active-delivery',
+      time: 'active-time',
+      both: 'active-both'
+    };
+    function selectType(type) {
+      document.getElementById('target_type_input').value = type;
+      ['delivery', 'time', 'both'].forEach(t => {
+        const btn = document.getElementById('btn-' + t);
+        btn.className = 'type-btn h-10 rounded-lg border text-[12px] font-bold';
+        if (t === type) {
+          btn.classList.add(typeStyles[t]);
+        } else {
+          btn.classList.add('border-white/10', 'bg-surface-container-high', 'text-on-surface-variant');
+        }
+      });
+    }
+
+    // 삭제 모달
+    let _pendingForm = null;
+    document.querySelectorAll('.delete-form').forEach(form => {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        _pendingForm = form;
+        const title = form.dataset.title || '이 챌린지';
+        document.getElementById('deleteModalText').textContent =
+          `'${title}' 챌린지를 삭제하면 복구할 수 없습니다.`;
+        const modal = document.getElementById('deleteModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+      });
+    });
+
+    document.getElementById('deleteConfirmBtn').addEventListener('click', function() {
+      if (_pendingForm) _pendingForm.submit();
+    });
+
+    function hideDeleteModal() {
+      const modal = document.getElementById('deleteModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = '';
+      _pendingForm = null;
+    }
+  </script>
+</body>
+</html>
