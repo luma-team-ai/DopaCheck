@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-16 (#182 점수 의미 반전 머지)
+> 마지막 갱신: 2026-06-16 (#199 OCR 인식 정확도 개선 머지)
 
 <a id="sprint"></a>
 ## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
@@ -50,6 +50,7 @@
 ## 마지막 머지 PR
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
+- **#199** 영수증 OCR 인식 정확도 개선 (**#188 CLOSED**) — Sonnet 비전이 작은 글씨(메뉴명·가격)를 더 잘 읽도록 이미지 전처리 추가. `ai/image_prep.py`(신규): Anthropic 공식 `resized_size`로 Claude native 해상도(sonnet = long edge 1568px + 비전타일 1568, 세로 영수증은 타일 상한이 먼저 걸림)에 맞춰 LANCZOS 사전 리사이즈 + EXIF 회전보정 + autocontrast/Sharpness → 무손실 PNG(실패 시 원본 fallback). `ai/ocr.py`: 전처리 연결 + `temperature=0` + `max_tokens 2048` + 프롬프트 보강. `config.py` OCR 상수(모델 sonnet-4-6 유지). `requirements.txt` **Pillow** 추가(py3.10 휠 검증). code-reviewer P1 2건 → 미사용 import 제거·`OCR_MAX_VISION_TOKENS` 리네임, **'토큰 3136 상향' 제안은 반려**(공식 예시 resized_size(1075,1520)=(924,1307)이 1568 확정, 3136이면 native 초과로 역행). rebase(stale base #190~#197) 충돌 0, pytest **165 PASS/1 skip**. G1/G6 PASS. ⚠️ **실인식 품질은 배포 후 실서버 영수증으로 검증 예정**(로컬 .env 키 만료). (작성·검수·머지 정재봉)
 - **#182** 도파민 점수 의미 반전 — 소비 많을수록 점수↑(위험), 챌린지=감점 (**#175 CLOSED**) — 점수=도파민 위험도(높을수록 나쁨)로 의미 반전. `ai/score.py` 공식 반전(배달 `(배달/20만)×40`·시간 `(시간/2100)×40` 많을수록↑, 챌린지 달성=감점 `challenge_bonus=-완료수×5`(0~-20), 총점 0~100 클램프), 점수페이지·홈·비교문구·AI팁 **경고 톤 반전**(관리자 화면은 이미 '70↑=위험'이라 미변경), 리포트 음수 감점 반영(`clamp_score`가 음수를 0으로 죽이던 P1-A 픽스+막대 width 절댓값), `challenge_bonus CHECK(-20~0)`. **과거 stale 행은 원본 재계산 백필**(`backfill_all_scores`/`scripts/backfill_scores.py`, 멱등·챌린지 상태 미변경) — code-reviewer가 제안한 sign-flip 마이그레이션은 불변식 파괴라 **반려**. ⚠️ **배포 순서**: 코드 배포 → `python -m scripts.backfill_scores` → `db/migrations/004_add_challenge_bonus_check.sql` 적용. code-reviewer 2회 **잔존 P1 0**, rebase(stale base #176·#179) 충돌 0, pytest **156 PASS/1 skip**(신규 백필 4건). G1/G6 메타 자체검수 PASS. (작성·검수·머지 정재봉)
 - **#169** AI 챌린지 참여 UX 개선 — 추천 제외·목록 편입·XSS 방어 (FR-33~35, **#60/#161**) — 참여한 AI 챌린지를 일반 목록에 편입(`is_ai_generated=0 OR EXISTS(user_challenges)`)+추천 섹션 제외, both 표시 단위 시간→분(`target_value*60`), AI 추천 버튼 inline `onclick {{|tojson}}`→`data-*`+`dataset` **XSS 방어**, seed both 설명 정합화. **#160이 stale base로 실패했던 변경을 #159 기반으로 제대로 재작업**(누락·충돌 없음). code-reviewer CRITICAL/HIGH 0(P1 "both 달성률 단위"는 선재 설계공백→#161 후속). main 머지 후 pytest **148 PASS/1 skip**. (작성 50seok→정재봉 검수·머지)
 - **#168** time `/analyze` CSRF 회귀 테스트 추가 + skip 해제 (**#128 CLOSED**) — test 전용(`tests/test_time.py`), CSRF 미전송/오토큰→403·정상토큰→200 대조 + 환산 경계값(0·음수·168h). 프로덕션 무변경. 현재 main 머지 시 충돌 0, **148 PASS/1 skip**. Trivial. (작성 EunSeok→정재봉 머지)

@@ -2,18 +2,19 @@
 import base64
 import json
 
+from ai.image_prep import preprocess_receipt
 from ai.utils import extract_json, extract_text, get_client
-from config import MODEL_OCR
+from config import MODEL_OCR, OCR_TEMPERATURE, OCR_MAX_OUTPUT_TOKENS
+
+# 모듈 레벨 클라이언트 참조 (테스트에서 patch("ai.ocr._client") 가능)
+_client = None
 
 
-def _detect_media_type(image_bytes: bytes) -> str:
-    if image_bytes[:8] == b"\x89PNG\r\n\x1a\n":
-        return "image/png"
-    if image_bytes[:4] == b"GIF8":
-        return "image/gif"
-    if len(image_bytes) >= 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
-        return "image/webp"
-    return "image/jpeg"
+def _get_client():
+    global _client
+    if _client is None:
+        _client = get_client()
+    return _client
 
 
 def parse_receipt(image_bytes: bytes) -> dict:
@@ -33,12 +34,14 @@ def parse_receipt(image_bytes: bytes) -> dict:
     Raises:
         Exception: OCR 호출 실패 시 — 라우트에서 catch 후 수동 입력 fallback (FR-7)
     """
-    media_type = _detect_media_type(image_bytes)
-    image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
+    processed_bytes, media_type = preprocess_receipt(image_bytes)
+    image_data = base64.standard_b64encode(processed_bytes).decode("utf-8")
 
     prompt = (
         "이 영수증 이미지에서 주문한 음식 정보를 추출해주세요.\n"
-        "이미지가 회전되어 있어도 올바르게 읽어주세요.\n\n"
+        "이미지가 회전되어 있어도 올바르게 읽어주세요.\n"
+        "흐리거나 작은 글씨, 인쇄가 옅은 부분도 최대한 정확히 읽어주세요. "
+        "가격은 천단위 콤마·'원' 표기를 제거한 정수로만 출력하세요.\n\n"
         "【영수증 3구역 구조】\n"
         "① 상단: 가게명·주소·사업자번호·대표자·날짜 — 음식명이 아님\n"
         "② 중단: 상품명/수량/금액 테이블 — 실제 음식 정보가 여기에만 있음\n"
@@ -59,9 +62,10 @@ def parse_receipt(image_bytes: bytes) -> dict:
         '"delivery_fee": 배달비(정수), "total_price": 총금액(정수)}'
     )
 
-    response = get_client().messages.create(
+    response = _get_client().messages.create(
         model=MODEL_OCR,
-        max_tokens=1024,
+        max_tokens=OCR_MAX_OUTPUT_TOKENS,
+        temperature=OCR_TEMPERATURE,
         messages=[{
             "role": "user",
             "content": [

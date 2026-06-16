@@ -65,6 +65,12 @@ if os.environ.get("FLASK_ENV") == "development":
     app.register_blueprint(dev_bp)
 
 
+@app.context_processor
+def inject_auth_context():
+    """모든 템플릿에 is_admin을 전역 주입 — 뷰 계층이 session을 직접 읽지 않도록 분리."""
+    return {"is_admin": session.get("role") == "admin"}
+
+
 @app.route("/health")
 def health():
     """CloudType 헬스체크 엔드포인트 — 콜드스타트 감지·로드밸런서 probe용."""

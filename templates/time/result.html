@@ -390,9 +390,14 @@
   <!-- Bottom CTA (고정) -->
   <div
     class="fixed bottom-[64px] left-0 w-full p-4 z-40 bg-[#0A0A0F]/90 backdrop-blur-md border-t border-outline-variant/10">
-    <div class="max-w-[600px] mx-auto">
+    <div class="max-w-[600px] mx-auto flex gap-3">
+      <a href="{{ url_for('history.history_list', type_filter='time') }}"
+        class="flex-1 h-[52px] rounded-xl flex items-center justify-center font-semibold text-primary active:scale-[0.98] transition-transform border border-primary/40 hover:bg-primary/5"
+        style="background:rgba(107,91,255,0.08);">
+        이번 주 기록 보기
+      </a>
       <a href="{{ url_for('time.time_page') }}" id="btn-retry"
-        class="w-full h-[52px] rounded-xl flex items-center justify-center font-semibold text-white active:scale-[0.98] transition-transform text-decoration-none"
+        class="flex-1 h-[52px] rounded-xl flex items-center justify-center font-semibold text-white active:scale-[0.98] transition-transform"
         style="background:linear-gradient(to right,#6b5bff,#8c0a46);box-shadow:0 8px 24px rgba(107,91,255,0.15);">
         다시 입력하기
       </a>
