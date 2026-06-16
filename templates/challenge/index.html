@@ -391,8 +391,20 @@
           <p>{{ rec.description }}</p>
           <div class="challenge-meta">
             <span class="type-tag type-{{ rec.target_type }}">{{ rec.target_type }}</span>
-            <span class="target-tag">목표: {{ rec.target_value }}</span>
+            <span class="target-tag">목표:
+              {% if rec.target_type == 'delivery' %}{{ rec.target_value }}번 줄이기
+              {% elif rec.target_type == 'time' %}{{ rec.target_value }}분 줄이기
+              {% else %}{{ rec.target_value }}번 &amp; {{ rec.target_value }}시간 줄이기{% endif %}
+            </span>
           </div>
+          {% if rec.title in ai_joined_titles %}
+            <button class="btn-joined" disabled>✅ 참여 중</button>
+          {% else %}
+            <button class="btn-join"
+              onclick="joinAiChallenge(this, {{ rec.title | tojson }}, {{ rec.description | tojson }}, {{ rec.target_type | tojson }}, {{ rec.target_value | tojson }})">
+              사용하지 않아보기
+            </button>
+          {% endif %}
         </div>
         {% endfor %}
       </div>
@@ -407,7 +419,11 @@
           {% if ch.description %}<p>{{ ch.description }}</p>{% endif %}
           <div class="challenge-meta">
             <span class="type-tag type-{{ ch.target_type }}">{{ ch.target_type }}</span>
-            <span class="target-tag">목표: {{ ch.target_value }}</span>
+            <span class="target-tag">목표:
+              {% if ch.target_type == 'delivery' %}{{ ch.target_value }}번 줄이기
+              {% elif ch.target_type == 'time' %}{{ ch.target_value }}분 줄이기
+              {% else %}{{ ch.target_value }}번 &amp; {{ ch.target_value }}시간 줄이기{% endif %}
+            </span>
           </div>
           {% if ch.id in completed_ids %}
           <div class="progress-section">
@@ -453,27 +469,51 @@
       btn.disabled = true;
       btn.textContent = "참여 중...";
       try {
-        const csrfToken = {{ csrf_token | tojson
-      }};
-    const res = await fetch(`/challenge/${challengeId}/join`, {
-      method: "POST",
-      headers: { "X-CSRF-Token": csrfToken },
-    });
-    const data = await res.json();
-    if (res.ok) {
-      showToast(data.message || "챌린지에 참여했습니다!", "success");
-      setTimeout(() => location.reload(), 1000);
-    } else {
-      showToast(data.error || "오류가 발생했습니다.", "error");
-      btn.disabled = false;
-      btn.textContent = "참여하기";
+        const csrfToken = {{ csrf_token | tojson }};
+        const res = await fetch(`/challenge/${challengeId}/join`, {
+          method: "POST",
+          headers: { "X-CSRF-Token": csrfToken },
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || "챌린지에 참여했습니다!", "success");
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          showToast(data.error || "오류가 발생했습니다.", "error");
+          btn.disabled = false;
+          btn.textContent = "참여하기";
+        }
+      } catch {
+        showToast("네트워크 오류가 발생했습니다.", "error");
+        btn.disabled = false;
+        btn.textContent = "참여하기";
+      }
     }
-    } catch {
-      showToast("네트워크 오류가 발생했습니다.", "error");
-      btn.disabled = false;
-      btn.textContent = "참여하기";
+    async function joinAiChallenge(btn, title, description, targetType, targetValue) {
+      btn.disabled = true;
+      btn.textContent = "참여 중...";
+      try {
+        const csrfToken = {{ csrf_token | tojson }};
+        const res = await fetch("/challenge/ai-join", {
+          method: "POST",
+          headers: { "X-CSRF-Token": csrfToken, "Content-Type": "application/json" },
+          body: JSON.stringify({ title, description, target_type: targetType, target_value: targetValue }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(data.message || "챌린지에 참여했습니다!", "success");
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          showToast(data.error || "오류가 발생했습니다.", "error");
+          btn.disabled = false;
+          btn.textContent = "사용하지 않아보기";
+        }
+      } catch {
+        showToast("네트워크 오류가 발생했습니다.", "error");
+        btn.disabled = false;
+        btn.textContent = "사용하지 않아보기";
+      }
     }
-  }
     function showToast(msg, type) {
       const t = document.getElementById("toast");
       t.textContent = msg;
