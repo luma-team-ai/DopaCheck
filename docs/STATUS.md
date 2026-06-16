@@ -50,6 +50,8 @@
 ## 마지막 머지 PR
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
+- **#152** time 챌린지 단위 버그 수정 + OCR sonnet 전환 + score 음수 방어 (**#60 CLOSED**) — 직전 stale PR **#145(닫힘)** 의 회귀(챌린지 템플릿·active_tab revert) 제외하고 안전 순증분만 재작업. (1) `config.py` MODEL_OCR haiku→sonnet-4-6(정확도, 비용증가 승인) (2) `score_service.py` time 챌린지 완료 판정 **단위 버그 수정** — 시드 target_value는 분(min)인데 기존 `time_hours`(시간) 비교라 time 챌린지 영영 미완료던 것을 `time_total_min >= tv`로 일치(`>=` 유지, delivery/both 미변경) (3) `ai/score.py` 음수 입력 `max(0,...)` 방어. code-reviewer **P1 1건→후속 #151 분리**(`>=`가 'N 이하로 줄이기' 라벨과 방향역전 — 단 #73/#103 기존 설계이고 `<=` 단순전환은 사용량0 유저 즉시완료 새버그라 주간정산 재설계 필요), P2 2건(both 단위)→#151 포함. pytest 140 PASS(+신규4), test_report 1건 실패는 #142 디자인변경 사전이슈(무관). MERGEABLE/CLEAN, G1/G6 메타 자체검수 PASS. (작성·머지 정재봉)
+  - 참고: **#145**(stale 중복 PR, #60)는 분기점 #137 직후라 이후 #138·#140·#142를 revert하는 회귀로 **머지 차단·닫음**. 순증분만 #152로 재작업
 - **#144** delivery 팁 카드 문구 단축 (**#143 CLOSED**) — `templates/delivery/index.html` 팁 3줄을 의미 보존하며 단축, 모바일 400px 뷰포트 우측 잘림 해소. Trivial(텍스트만, 런타임 무변경), 충돌 없음(MERGEABLE/CLEAN), G6 메타 자체검수 PASS. (작성 Ketose333→정재봉 머지)
 - 참고: #142(템플릿 7종 디자인·앱셸 통일), #138·#137(#60 OCR 프롬프트·챌린지 UUID 검증) 선행 머지됨
 
