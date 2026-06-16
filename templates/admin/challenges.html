@@ -27,7 +27,7 @@
             "on-secondary": "#650030", "surface-container-highest": "#35343e",
             "on-background": "#e5e0ee", "on-tertiary-container": "#fffdff",
             "error": "#ffb4ab", "outline": "#918ea1", "tertiary": "#ffb689",
-            "background": "#13121c", "surface-container-lowest": "#0e0d16",
+            "background": "#0A0A0F", "surface-container-lowest": "#0e0d16",
             "secondary": "#ffb1c5", "surface-dim": "#13121c",
             "secondary-fixed": "#ffd9e1", "tertiary-fixed-dim": "#ffb689",
             "inverse-on-surface": "#302f39", "surface-tint": "#c5c0ff",
@@ -61,14 +61,15 @@
     body {
       font-family: 'Pretendard', sans-serif;
       -webkit-font-smoothing: antialiased;
-      background-color: #13121c;
+      background-color: #0A0A0F;
       color: #e5e0ee;
       min-height: max(884px, 100dvh);
     }
     .glass-card {
-      background: rgba(31, 31, 40, 0.6);
+      background: rgba(20, 20, 28, 0.7);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(197, 192, 255, 0.1);
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      border-radius: 24px;
     }
     .ai-border { position: relative; }
     .ai-border::after {
@@ -90,47 +91,58 @@
     .type-btn.active-delivery { background: rgba(255,177,197,0.2); border-color: rgba(255,177,197,0.4); color: #ffb1c5; }
     .type-btn.active-time     { background: rgba(255,182,137,0.2); border-color: rgba(255,182,137,0.4); color: #ffb689; }
     .type-btn.active-both     { background: rgba(197,192,255,0.2); border-color: rgba(197,192,255,0.4); color: #c5c0ff; }
+    .gradient-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      opacity: 0.15;
+      pointer-events: none;
+    }
+    .orb-primary {
+      width: 300px; height: 300px;
+      background: #6b5bff;
+      top: 10%; left: -50px;
+      animation: pulse 8s infinite alternate;
+    }
+    .orb-tertiary {
+      width: 250px; height: 250px;
+      background: #2fe0a6;
+      bottom: 20%; right: -50px;
+      animation: pulse 12s infinite alternate-reverse;
+    }
+    @keyframes pulse {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(20px, 30px) scale(1.1); }
+    }
   </style>
 </head>
 <body class="pb-20 overflow-x-hidden">
-  <!-- Background Orbs -->
-  <div class="fixed inset-0 pointer-events-none overflow-hidden z-0">
-    <div class="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[120px] opacity-30"></div>
-    <div class="absolute top-[40%] -right-[10%] w-[40%] h-[40%] bg-secondary/10 rounded-full blur-[100px] opacity-20"></div>
-    <div class="absolute -bottom-[10%] left-[20%] w-[60%] h-[40%] bg-tertiary/10 rounded-full blur-[150px] opacity-20"></div>
-  </div>
+  <div class="gradient-orb orb-primary"></div>
+  <div class="gradient-orb orb-tertiary"></div>
 
-  <!-- Top App Bar -->
-  <header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex justify-between items-center px-container-padding h-[56px]">
-    <div class="flex items-center gap-3">
-      <a href="{{ url_for('admin.admin_dashboard') }}" class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95">arrow_back</a>
-      <h1 class="text-title-md font-title-md text-on-surface">챌린지 관리</h1>
-    </div>
-    <div class="px-3 py-1 bg-primary-container/20 rounded-full">
-      <span class="text-label-caps font-label-caps text-primary tracking-wider">ADMIN</span>
-    </div>
-  </header>
+  {% include "components/header.html" %}
 
-  <main class="relative z-10 mt-[56px] pt-6 px-container-padding max-w-[480px] mx-auto">
+  <main class="relative z-10 mt-[56px] pt-10 px-container-padding max-w-[480px] mx-auto">
 
     <!-- 헤더 액션 -->
-    <div class="flex justify-between items-center mb-6">
-      <div>
+    <div class="flex justify-between items-center mb-6 gap-3">
+      <div class="min-w-0">
         <span class="text-label-caps font-label-caps text-on-surface-variant uppercase">Overview</span>
-        <h2 class="text-title-md font-title-md text-on-surface">전체 챌린지 {{ challenges|length }}개</h2>
+        <h2 class="text-title-md font-title-md text-on-surface whitespace-nowrap">전체 챌린지 {{ challenges|length }}개</h2>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-shrink-0">
         <button id="aiBtnOuter"
-          class="h-[52px] px-4 rounded-xl flex items-center gap-2 bg-surface-container-high border border-outline-variant/30 text-primary font-semibold hover:bg-surface-bright transition-colors active:scale-95"
+          class="h-[40px] px-3 rounded-xl flex items-center gap-1.5 bg-surface-container-high border border-outline-variant/30 text-primary font-semibold hover:bg-surface-bright transition-colors active:scale-95"
           onclick="toggleAiPanel()">
-          <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
-          <span class="text-sm">AI 추천</span>
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+          <span class="text-sm whitespace-nowrap">AI 추천</span>
         </button>
         <button
-          class="primary-gradient h-[52px] px-5 rounded-xl flex items-center gap-2 text-white font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+          class="primary-gradient h-[40px] px-3 rounded-xl flex items-center gap-1.5 text-white font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
           onclick="toggleManualForm()">
-          <span class="material-symbols-outlined text-[20px]">edit</span>
-          <span class="text-sm">수기 추가</span>
+          <span class="material-symbols-outlined text-[18px]">edit</span>
+          <span class="text-sm whitespace-nowrap">수기 추가</span>
         </button>
       </div>
     </div>

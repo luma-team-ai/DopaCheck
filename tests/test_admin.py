@@ -127,6 +127,102 @@ def test_role_admin_대시보드_200(logged_in_client):
     )
 
 
+def _make_users_list_db_mock(filter_cnt=10):
+    """users_list 라우트용 DB mock.
+
+    fetchone 호출 순서:
+      0. admin_required role 조회 → {"role": "admin"}
+      1. total_users              → {"cnt": 50}
+      2. new_users (7일)          → {"cnt": 5}
+      3. danger_users             → {"cnt": 3}
+      4. filtered_count           → {"cnt": filter_cnt}
+    fetchall: 유저 목록 → []
+    """
+    seq = [
+        {"role": "admin"},
+        {"cnt": 50},
+        {"cnt": 5},
+        {"cnt": 3},
+        {"cnt": filter_cnt},
+    ]
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.side_effect = seq
+    mock_cursor.fetchall.return_value = []
+
+    @contextmanager
+    def mock_db():
+        yield mock_cursor
+
+    return mock_db
+
+
+def test_users_list_전체_필터_200(logged_in_client):
+    """[TC-5] /admin/users?filter=all → 200, 필터 칩 링크 존재 확인."""
+    with patch("routes.admin.db", _make_users_list_db_mock()):
+        res = logged_in_client.get("/admin/users?filter=all")
+    assert res.status_code == 200
+    body = res.data.decode()
+    assert "filter=recent" in body
+    assert "filter=danger" in body
+    assert "filter=challenge" in body
+
+
+def test_users_list_danger_필터_SQL_적용(logged_in_client):
+    """[TC-6] /admin/users?filter=danger → SQL에 dopamine_scores 조건 포함."""
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.side_effect = [
+        {"role": "admin"},
+        {"cnt": 50},
+        {"cnt": 5},
+        {"cnt": 3},
+        {"cnt": 3},
+    ]
+    mock_cursor.fetchall.return_value = []
+    executed_sqls: list[str] = []
+    real_execute = mock_cursor.execute
+    def capture_execute(sql, *args):
+        executed_sqls.append(str(sql))
+        return real_execute(sql, *args)
+    mock_cursor.execute = capture_execute
+
+    @contextmanager
+    def mock_db():
+        yield mock_cursor
+
+    with patch("routes.admin.db", mock_db):
+        res = logged_in_client.get("/admin/users?filter=danger")
+    assert res.status_code == 200
+    assert "dopamine_scores" in " ".join(executed_sqls), "danger 필터 SQL 미적용"
+
+
+def test_users_list_recent_필터_SQL_적용(logged_in_client):
+    """[TC-7] /admin/users?filter=recent → SQL에 created_at 조건 포함."""
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.side_effect = [
+        {"role": "admin"},
+        {"cnt": 50},
+        {"cnt": 5},
+        {"cnt": 3},
+        {"cnt": 2},
+    ]
+    mock_cursor.fetchall.return_value = []
+    executed_sqls: list[str] = []
+    real_execute = mock_cursor.execute
+    def capture_execute(sql, *args):
+        executed_sqls.append(str(sql))
+        return real_execute(sql, *args)
+    mock_cursor.execute = capture_execute
+
+    @contextmanager
+    def mock_db():
+        yield mock_cursor
+
+    with patch("routes.admin.db", mock_db):
+        res = logged_in_client.get("/admin/users?filter=recent")
+    assert res.status_code == 200
+    assert "created_at" in " ".join(executed_sqls), "recent 필터 SQL 미적용"
+
+
 def test_권한강등_즉시반영_세션캐시_무효(logged_in_client):
     """[TC-4] 세션에 role='admin' 흔적이 있어도 DB가 'user' 반환하면 즉시 차단.
 

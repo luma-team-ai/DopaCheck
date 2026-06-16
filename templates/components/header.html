@@ -1,7 +1,7 @@
 <!-- Header -->
 <header
-  class="fixed top-0 w-full h-[56px] bg-surface/80 dark:bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm z-50 flex items-center justify-between px-edge-padding">
-  <a href="/" class="flex items-center">
+  class="fixed top-0 w-full h-[56px] bg-surface/80 dark:bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm z-50 flex items-center justify-between px-5">
+  <a href="{{ url_for('admin.admin_dashboard') if session.get('role') == 'admin' else '/' }}" class="flex items-center">
     <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="DopaCheck Logo" class="h-9 w-auto">
   </a>
   {% if page_title %}
