@@ -233,12 +233,10 @@
       <p id="file-error" class="hidden mt-2 text-center text-sm text-error font-medium">사진을 먼저 선택해주세요.</p>
 
       <!-- Manual Entry CTA -->
-      <div class="mt-stack-gap flex flex-col items-center">
-        <a href="{{ url_for('delivery.manual_page') }}"
-          class="font-title-md text-title-md text-primary py-4 px-8 rounded-xl active:opacity-60 transition-opacity text-decoration-none">
-          직접 입력하기
-        </a>
-      </div>
+      <a href="{{ url_for('delivery.manual_page') }}"
+        class="gradient-button w-full h-[52px] mt-stack-gap rounded-xl flex items-center justify-center font-title-md text-on-primary-container shadow-lg shadow-primary-container/20">
+        직접 입력하기
+      </a>
 
       <!-- Tip Card -->
       <section class="mt-6">
