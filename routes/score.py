@@ -104,10 +104,7 @@ def score_page():
 
         if month_weeks:
             placeholders = ",".join(["%s"] * len(month_weeks))
-            query = (
-                "SELECT week_start, score FROM dopamine_scores"
-                " WHERE user_id = %s AND week_start IN (" + placeholders + ")"
-            )
+            query = f"SELECT week_start, score FROM dopamine_scores WHERE user_id = %s AND week_start IN ({placeholders})"
             cursor.execute(query, [user_id] + month_weeks)
             score_map = {
                 (r["week_start"].isoformat() if hasattr(r["week_start"], "isoformat") else str(r["week_start"])): r["score"]
