@@ -76,6 +76,11 @@ def recalculate_score(user_id: int) -> None:
         )
         active_challenges = cursor.fetchall() or []
 
+        # progress(목록 화면 표시값)는 '이번 주' 기준으로 별도 계산한다 (#194 P1-2).
+        # 완료 판정(done)만 judge_week(완전히 끝난 주)를 쓰고, 표시값까지 judge_week를
+        # 쓰면 월~토에 지난주 숫자가 보이고 일요일에 점프하는 문제가 생기므로 분리한다.
+        time_hours = time_total_min / 60  # 이번 주 시간 총합(시) — both progress용
+
         # ── 챌린지 완료 판정은 '완전히 끝난 주'(judge_week) 기준 ──────────────────
         # 호출이 전부 이벤트 기반(스케줄러 없음)이라, 사용자가 일요일에 앱을 안 열면
         # 목표를 달성해도 영영 미완료가 되는 문제(#194 P1-B)를 막는다.
@@ -83,24 +88,22 @@ def recalculate_score(user_id: int) -> None:
         #   - 오늘이 월~토면 → 지난주(완전히 끝난 주) 데이터로 판정.
         # 점수 계산용 집계(delivery_total/time_total_min/delivery_count)는 그대로
         # '이번 주' 기준을 유지하고, 판정용 카운트만 judge_week 기준으로 분리한다.
-        week_end_date = date.fromisoformat(week_end)
-        if kst_today() >= week_end_date:
-            judge_start, judge_end = week_start, week_end
-        else:
-            judge_start, judge_end = last_week_range
-        judge_gte, judge_lt = kst_bounds(judge_start, judge_end)
-        judge_delivery_count, judge_time_total_min = _aggregate_counts(
-            cursor, user_id, judge_gte, judge_lt
-        )
-        judge_time_hours = judge_time_total_min / 60
-
-        # progress(목록 화면 표시값)는 '이번 주' 기준으로 별도 계산한다 (#194 P1-2).
-        # 완료 판정(done)만 judge_week(완전히 끝난 주)를 쓰고, 표시값까지 judge_week를
-        # 쓰면 월~토에 지난주 숫자가 보이고 일요일에 점프하는 문제가 생기므로 분리한다.
-        time_hours = time_total_min / 60  # 이번 주 시간 총합(시) — both progress용
-
+        # judge 집계 2건은 활성 챌린지가 있을 때만 실행한다 — 비참여자에게 불필요한
+        # DB 쿼리가 매 페이지 진입마다 나가던 문제(#194 P2)를 막는다.
         # DopaCheck 챌린지는 전부 '줄이기' 방향 — target_value 이하여야 달성 (<= tv 가 맞다).
         # db/seed.sql 7종 모두 "N회 이하 / N분 이하" 형태이며 '늘리기' 유형은 존재하지 않는다.
+        if active_challenges:
+            week_end_date = date.fromisoformat(week_end)
+            if kst_today() >= week_end_date:
+                judge_start, judge_end = week_start, week_end
+            else:
+                judge_start, judge_end = last_week_range
+            judge_gte, judge_lt = kst_bounds(judge_start, judge_end)
+            judge_delivery_count, judge_time_total_min = _aggregate_counts(
+                cursor, user_id, judge_gte, judge_lt
+            )
+            judge_time_hours = judge_time_total_min / 60
+
         for ch in active_challenges:
             # ── 가입 주차 필터 (#194 P1-1) ──────────────────────────────────────
             # judge_week가 이 챌린지의 가입 주(started_at이 속한 주)보다 이전이면,
@@ -108,6 +111,8 @@ def recalculate_score(user_id: int) -> None:
             # judge_week=지난주 + judge 0건이면 줄이기형 '0 <= tv'가 참이 되어
             # 이번 주에 새로 참여한 챌린지가 지난주 데이터로 즉시 완료되는 버그 발생.
             started_at = ch["started_at"]
+            if started_at is None:
+                continue  # started_at은 NOT NULL이나 방어적으로 가드 (#194 봇 리뷰)
             # DATETIME 컬럼은 pymysql DictCursor가 datetime으로 반환 — .date()로 정규화.
             # (혹시 date로 들어오는 경우도 방어적으로 처리)
             joined_date = started_at.date() if isinstance(started_at, datetime) else started_at
