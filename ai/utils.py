@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+import os
+
 import anthropic
 
 from config import AI_REQUEST_TIMEOUT
@@ -19,7 +21,10 @@ def get_client() -> anthropic.Anthropic:
     """타임아웃이 설정된 Anthropic 클라이언트를 반환한다. (싱글턴)"""
     global _client
     if _client is None:
-        _client = anthropic.Anthropic(timeout=AI_REQUEST_TIMEOUT)
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다.")
+        _client = anthropic.Anthropic(api_key=api_key, timeout=AI_REQUEST_TIMEOUT)
     return _client
 
 
