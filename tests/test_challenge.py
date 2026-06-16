@@ -126,96 +126,237 @@ def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client)
         "합계 0이면 top_app이 history에 포함되면 안 됨"
 
 
-def test_챌린지_달성시_완료처리():
-    """FR-37, FR-38: recalculate_score 호출 시 target 달성 챌린지 is_completed=1 갱신."""
+from datetime import date as _date
+
+
+# 기본 가입일 — 모든 judge_week보다 충분히 과거(2020년)라 가입 주차 필터에 걸리지 않는다.
+# started_at을 명시하지 않은 기존 테스트는 항상 '이미 참여 중'으로 동작.
+_DEFAULT_JOINED = datetime(2020, 1, 1)
+
+
+def _run_recalc(active_challenges, *, score_aggr, judge_aggr, judge_today):
+    """recalculate_score를 모킹 환경에서 실행하고 cursor를 반환한다.
+
+    fetchone 실행 순서(코드와 일치):
+      1) sum_price(점수용 배달 총액)
+      2) sum_min(점수용 시간 총합)
+      3) cnt(점수용 이번 주 배달 횟수)
+      4) [fetchall] active_challenges
+      5) judge cnt(judge_week 배달 횟수)
+      6) judge sum_min(judge_week 시간 총합)
+      7) comp_count(이번 주 완료 챌린지 수)
+
+    Args:
+        score_aggr: (sum_price, sum_min, cnt) — 점수용 이번 주 집계.
+        judge_aggr: (judge_cnt, judge_sum_min) — judge_week 집계.
+        judge_today: kst_today가 반환할 date(일요일/월요일/주중 모킹용).
+
+    각 챌린지 dict에 started_at이 없으면 _DEFAULT_JOINED(과거)로 채운다(가입 주차 필터 통과).
+    """
     from services.score_service import recalculate_score
 
+    # started_at 누락 시 과거 기본값 주입 — 가입 주차 필터(#194 P1-1)에 걸리지 않게.
+    for ch in active_challenges:
+        ch.setdefault("started_at", _DEFAULT_JOINED)
+
+    sum_price, sum_min, cnt = score_aggr
+    judge_cnt, judge_sum_min = judge_aggr
+
     cursor = MagicMock()
-    # fetchone: delivery sum, time sum, delivery count, challenge count
     cursor.fetchone.side_effect = [
-        {"sum_price": 20_000},
-        {"sum_min": 0},
-        {"cnt": 3},        # 배달 3회 — delivery target_value=2 초과 → 달성
+        {"sum_price": sum_price},
+        {"sum_min": sum_min},
+        {"cnt": cnt},
+        {"cnt": judge_cnt},          # _aggregate_counts: judge 배달 횟수
+        {"sum_min": judge_sum_min},  # _aggregate_counts: judge 시간 총합
         {"comp_count": 1},
     ]
-    # 활성 챌린지: delivery 타입, target_value=2
-    cursor.fetchall.return_value = [
-        {"id": "uc-1", "target_type": "delivery", "target_value": 2}
-    ]
+    cursor.fetchall.return_value = active_challenges
 
     @contextmanager
     def _db():
         yield cursor
 
-    with patch("services.score_service.db", _db):
+    with patch("services.score_service.db", _db), \
+         patch("services.score_service.kst_today", lambda: judge_today):
         recalculate_score(user_id=1)
 
-    # UPDATE user_challenges SET ... is_completed=1 호출 확인
-    update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
-    assert any("is_completed = 1" in c for c in update_calls), \
-        "달성 시 is_completed=1 UPDATE가 호출돼야 함"
+    return cursor
+
+
+def _completed(cursor) -> bool:
+    """is_completed=1 UPDATE가 호출됐는지 여부."""
+    calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
+    return any("is_completed = 1" in c for c in calls)
+
+
+def _progress_value(cursor):
+    """progress만 갱신하는 UPDATE(미완료 경로)의 progress 값을 반환한다.
+
+    "UPDATE user_challenges SET progress = %s WHERE id = %s ..." 형태의 호출에서
+    args[0](파라미터 튜플)의 첫 값 = progress.
+    """
+    for c in cursor.execute.call_args_list:
+        sql = c.args[0] if c.args else ""
+        # 미완료 경로: SET progress = %s 만 갱신(is_completed = 1 을 SET하지 않음).
+        if "UPDATE user_challenges SET progress" in sql and "is_completed = 1" not in sql:
+            return c.args[1][0]
+    return None
+
+
+# ── judge_week 기준: 2026-06-16(화)이 today일 때 이번 주=6/15~6/21, 지난주=6/8~6/14
+_TUE = _date(2026, 6, 16)   # 주중(화) — 이번 주 미종료
+_MON = _date(2026, 6, 15)   # 월요일 — 이번 주 시작 = 지난주(6/8~6/14)로 판정
+_SUN = _date(2026, 6, 21)   # 일요일 — 이번 주 종료일 → 이번 주로 판정
+
+
+def test_챌린지_일요일_이번주_달성시_완료처리():
+    """(a) 일요일: 이번 주 count ≤ tv → 완료. (FR-37, FR-38)"""
+    cursor = _run_recalc(
+        [{"id": "uc-1", "target_type": "delivery", "target_value": 2}],
+        score_aggr=(20_000, 0, 2),
+        judge_aggr=(2, 0),   # 일요일 → judge_week=이번 주, 배달 2회 ≤ 2 → 완료
+        judge_today=_SUN,
+    )
+    assert _completed(cursor), "일요일 이번 주 배달 2회 ≤ 2 → 완료여야 함"
+
+
+def test_챌린지_월요일_지난주_달성시_완료처리():
+    """(b) 월요일: 지난주 count ≤ tv → 완료 (이번 주 미접속 회귀 차단, #194 P1-B)."""
+    cursor = _run_recalc(
+        [{"id": "uc-1", "target_type": "delivery", "target_value": 2}],
+        # 이번 주(점수용)는 0건이지만 judge_week=지난주는 2회 → 지난주 기준 완료
+        score_aggr=(0, 0, 0),
+        judge_aggr=(2, 0),
+        judge_today=_MON,
+    )
+    assert _completed(cursor), "월요일엔 지난주(완전히 끝난 주) 기준으로 완료 판정돼야 함"
+
+
+def test_챌린지_주중_이번주_미종료시_미완료():
+    """(c) 주중(화): 이번 주 미종료 → judge_week=지난주, 지난주 미달성이면 완료 안 됨."""
+    cursor = _run_recalc(
+        [{"id": "uc-1", "target_type": "delivery", "target_value": 2}],
+        # 이번 주는 0건(달성처럼 보이지만), judge_week=지난주는 5회 → 미달성
+        score_aggr=(0, 0, 0),
+        judge_aggr=(5, 0),
+        judge_today=_TUE,
+    )
+    assert not _completed(cursor), "주중엔 미종료 이번 주가 아닌 지난주 기준이며 지난주 미달성이면 완료 금지"
+
+
+def test_챌린지_경계_count_eq_tv_완료():
+    """(d) <= 경계: count == tv → 완료 (delivery 기준)."""
+    cursor = _run_recalc(
+        [{"id": "uc-1", "target_type": "delivery", "target_value": 3}],
+        score_aggr=(0, 0, 3),
+        judge_aggr=(3, 0),   # 3 == tv(3) → 완료
+        judge_today=_SUN,
+    )
+    assert _completed(cursor), "count == tv → 완료여야 함"
+
+
+def test_챌린지_경계_count_tv_plus_1_미완료():
+    """(d) <= 경계: count == tv+1 → 미완료 (delivery 기준)."""
+    cursor = _run_recalc(
+        [{"id": "uc-1", "target_type": "delivery", "target_value": 3}],
+        score_aggr=(0, 0, 4),
+        judge_aggr=(4, 0),   # 4 == tv+1 → 미완료
+        judge_today=_SUN,
+    )
+    assert not _completed(cursor), "count == tv+1 → 완료되면 안 됨"
 
 
 def test_time_챌린지_분단위_임계값_달성():
-    """#60: time 챌린지 target_value(분) 기준으로 time_total_min >= tv 시 완료 처리."""
-    from services.score_service import recalculate_score
-
-    cursor = MagicMock()
-    # fetchone: delivery sum=0, time sum=300분(5시간), delivery count=0, challenge count=1
-    cursor.fetchone.side_effect = [
-        {"sum_price": 0},
-        {"sum_min": 300},   # 300분 — target_value=300과 일치 → 달성
-        {"cnt": 0},
-        {"comp_count": 1},
-    ]
-    # 활성 챌린지: time 타입, target_value=300(분)
-    cursor.fetchall.return_value = [
-        {"id": "uc-time-1", "target_type": "time", "target_value": 300}
-    ]
-
-    @contextmanager
-    def _db():
-        yield cursor
-
-    with patch("services.score_service.db", _db):
-        recalculate_score(user_id=1)
-
-    update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
-    assert any("is_completed = 1" in c for c in update_calls), \
-        "time 챌린지: time_total_min(300) >= target_value(300) → is_completed=1 이어야 함"
+    """time 챌린지: judge_week time_total_min ≤ tv(분) 시 완료 처리."""
+    cursor = _run_recalc(
+        [{"id": "uc-time-1", "target_type": "time", "target_value": 300}],
+        score_aggr=(0, 0, 0),
+        judge_aggr=(0, 300),   # 300분 == tv(300) → 완료
+        judge_today=_SUN,
+    )
+    assert _completed(cursor), "time: 300분 ≤ 300 → 완료여야 함"
 
 
 def test_time_챌린지_분단위_미달성():
-    """#60: time_total_min이 target_value 미만이면 미완료로 progress만 갱신."""
-    from services.score_service import recalculate_score
-
-    cursor = MagicMock()
-    # fetchone: delivery sum=0, time sum=120분(2시간), delivery count=0, challenge count=0
-    cursor.fetchone.side_effect = [
-        {"sum_price": 0},
-        {"sum_min": 120},   # 120분 < target_value=300 → 미달성
-        {"cnt": 0},
-        {"comp_count": 0},
-    ]
-    # 활성 챌린지: time 타입, target_value=300(분)
-    cursor.fetchall.return_value = [
-        {"id": "uc-time-2", "target_type": "time", "target_value": 300}
-    ]
-
-    @contextmanager
-    def _db():
-        yield cursor
-
-    with patch("services.score_service.db", _db):
-        recalculate_score(user_id=1)
-
+    """time 챌린지: judge_week time_total_min > tv면 미완료로 progress만 갱신."""
+    cursor = _run_recalc(
+        [{"id": "uc-time-2", "target_type": "time", "target_value": 300}],
+        score_aggr=(0, 0, 0),
+        judge_aggr=(0, 360),   # 360분 > 300 → 미달성
+        judge_today=_SUN,
+    )
+    assert not _completed(cursor), "time: 360분 > 300 → 완료되면 안 됨"
     update_calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
-    # is_completed=1 UPDATE가 없어야 함
-    assert not any("is_completed = 1" in c for c in update_calls), \
-        "time 챌린지: time_total_min(120) < target_value(300) → 완료 처리되면 안 됨"
-    # 진행도 업데이트(is_completed 미변경)는 호출돼야 함
     assert any("UPDATE user_challenges" in c for c in update_calls), \
         "미달성 시에도 progress UPDATE는 호출돼야 함"
+
+
+def test_both_챌린지_float_경계_미달성():
+    """both 타입: 시간 단위 float 경계 — tv=3, time_hours=3.1(186분) → 미완료."""
+    cursor = _run_recalc(
+        [{"id": "uc-both-1", "target_type": "both", "target_value": 3}],
+        score_aggr=(0, 0, 0),
+        # 배달 3회는 ≤ 3 OK, 시간 186분=3.1h > 3 → int() 절삭 없이 float 비교로 미달성
+        judge_aggr=(3, 186),
+        judge_today=_SUN,
+    )
+    assert not _completed(cursor), "both: 3.1h > 3 → 완료되면 안 됨(float 비교)"
+
+
+# ── #194 P1 회귀 차단 테스트 ──────────────────────────────────────
+
+def test_이번주_가입_judge지난주_완료_안됨():
+    """[P1-1] 이번 주 가입 + 월요일(judge_week=지난주) + 지난주 0건 → 완료 금지.
+
+    가입 주차 필터가 없으면 줄이기형 '0 <= tv'가 참이 되어, 이번 주 새로 참여한
+    챌린지가 지난주 데이터로 즉시 완료되는 버그(#194 P1-1)가 난다.
+    started_at=이번 주(6/15~), judge_today=월요일(6/15) → judge_week=지난주(6/8~6/14).
+    """
+    cursor = _run_recalc(
+        # started_at=이번 주 안의 날짜(6/15) → 가입 주(6/15~)가 judge_week(6/8~)보다 나중
+        [{"id": "uc-new", "target_type": "delivery", "target_value": 2,
+          "started_at": datetime(2026, 6, 15, 10, 0)}],
+        score_aggr=(0, 0, 0),
+        judge_aggr=(0, 0),   # 지난주 0건 — 필터 없으면 0<=2 로 오완료
+        judge_today=_MON,
+    )
+    assert not _completed(cursor), \
+        "이번 주 가입 챌린지는 지난주(judge_week) 데이터로 완료되면 안 됨"
+
+
+def test_가입주_이후_judge_0건_완벽절제_완료():
+    """[P1-1 정책] 가입 주 이후 + judge_week 0건 → '완벽 절제'로 완료가 맞다.
+
+    started_at=지난주 이전(과거), 일요일(judge_week=이번 주), 0건 → 0 <= tv → 완료.
+    비활동이 아니라 '소비 0회=절제 성공'으로 간주하는 정책을 명시 검증.
+    """
+    cursor = _run_recalc(
+        [{"id": "uc-old", "target_type": "delivery", "target_value": 2,
+          "started_at": datetime(2026, 6, 1)}],  # 가입은 한참 전
+        score_aggr=(0, 0, 0),
+        judge_aggr=(0, 0),   # judge_week 0건 → 완벽 절제 → 완료
+        judge_today=_SUN,
+    )
+    assert _completed(cursor), \
+        "가입 주 이후 judge_week 0건은 완벽 절제로 완료 기대"
+
+
+def test_progress_이번주_기준으로_세팅():
+    """[P1-2] progress 표시값은 judge_week가 아닌 '이번 주' 기준이어야 한다.
+
+    월요일(judge_week=지난주) + 지난주 5회(미달성)인데, 이번 주 배달은 1회.
+    미완료 progress UPDATE의 progress 값이 이번 주(1)여야 하고, 지난주(5)면 안 됨.
+    """
+    cursor = _run_recalc(
+        [{"id": "uc-prog", "target_type": "delivery", "target_value": 2}],
+        score_aggr=(10_000, 0, 1),   # 이번 주 배달 1회
+        judge_aggr=(5, 0),           # 지난주 5회 → 미달성(progress 표시엔 안 쓰여야)
+        judge_today=_MON,
+    )
+    assert not _completed(cursor), "지난주 5회 > 2 → 완료 금지"
+    assert _progress_value(cursor) == 1, \
+        "progress는 이번 주(1)여야 하고 judge_week(5)가 아니어야 함"
 
 
 # ── P2 추가 테스트 ────────────────────────────────────────

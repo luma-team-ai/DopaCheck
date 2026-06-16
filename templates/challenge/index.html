@@ -269,6 +269,55 @@
       color: #ff8a8a;
       border: 1px solid rgba(239, 68, 68, 0.4);
     }
+    /* ── 탭 + 정렬 필터 ── */
+    .challenge-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0 12px;
+      flex-wrap: wrap;
+    }
+    .challenge-tabs {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+    }
+    .tab-btn {
+      padding: 6px 16px;
+      border-radius: 20px;
+      border: 1px solid #474555;
+      background: transparent;
+      color: #918ea1;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      background: #6b5bff;
+      border-color: #6b5bff;
+      color: #fff;
+    }
+    .tab-btn:hover:not(.active) {
+      border-color: #c5c0ff;
+      color: #c5c0ff;
+    }
+    .sort-toggle {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid #474555;
+      background: #1f1f28;
+      color: #c8c4d8;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+    .sort-toggle:hover {
+      border-color: #c5c0ff;
+      color: #c5c0ff;
+    }
+    .challenge-card.hidden { display: none; }
   </style>
   <script id="tailwind-config">
     tailwind.config = {
@@ -411,10 +460,24 @@
       {% endif %}
 
       <div class="section-title">📋 챌린지 목록</div>
+
+      <!-- 탭 + 정렬 필터 -->
+      <div class="challenge-filter-bar">
+        <div class="challenge-tabs">
+          <button class="tab-btn active" data-filter="all">All</button>
+          <button class="tab-btn" data-filter="delivery">배달</button>
+          <button class="tab-btn" data-filter="time">시간</button>
+          <button class="tab-btn" data-filter="both">Both</button>
+        </div>
+        <button class="sort-toggle" id="challengeSort" data-order="newest">최신순 ↓</button>
+      </div>
+
       {% if challenges %}
-      <div class="challenge-grid">
+      <div class="challenge-grid" id="challengeGrid">
         {% for ch in challenges %}
-        <div class="challenge-card {% if ch.id in joined_ids %}joined{% endif %}">
+        <div class="challenge-card {% if ch.id in joined_ids %}joined{% endif %}"
+             data-type="{{ ch.target_type }}"
+             data-index="{{ loop.index }}">
           <h3>{{ ch.title }}</h3>
           {% if ch.description %}<p>{{ ch.description }}</p>{% endif %}
           <div class="challenge-meta">
@@ -452,6 +515,7 @@
         </div>
         {% endfor %}
       </div>
+      <p class="empty-msg hidden" id="noResult">조건에 맞는 챌린지가 없습니다.</p>
       {% else %}
       <p class="empty-msg">현재 등록된 챌린지가 없습니다.</p>
       {% endif %}
@@ -524,6 +588,57 @@
       t.className = `toast toast-${type}`;
       setTimeout(() => { t.className = "toast hidden"; }, 3000);
     }
+  </script>
+  <script>
+    (function () {
+      const grid = document.getElementById('challengeGrid');
+      const noResult = document.getElementById('noResult');
+      if (!grid) return;
+
+      let activeFilter = 'all';
+
+      function applyFilterSort() {
+        const sortVal = document.getElementById('challengeSort').dataset.order;
+        const cards = Array.from(grid.querySelectorAll('.challenge-card'));
+
+        // 정렬
+        cards.sort((a, b) => {
+          const ia = parseInt(a.dataset.index, 10);
+          const ib = parseInt(b.dataset.index, 10);
+          return sortVal === 'newest' ? ib - ia : ia - ib;
+        });
+        cards.forEach(c => grid.appendChild(c));
+
+        // 필터
+        let visible = 0;
+        cards.forEach(c => {
+          const match = activeFilter === 'all' || c.dataset.type === activeFilter;
+          c.classList.toggle('hidden', !match);
+          if (match) visible++;
+        });
+        if (noResult) noResult.classList.toggle('hidden', visible > 0);
+      }
+
+      // 탭 클릭
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          activeFilter = btn.dataset.filter;
+          applyFilterSort();
+        });
+      });
+
+      // 정렬 토글
+      document.getElementById('challengeSort').addEventListener('click', function () {
+        const next = this.dataset.order === 'newest' ? 'oldest' : 'newest';
+        this.dataset.order = next;
+        this.textContent = next === 'newest' ? '최신순 ↓' : '오래된순 ↑';
+        applyFilterSort();
+      });
+
+      applyFilterSort();
+    })();
   </script>
 </body>
 

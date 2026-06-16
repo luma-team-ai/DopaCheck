@@ -79,11 +79,14 @@ def test_분석_저장시_점수_재산출():
     from services.score_service import recalculate_score
 
     cursor = MagicMock()
-    # fetchone 순서: delivery sum → time sum → delivery count → challenge count
+    # fetchone 순서: delivery sum → time sum → delivery count → judge 배달/시간 → challenge count
+    # (#194 judge_week 분리: active 챌린지 유무와 무관하게 judge 집계 2건이 실행됨)
     cursor.fetchone.side_effect = [
         {"sum_price": 47_000},
         {"sum_min": 870},
-        {"cnt": 3},          # 이번 주 배달 횟수 (챌린지 progress용)
+        {"cnt": 3},          # 이번 주 배달 횟수 (점수용)
+        {"cnt": 3},          # judge_week 배달 횟수 (챌린지 판정용)
+        {"sum_min": 870},    # judge_week 시간 총합 (챌린지 판정용)
         {"comp_count": 2},   # 진행도 갱신 후 완료 챌린지 수
     ]
     # 활성 챌린지 없음 (user_challenges JOIN 쿼리)
