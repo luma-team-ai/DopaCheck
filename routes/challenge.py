@@ -21,7 +21,8 @@ challenge_bp = Blueprint("challenge", __name__, url_prefix="/challenge")
 _AI_CACHE_KEY = "ai_recommendations"
 _AI_CACHE_TS_KEY = "ai_recommendations_ts"
 _AI_CACHE_VER_KEY = "ai_recommendations_ver"
-_AI_CACHE_VERSION = "v2"  # target_value 단위 정규화 적용 버전 — 변경 시 구버전 캐시 자동 무효화
+_AI_CACHE_VERSION = "v3"  # target_value 단위 정규화 적용 버전 — 변경 시 구버전 캐시 자동 무효화
+#  v3: time 시간→분 보정 임계값 100→20 하향 (#161 P2) — 60·90분 오염 캐시 무효화
 
 
 def _calc_avg_delivery_per_week(delivery_rows: list) -> float:

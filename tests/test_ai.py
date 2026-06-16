@@ -133,6 +133,40 @@ def test_챌린지_추천():
     assert result["recommendations"][0]["target_type"] == "delivery"
 
 
+def _recommend_time_value(raw_value):
+    """time 타입 추천 1건을 mock 응답으로 흘려보내고 정규화된 target_value를 반환한다."""
+    from ai.challenge import recommend
+
+    payload = [{
+        "title": "유튜브 줄이기",
+        "description": "주간 사용 시간을 줄여보세요.",
+        "target_type": "time",
+        "target_value": raw_value,
+    }]
+    with patch("ai.utils._client") as mock_client:
+        mock_client.messages.create.return_value = _mock_response(json.dumps(payload))
+        result = recommend({"avg_delivery_per_week": 1.0})
+    return result["recommendations"][0]["target_value"]
+
+
+def test_time_정상_분값_오염되지_않음():
+    """#161 P2: 60·90분 등 정상 분 값은 그대로 유지(기존 *60 오염 회귀 방지)."""
+    assert _recommend_time_value(60) == 60     # 과거: 3600 으로 오염
+    assert _recommend_time_value(90) == 90     # 과거: 5400 으로 오염
+    assert _recommend_time_value(300) == 300
+
+
+def test_time_시간_오기입은_분으로_보정():
+    """임계값(20) 미만이면 시간 오기입으로 보고 ×60 보정."""
+    assert _recommend_time_value(5) == 300     # 5시간 → 300분
+    assert _recommend_time_value(10) == 600    # 10시간 → 600분
+
+
+def test_time_경계값_20은_분으로_신뢰():
+    """임계값 경계(20)는 분으로 신뢰 — 보정하지 않음."""
+    assert _recommend_time_value(20) == 20
+
+
 # ── P2 추가 테스트 ────────────────────────────────────────
 
 def test_AI_클라이언트_타임아웃_설정():

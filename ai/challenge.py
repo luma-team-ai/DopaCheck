@@ -1,8 +1,17 @@
 """챌린지 추천 (담당: 오영석 — FR-44)."""
 import json
+import logging
 
 from ai.utils import extract_json, extract_text, get_client
 from config import MODEL_CHALLENGE
+
+logger = logging.getLogger(__name__)
+
+# time 타입 target_value 시간→분 보정 임계값 (#161 P2).
+# 프롬프트가 분 단위를 강제하므로 분 값으로 신뢰하되, 주간 목표가 이 값 미만이면
+# (=하루 3분 미만) 현실적으로 분 단위일 수 없어 AI가 시간으로 반환한 것으로 간주한다.
+# 기존 임계값 100은 60·90분 같은 정상 분 값을 3600·5400분으로 오염시켜 판정을 무력화했다.
+_TIME_HOURS_HEURISTIC_THRESHOLD = 20
 
 
 def recommend(history: dict) -> dict:
@@ -73,12 +82,18 @@ def recommend(history: dict) -> dict:
         except (TypeError, ValueError):
             tv = 1.0
         if tt == "time":
-            # AI가 시간(hours) 단위로 반환하면 분으로 변환 (100분 이하이면 시간으로 판단)
-            if tv < 100:
-                tv = tv * 60
+            # 분 단위로 신뢰. 임계값 미만일 때만 시간 오기입으로 보고 분으로 보정한다.
+            if tv < _TIME_HOURS_HEURISTIC_THRESHOLD:
+                converted = tv * 60
+                logger.warning(
+                    "time 챌린지 target_value 시간→분 보정: %g → %g "
+                    "(AI가 분 단위 미준수 추정, title=%r)",
+                    tv, converted, rec.get("title"),
+                )
+                tv = converted
             rec["target_value"] = max(1, int(round(tv)))
         else:
-            # delivery / both: 정수 횟수
+            # delivery: 횟수 / both: 배달 횟수 & 앱 사용 시간(시) 공통값 — 변환 없이 정수화
             rec["target_value"] = max(1, int(round(tv)))
 
     return {"success": True, "recommendations": recommendations}
