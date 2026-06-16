@@ -129,6 +129,11 @@ def test_top_app_전부_0이면_recommend_history에서_제외(logged_in_client)
 from datetime import date as _date
 
 
+# 기본 가입일 — 모든 judge_week보다 충분히 과거(2020년)라 가입 주차 필터에 걸리지 않는다.
+# started_at을 명시하지 않은 기존 테스트는 항상 '이미 참여 중'으로 동작.
+_DEFAULT_JOINED = datetime(2020, 1, 1)
+
+
 def _run_recalc(active_challenges, *, score_aggr, judge_aggr, judge_today):
     """recalculate_score를 모킹 환경에서 실행하고 cursor를 반환한다.
 
@@ -145,8 +150,14 @@ def _run_recalc(active_challenges, *, score_aggr, judge_aggr, judge_today):
         score_aggr: (sum_price, sum_min, cnt) — 점수용 이번 주 집계.
         judge_aggr: (judge_cnt, judge_sum_min) — judge_week 집계.
         judge_today: kst_today가 반환할 date(일요일/월요일/주중 모킹용).
+
+    각 챌린지 dict에 started_at이 없으면 _DEFAULT_JOINED(과거)로 채운다(가입 주차 필터 통과).
     """
     from services.score_service import recalculate_score
+
+    # started_at 누락 시 과거 기본값 주입 — 가입 주차 필터(#194 P1-1)에 걸리지 않게.
+    for ch in active_challenges:
+        ch.setdefault("started_at", _DEFAULT_JOINED)
 
     sum_price, sum_min, cnt = score_aggr
     judge_cnt, judge_sum_min = judge_aggr
@@ -177,6 +188,20 @@ def _completed(cursor) -> bool:
     """is_completed=1 UPDATE가 호출됐는지 여부."""
     calls = [str(c) for c in cursor.execute.call_args_list if "UPDATE user_challenges" in str(c)]
     return any("is_completed = 1" in c for c in calls)
+
+
+def _progress_value(cursor):
+    """progress만 갱신하는 UPDATE(미완료 경로)의 progress 값을 반환한다.
+
+    "UPDATE user_challenges SET progress = %s WHERE id = %s ..." 형태의 호출에서
+    args[0](파라미터 튜플)의 첫 값 = progress.
+    """
+    for c in cursor.execute.call_args_list:
+        sql = c.args[0] if c.args else ""
+        # 미완료 경로: SET progress = %s 만 갱신(is_completed = 1 을 SET하지 않음).
+        if "UPDATE user_challenges SET progress" in sql and "is_completed = 1" not in sql:
+            return c.args[1][0]
+    return None
 
 
 # ── judge_week 기준: 2026-06-16(화)이 today일 때 이번 주=6/15~6/21, 지난주=6/8~6/14
@@ -277,6 +302,61 @@ def test_both_챌린지_float_경계_미달성():
         judge_today=_SUN,
     )
     assert not _completed(cursor), "both: 3.1h > 3 → 완료되면 안 됨(float 비교)"
+
+
+# ── #194 P1 회귀 차단 테스트 ──────────────────────────────────────
+
+def test_이번주_가입_judge지난주_완료_안됨():
+    """[P1-1] 이번 주 가입 + 월요일(judge_week=지난주) + 지난주 0건 → 완료 금지.
+
+    가입 주차 필터가 없으면 줄이기형 '0 <= tv'가 참이 되어, 이번 주 새로 참여한
+    챌린지가 지난주 데이터로 즉시 완료되는 버그(#194 P1-1)가 난다.
+    started_at=이번 주(6/15~), judge_today=월요일(6/15) → judge_week=지난주(6/8~6/14).
+    """
+    cursor = _run_recalc(
+        # started_at=이번 주 안의 날짜(6/15) → 가입 주(6/15~)가 judge_week(6/8~)보다 나중
+        [{"id": "uc-new", "target_type": "delivery", "target_value": 2,
+          "started_at": datetime(2026, 6, 15, 10, 0)}],
+        score_aggr=(0, 0, 0),
+        judge_aggr=(0, 0),   # 지난주 0건 — 필터 없으면 0<=2 로 오완료
+        judge_today=_MON,
+    )
+    assert not _completed(cursor), \
+        "이번 주 가입 챌린지는 지난주(judge_week) 데이터로 완료되면 안 됨"
+
+
+def test_가입주_이후_judge_0건_완벽절제_완료():
+    """[P1-1 정책] 가입 주 이후 + judge_week 0건 → '완벽 절제'로 완료가 맞다.
+
+    started_at=지난주 이전(과거), 일요일(judge_week=이번 주), 0건 → 0 <= tv → 완료.
+    비활동이 아니라 '소비 0회=절제 성공'으로 간주하는 정책을 명시 검증.
+    """
+    cursor = _run_recalc(
+        [{"id": "uc-old", "target_type": "delivery", "target_value": 2,
+          "started_at": datetime(2026, 6, 1)}],  # 가입은 한참 전
+        score_aggr=(0, 0, 0),
+        judge_aggr=(0, 0),   # judge_week 0건 → 완벽 절제 → 완료
+        judge_today=_SUN,
+    )
+    assert _completed(cursor), \
+        "가입 주 이후 judge_week 0건은 완벽 절제로 완료 기대"
+
+
+def test_progress_이번주_기준으로_세팅():
+    """[P1-2] progress 표시값은 judge_week가 아닌 '이번 주' 기준이어야 한다.
+
+    월요일(judge_week=지난주) + 지난주 5회(미달성)인데, 이번 주 배달은 1회.
+    미완료 progress UPDATE의 progress 값이 이번 주(1)여야 하고, 지난주(5)면 안 됨.
+    """
+    cursor = _run_recalc(
+        [{"id": "uc-prog", "target_type": "delivery", "target_value": 2}],
+        score_aggr=(10_000, 0, 1),   # 이번 주 배달 1회
+        judge_aggr=(5, 0),           # 지난주 5회 → 미달성(progress 표시엔 안 쓰여야)
+        judge_today=_MON,
+    )
+    assert not _completed(cursor), "지난주 5회 > 2 → 완료 금지"
+    assert _progress_value(cursor) == 1, \
+        "progress는 이번 주(1)여야 하고 judge_week(5)가 아니어야 함"
 
 
 # ── P2 추가 테스트 ────────────────────────────────────────
