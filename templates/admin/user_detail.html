@@ -27,7 +27,7 @@
             "on-secondary": "#650030", "surface-container-highest": "#35343e",
             "on-background": "#e5e0ee", "on-tertiary-container": "#fffdff",
             "error": "#ffb4ab", "outline": "#918ea1", "tertiary": "#ffb689",
-            "background": "#13121c", "surface-container-lowest": "#0e0d16",
+            "background": "#0A0A0F", "surface-container-lowest": "#0e0d16",
             "secondary": "#ffb1c5", "surface-dim": "#13121c",
             "secondary-fixed": "#ffd9e1", "tertiary-fixed-dim": "#ffb689",
             "inverse-on-surface": "#302f39", "surface-tint": "#c5c0ff",
@@ -65,9 +65,10 @@
       min-height: max(884px, 100dvh);
     }
     .glass-card {
-      background: rgba(22, 22, 31, 0.7);
+      background: rgba(20, 20, 28, 0.7);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(197, 192, 255, 0.1);
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      border-radius: 24px;
     }
     .accordion-content {
       max-height: 0;
@@ -77,22 +78,40 @@
     .accordion-active .accordion-content { max-height: 600px; }
     .accordion-active .rotate-icon { transform: rotate(180deg); }
     .gradient-orb {
-      position: fixed; top: 0; right: 0;
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      opacity: 0.15;
+      pointer-events: none;
+    }
+    .orb-primary {
       width: 300px; height: 300px;
-      background: rgba(107, 91, 255, 0.12);
-      filter: blur(80px); border-radius: 50%;
-      z-index: -1; pointer-events: none;
+      background: #6b5bff;
+      top: 10%; left: -50px;
+      animation: pulse 8s infinite alternate;
+    }
+    .orb-tertiary {
+      width: 250px; height: 250px;
+      background: #2fe0a6;
+      bottom: 20%; right: -50px;
+      animation: pulse 12s infinite alternate-reverse;
+    }
+    @keyframes pulse {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(20px, 30px) scale(1.1); }
     }
   </style>
 </head>
 <body class="text-on-surface">
-  <div class="gradient-orb"></div>
+  <div class="gradient-orb orb-primary"></div>
+  <div class="gradient-orb orb-tertiary"></div>
   <div class="relative z-10 max-w-[480px] mx-auto min-h-screen pb-12 overflow-x-hidden">
 
     {% set page_title = "사용자 상세" %}
     {% include "components/header.html" %}
 
-    <main class="mt-[56px] pt-6 px-container-padding space-y-section-gap">
+    <main class="mt-[56px] pt-10 px-container-padding space-y-section-gap">
 
       <!-- SECTION 1: 프로필 -->
       <section>

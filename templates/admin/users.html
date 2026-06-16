@@ -42,11 +42,28 @@
       min-height: max(884px, 100dvh);
     }
     .gradient-orb {
-      position: fixed; top: 0; right: 0;
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      z-index: -1;
+      opacity: 0.15;
+      pointer-events: none;
+    }
+    .orb-primary {
       width: 300px; height: 300px;
-      background: rgba(107, 91, 255, 0.12);
-      filter: blur(80px); border-radius: 50%;
-      z-index: -1; pointer-events: none;
+      background: #6b5bff;
+      top: 10%; left: -50px;
+      animation: pulse 8s infinite alternate;
+    }
+    .orb-tertiary {
+      width: 250px; height: 250px;
+      background: #2fe0a6;
+      bottom: 20%; right: -50px;
+      animation: pulse 12s infinite alternate-reverse;
+    }
+    @keyframes pulse {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(20px, 30px) scale(1.1); }
     }
     .primary-gradient-text {
       background: linear-gradient(to right, #6b5bff, #c5c0ff);
@@ -55,22 +72,24 @@
     }
     .primary-gradient-bg { background: linear-gradient(to right, #6b5bff, #c5c0ff); }
     .card-blur {
-      background: rgba(20, 20, 28, 0.85);
+      background: rgba(20, 20, 28, 0.7);
       backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(71, 69, 85, 0.3);
+      border-radius: 24px;
     }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
 <body class="pb-10">
-  <div class="gradient-orb"></div>
+  <div class="gradient-orb orb-primary"></div>
+  <div class="gradient-orb orb-tertiary"></div>
   <div class="max-w-[480px] mx-auto min-h-screen flex flex-col relative">
 
     {% set page_title = "전체 가입자" %}
     {% include "components/header.html" %}
 
-    <main class="mt-[56px] px-container-padding flex-1">
+    <main class="mt-[56px] pt-10 px-container-padding flex-1">
 
       <!-- 검색 & 필터 (sticky) -->
       <div class="sticky top-[56px] bg-background pt-4 pb-2 z-40 space-y-3">
@@ -125,7 +144,7 @@
         {% if users %}
           {% for u in users %}
           <a href="{{ url_for('admin.user_detail', user_id=u.id) }}"
-             class="card-blur p-card-padding rounded-[16px] block active:scale-[0.98] transition-all hover:border-white/15">
+             class="card-blur p-card-padding rounded-[24px] block active:scale-[0.98] transition-all hover:border-white/15">
             <!-- 상단: 아바타 + 이름/이메일 + 점수뱃지 -->
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3 overflow-hidden">
@@ -171,7 +190,7 @@
           </a>
           {% endfor %}
         {% else %}
-          <div class="card-blur rounded-[16px] p-8 text-center text-white/40 text-sm">
+          <div class="card-blur rounded-[24px] p-8 text-center text-white/40 text-sm">
             {% if q %}검색 결과가 없습니다.{% else %}가입자가 없습니다.{% endif %}
           </div>
         {% endif %}
