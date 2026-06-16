@@ -76,25 +76,21 @@
     }
     .accordion-active .accordion-content { max-height: 600px; }
     .accordion-active .rotate-icon { transform: rotate(180deg); }
+    .gradient-orb {
+      position: fixed; top: 0; right: 0;
+      width: 300px; height: 300px;
+      background: rgba(107, 91, 255, 0.12);
+      filter: blur(80px); border-radius: 50%;
+      z-index: -1; pointer-events: none;
+    }
   </style>
 </head>
 <body class="text-on-surface">
+  <div class="gradient-orb"></div>
   <div class="relative z-10 max-w-[480px] mx-auto min-h-screen pb-12 overflow-x-hidden">
 
-    <!-- Top App Bar -->
-    <header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm">
-      <div class="max-w-[480px] mx-auto w-full px-container-padding h-[56px] flex justify-between items-center">
-        <div class="flex items-center gap-4">
-          <a href="{{ url_for('admin.admin_dashboard') }}" class="text-primary hover:opacity-80 transition-opacity active:scale-95 duration-150">
-            <span class="material-symbols-outlined">arrow_back</span>
-          </a>
-          <h1 class="text-title-md font-title-md text-on-surface">사용자 상세</h1>
-        </div>
-        <div class="bg-error-container/20 border border-error-container/30 px-3 py-1 rounded-full">
-          <span class="text-[11px] font-bold tracking-wider text-error">ADMIN</span>
-        </div>
-      </div>
-    </header>
+    {% set page_title = "사용자 상세" %}
+    {% include "components/header.html" %}
 
     <main class="mt-[56px] pt-6 px-container-padding space-y-section-gap">
 

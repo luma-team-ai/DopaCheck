@@ -59,8 +59,6 @@
       backdrop-filter: blur(20px);
       border: 1px solid rgba(255, 255, 255, 0.07);
     }
-    .admin-badge { background: linear-gradient(to right, #6b5bff, #c5c0ff); padding: 1px; border-radius: 9999px; }
-    .admin-badge-inner { background: #0A0A0F; border-radius: 9999px; padding: 2px 8px; }
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
@@ -69,20 +67,8 @@
   <div class="gradient-orb"></div>
   <div class="max-w-[480px] mx-auto min-h-screen flex flex-col relative">
 
-    <!-- Top App Bar -->
-    <header class="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm">
-      <div class="max-w-[480px] mx-auto w-full px-container-padding h-[56px] flex items-center justify-between">
-        <div class="flex items-center gap-4">
-          <a href="{{ url_for('admin.admin_dashboard') }}" class="active:scale-90 transition-transform">
-            <span class="material-symbols-outlined text-on-surface">arrow_back</span>
-          </a>
-          <h1 class="text-[18px] font-bold text-white">전체 가입자</h1>
-        </div>
-        <div class="bg-error-container/20 border border-error-container/30 px-3 py-1 rounded-full">
-          <span class="text-[11px] font-bold tracking-wider text-error">ADMIN</span>
-        </div>
-      </div>
-    </header>
+    {% set page_title = "전체 가입자" %}
+    {% include "components/header.html" %}
 
     <main class="mt-[56px] px-container-padding flex-1">
 
@@ -208,12 +194,5 @@
     </main>
   </div>
 
-  <script>
-    let _t = null;
-    document.getElementById('search-input').addEventListener('input', function() {
-      clearTimeout(_t);
-      _t = setTimeout(() => document.getElementById('search-form').submit(), 400);
-    });
-  </script>
 </body>
 </html>
