@@ -366,6 +366,9 @@
           method: 'POST',
           headers: { 'X-CSRF-Token': '{{ csrf_token }}' },
         });
+        if (!res.ok && !res.headers.get('content-type')?.includes('application/json')) {
+          throw new Error('세션이 만료되었거나 서버 오류가 발생했습니다. 페이지를 새로고침 후 다시 시도해주세요.');
+        }
         const data = await res.json();
         if (!res.ok || data.error) throw new Error(data.error || 'AI 추천 실패');
 
