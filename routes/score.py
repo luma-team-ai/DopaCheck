@@ -2,6 +2,7 @@
 from flask import Blueprint, render_template, session, redirect, url_for
 from routes.auth import login_required
 from db.client import db
+from datetime import timedelta
 from utils.week import get_week_ranges, kst_bounds, kst_today
 from services.score_service import recalculate_score  # Issue #58: services 계층으로 분리
 from ai.comment import generate_tip
@@ -86,18 +87,40 @@ def score_page():
         else:
             compare_last_week = "첫 점수 분석 주간입니다! 지표가 순조롭게 분석되고 있습니다."
 
-        # 4. 최근 7일(월~일) 요일별 트렌드 — 일별 점수 기록이 없으므로
-        #    오늘(score)만 채우고, 그 외 요일은 None(데이터 없음)으로 공백 처리한다.
-        days_names = ["월", "화", "수", "목", "금", "토", "일"]
-        weekly_scores = []
-        current_weekday = kst_today().weekday()
+        # 4. 이번 달 주차별 트렌드 (1주차~N주차 고정 표시, 데이터 있는 주차만 막대 채움)
+        today = kst_today()
+        first_day = today.replace(day=1)
+        ws_cursor = first_day - timedelta(days=first_day.weekday())
+        if ws_cursor.month < today.month:
+            ws_cursor += timedelta(weeks=1)
 
-        for idx in range(7):
-            day_score = score if idx == current_weekday else 0
+        month_weeks = []
+        while ws_cursor.month == today.month:
+            month_weeks.append(ws_cursor.isoformat())
+            ws_cursor += timedelta(weeks=1)
+
+        if month_weeks:
+            placeholders = ",".join(["%s"] * len(month_weeks))
+            cursor.execute(
+                "SELECT week_start, score FROM dopamine_scores"
+                f" WHERE user_id = %s AND week_start IN ({placeholders})",
+                [user_id] + month_weeks
+            )
+            score_map = {
+                (r["week_start"].isoformat() if hasattr(r["week_start"], "isoformat") else str(r["week_start"])): r["score"]
+                for r in (cursor.fetchall() or [])
+            }
+        else:
+            score_map = {}
+
+        weekly_scores = []
+        for idx, ws_str in enumerate(month_weeks, start=1):
+            sc = score_map.get(ws_str)
             weekly_scores.append({
-                "day": days_names[idx],
-                "score": day_score,
-                "is_today": (idx == current_weekday)
+                "day": f"{idx}주차",
+                "score": sc if sc is not None else 0,
+                "has_data": sc is not None,
+                "is_today": (ws_str == week_start),
             })
 
         # 5. 시간 통계 데이터 추출
