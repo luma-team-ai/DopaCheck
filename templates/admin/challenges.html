@@ -101,13 +101,15 @@
   </div>
 
   <!-- Top App Bar -->
-  <header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex justify-between items-center px-container-padding h-[56px]">
-    <div class="flex items-center gap-3">
-      <a href="{{ url_for('admin.admin_dashboard') }}" class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95">arrow_back</a>
-      <h1 class="text-title-md font-title-md text-on-surface">챌린지 관리</h1>
-    </div>
-    <div class="px-3 py-1 bg-primary-container/20 rounded-full">
-      <span class="text-label-caps font-label-caps text-primary tracking-wider">ADMIN</span>
+  <header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm">
+    <div class="max-w-[480px] mx-auto w-full px-container-padding h-[56px] flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="material-symbols-outlined text-primary hover:opacity-80 transition-opacity active:scale-95">arrow_back</a>
+        <h1 class="text-title-md font-title-md text-on-surface">챌린지 관리</h1>
+      </div>
+      <div class="px-3 py-1 bg-primary-container/20 rounded-full">
+        <span class="text-label-caps font-label-caps text-primary tracking-wider">ADMIN</span>
+      </div>
     </div>
   </header>
 
