@@ -50,6 +50,11 @@
 ## 마지막 머지 PR
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
+- **main 그린화** — `tests/test_report.py` 비교차트 테스트를 #142 재디자인 기준으로 갱신(compareChart→chartDelivery/Time/Score). pytest **143 PASS / 3 skip / 0 fail**.
+- **#146** admin 사용자 상세·전체 가입자·챌린지 관리 페이지 추가 (**CLOSED**) — 검색·필터·정렬·페이지네이션. 원본 브랜치(feature/admin-detail)가 stale base라 기능 커밋만 현재 main 위로 재적용. security-reviewer **P1 2건 수정**(user_detail 이메일 평문→`_mask_email` 마스킹 / users_list page 상한 500으로 LIMIT 폭주 차단), P2(생성·삭제 실패 flash·기록 LIMIT)·P3는 후속 권장. code/security 리뷰 통과, pytest 그린. (작성 EunSeok→정재봉 정리·머지)
+- **#148** score 페이지 AI 맞춤 팁(generate_tip) 연동 (**#147**, **CLOSED**) — 원본 브랜치(feature/unified-design)가 #142 디자인 중복·#144 팁문구 revert·.claude 로컬설정 포함 stale이라 **기능 커밋만 재적용**. 동반 회귀 수정: ai/utils.py 과도한 API키 RuntimeError 환원(test_ai 복구), generate_tip print/ANSI→logger 정리(AI 실패 시 default_tip fallback 유지), test_score 새 배달쿼리 mock 보강. pytest 그린. (작성 김승현→정재봉 정리·머지)
+- **#155** delivery manual·result `set page_title` 제거 (**#154 CLOSED**) — header 중앙 타이틀 표기 제거(작성자 의도). CLEAN·stale revert 없음, Trivial. (작성 Ketose333→정재봉 머지)
+  - 참고: **#153**(e2e playwright 도입) — e2e 미도입 결정으로 PR·브랜치 삭제, main package.json e2e 의존성 되돌림
 - **#152** time 챌린지 단위 버그 수정 + OCR sonnet 전환 + score 음수 방어 (**#60 CLOSED**) — 직전 stale PR **#145(닫힘)** 의 회귀(챌린지 템플릿·active_tab revert) 제외하고 안전 순증분만 재작업. (1) `config.py` MODEL_OCR haiku→sonnet-4-6(정확도, 비용증가 승인) (2) `score_service.py` time 챌린지 완료 판정 **단위 버그 수정** — 시드 target_value는 분(min)인데 기존 `time_hours`(시간) 비교라 time 챌린지 영영 미완료던 것을 `time_total_min >= tv`로 일치(`>=` 유지, delivery/both 미변경) (3) `ai/score.py` 음수 입력 `max(0,...)` 방어. code-reviewer **P1 1건→후속 #151 분리**(`>=`가 'N 이하로 줄이기' 라벨과 방향역전 — 단 #73/#103 기존 설계이고 `<=` 단순전환은 사용량0 유저 즉시완료 새버그라 주간정산 재설계 필요), P2 2건(both 단위)→#151 포함. pytest 140 PASS(+신규4), test_report 1건 실패는 #142 디자인변경 사전이슈(무관). MERGEABLE/CLEAN, G1/G6 메타 자체검수 PASS. (작성·머지 정재봉)
   - 참고: **#145**(stale 중복 PR, #60)는 분기점 #137 직후라 이후 #138·#140·#142를 revert하는 회귀로 **머지 차단·닫음**. 순증분만 #152로 재작업
 - **#144** delivery 팁 카드 문구 단축 (**#143 CLOSED**) — `templates/delivery/index.html` 팁 3줄을 의미 보존하며 단축, 모바일 400px 뷰포트 우측 잘림 해소. Trivial(텍스트만, 런타임 무변경), 충돌 없음(MERGEABLE/CLEAN), G6 메타 자체검수 PASS. (작성 Ketose333→정재봉 머지)
