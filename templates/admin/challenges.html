@@ -116,23 +116,23 @@
   <main class="relative z-10 mt-[56px] pt-6 px-container-padding max-w-[480px] mx-auto">
 
     <!-- 헤더 액션 -->
-    <div class="flex justify-between items-center mb-6">
-      <div>
+    <div class="flex justify-between items-center mb-6 gap-3">
+      <div class="min-w-0">
         <span class="text-label-caps font-label-caps text-on-surface-variant uppercase">Overview</span>
-        <h2 class="text-title-md font-title-md text-on-surface">전체 챌린지 {{ challenges|length }}개</h2>
+        <h2 class="text-title-md font-title-md text-on-surface whitespace-nowrap">전체 챌린지 {{ challenges|length }}개</h2>
       </div>
-      <div class="flex gap-2">
+      <div class="flex gap-2 flex-shrink-0">
         <button id="aiBtnOuter"
-          class="h-[52px] px-4 rounded-xl flex items-center gap-2 bg-surface-container-high border border-outline-variant/30 text-primary font-semibold hover:bg-surface-bright transition-colors active:scale-95"
+          class="h-[40px] px-3 rounded-xl flex items-center gap-1.5 bg-surface-container-high border border-outline-variant/30 text-primary font-semibold hover:bg-surface-bright transition-colors active:scale-95"
           onclick="toggleAiPanel()">
-          <span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
-          <span class="text-sm">AI 추천</span>
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1;">auto_awesome</span>
+          <span class="text-sm whitespace-nowrap">AI 추천</span>
         </button>
         <button
-          class="primary-gradient h-[52px] px-5 rounded-xl flex items-center gap-2 text-white font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
+          class="primary-gradient h-[40px] px-3 rounded-xl flex items-center gap-1.5 text-white font-semibold shadow-lg shadow-primary/20 active:scale-95 transition-transform"
           onclick="toggleManualForm()">
-          <span class="material-symbols-outlined text-[20px]">edit</span>
-          <span class="text-sm">수기 추가</span>
+          <span class="material-symbols-outlined text-[18px]">edit</span>
+          <span class="text-sm whitespace-nowrap">수기 추가</span>
         </button>
       </div>
     </div>
