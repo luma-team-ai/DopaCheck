@@ -1,5 +1,6 @@
 """점수 재산출 서비스 — 라우트 계층에서 분리 (Issue #58)."""
 import logging
+from datetime import date, timedelta
 
 import ai.score as ai_score
 from db.client import db
@@ -108,3 +109,83 @@ def recalculate_score(user_id: int) -> None:
         )
 
         logger.info("점수 재산출 완료: user_id=%s, score=%s", user_id, result["score"])
+
+
+def backfill_all_scores() -> int:
+    """점수 공식 반전(#175) 후 과거 dopamine_scores 전체를 새 공식으로 재계산한다.
+
+    dopamine_scores의 모든 (user_id, week_start) 행을 원본 기록에서 재집계해
+    score / delivery_contribution / time_contribution / challenge_bonus 를 UPDATE한다.
+
+    - 챌린지 테이블(user_challenges)은 SELECT만 수행 — 진행도·완료 상태 변경 없음.
+    - 멱등성 보장: 같은 원본 데이터에 대해 몇 번 실행해도 동일한 결과.
+
+    Returns:
+        갱신한 dopamine_scores 행 수.
+    """
+    logger.info("백필 시작: dopamine_scores 전체 행 재계산")
+
+    with db() as cursor:
+        # 1. 모든 (user_id, week_start) 조합 수집
+        cursor.execute("SELECT DISTINCT user_id, week_start FROM dopamine_scores")
+        rows = cursor.fetchall() or []
+
+        updated = 0
+        for row in rows:
+            user_id = row["user_id"]
+            week_start = row["week_start"]
+
+            # week_start를 ISO 문자열로 정규화 (DB 드라이버가 date 객체로 반환할 수 있음)
+            ws = week_start if isinstance(week_start, str) else week_start.isoformat()
+            week_end_iso = (date.fromisoformat(ws) + timedelta(days=6)).isoformat()
+            gte_at, lt_at = kst_bounds(ws, week_end_iso)
+
+            # 배달 총액 집계
+            cursor.execute(
+                "SELECT SUM(total_price) AS sum_price FROM delivery_records"
+                " WHERE user_id=%s AND created_at>=%s AND created_at<%s",
+                (user_id, gte_at, lt_at),
+            )
+            delivery_total = cursor.fetchone()["sum_price"] or 0
+
+            # 시간 총합 집계
+            cursor.execute(
+                "SELECT SUM(youtube_min+instagram_min+tiktok_min+game_min) AS sum_min"
+                " FROM time_records WHERE user_id=%s AND created_at>=%s AND created_at<%s",
+                (user_id, gte_at, lt_at),
+            )
+            time_total_min = cursor.fetchone()["sum_min"] or 0
+
+            # 챌린지 완료 수 집계 (SELECT만 — 상태 변경 없음)
+            cursor.execute(
+                "SELECT COUNT(*) AS comp_count FROM user_challenges"
+                " WHERE user_id=%s AND is_completed=1 AND completed_at>=%s AND completed_at<%s",
+                (user_id, gte_at, lt_at),
+            )
+            challenge_completed = cursor.fetchone()["comp_count"] or 0
+
+            # 새 공식으로 재계산
+            result = ai_score.calculate({
+                "delivery_total": delivery_total,
+                "time_total_min": time_total_min,
+                "challenge_completed": challenge_completed,
+            })
+
+            # 해당 행 UPDATE
+            cursor.execute(
+                "UPDATE dopamine_scores"
+                " SET score=%s, delivery_contribution=%s, time_contribution=%s, challenge_bonus=%s"
+                " WHERE user_id=%s AND week_start=%s",
+                (
+                    result["score"],
+                    result["delivery_contribution"],
+                    result["time_contribution"],
+                    result["challenge_bonus"],
+                    user_id,
+                    ws,
+                ),
+            )
+            updated += 1
+
+    logger.info("백필 완료: %d개 행 재계산", updated)
+    return updated

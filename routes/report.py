@@ -138,7 +138,11 @@ def _fetch_score(user_id, week_start: str) -> dict:
             # CSS width(%)로 직접 사용되므로 0~100 클램핑 필수
             row["delivery_contribution"] = clamp_score(row.get("delivery_contribution"))
             row["time_contribution"] = clamp_score(row.get("time_contribution"))
-            row["challenge_bonus"] = clamp_score(row.get("challenge_bonus"))
+            # 챌린지 감점은 0~-20 음수 범위 (clamp_score는 0~100용이라 부적합)
+            try:
+                row["challenge_bonus"] = max(-20, min(0, int(row.get("challenge_bonus") or 0)))
+            except (TypeError, ValueError):
+                row["challenge_bonus"] = 0
             return row
         return empty
     except Exception as exc:

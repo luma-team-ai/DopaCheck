@@ -81,9 +81,9 @@ def score_page():
             last_score = last_week_record["score"]
             diff = score - last_score
             if diff >= 0:
-                compare_last_week = f"지난주보다 {diff}점 상승했습니다."
+                compare_last_week = f"지난주보다 {diff}점 높아졌어요. 주의가 필요해요."
             else:
-                compare_last_week = f"지난주보다 {abs(diff)}점 하락했습니다."
+                compare_last_week = f"지난주보다 {abs(diff)}점 낮아졌어요. 잘 줄이고 있어요!"
         else:
             compare_last_week = "첫 점수 분석 주간입니다! 지표가 순조롭게 분석되고 있습니다."
 

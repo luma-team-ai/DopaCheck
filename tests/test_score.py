@@ -16,7 +16,7 @@ def _fake_db():
     """
     cursor = MagicMock()
     cursor.fetchone.side_effect = [
-        {"score": 72, "delivery_contribution": 28, "time_contribution": 30, "challenge_bonus": 14},
+        {"score": 60, "delivery_contribution": 40, "time_contribution": 30, "challenge_bonus": -10},
         {"cnt": 20},   # 전체 유저 수
         {"cnt": 5},    # 나보다 점수 높은 유저 수
         {"score": 65},  # 지난주 점수
@@ -34,41 +34,44 @@ def test_점수_페이지_렌더링(logged_in_client):
         resp = logged_in_client.get("/score")
         assert resp.status_code == 200
         body = resp.data.decode("utf-8")
-        # score/index.html에 실재하는 핵심 문자열 검증 (P2 보강)
+        # score/index.html에 실재하는 핵심 문자열 검증 (반전 후 새 문구)
         assert "도파민" in body
-        assert "상위" in body
+        assert "조심하세요" in body
 
 
 def test_점수_산출_입출력():
-    """FR-26, FR-27: 0~100 범위, 가중치 40/40/20 검증 (PRD §9) — #48 합의 계산식."""
+    """FR-26, FR-27: 0~100 범위, 가중치 40/40/20 검증 (PRD §9) — 점수 반전 후 (높을수록 위험)."""
     from ai.score import calculate
 
-    # 최선(소비 0): 배달 40 + 시간 40 + 보너스 0 = 80
-    best = calculate({"delivery_total": 0, "time_total_min": 0, "challenge_completed": 0})
-    assert best["delivery_contribution"] == 40
-    assert best["time_contribution"] == 40
-    assert best["challenge_bonus"] == 0
-    assert best["score"] == 80
+    # 소비 0 / 챌린지 0 → 위험 없음: 배달 0 + 시간 0 + 감점 0 = 0
+    zero = calculate({"delivery_total": 0, "time_total_min": 0, "challenge_completed": 0})
+    assert zero["delivery_contribution"] == 0
+    assert zero["time_contribution"] == 0
+    assert zero["challenge_bonus"] == 0
+    assert zero["score"] == 0
 
-    # 상한 소비 + 챌린지 4개: 배달 0 + 시간 0 + 보너스 20 = 20
-    worst = calculate({"delivery_total": 200_000, "time_total_min": 2_100, "challenge_completed": 4})
-    assert worst["delivery_contribution"] == 0
-    assert worst["time_contribution"] == 0
-    assert worst["challenge_bonus"] == 20
-    assert worst["score"] == 20
+    # 상한 소비 + 챌린지 0 → 최고 위험: 배달 40 + 시간 40 + 감점 0 = 80
+    high = calculate({"delivery_total": 200_000, "time_total_min": 2_100, "challenge_completed": 0})
+    assert high["delivery_contribution"] == 40
+    assert high["time_contribution"] == 40
+    assert high["challenge_bonus"] == 0
+    assert high["score"] == 80
 
-    # 챌린지 보너스 상한 (min 적용): 100개여도 보너스는 20점
-    # 소비 0 + 챌린지 만점 → 40 + 40 + 20 = 100점(만점 경로)
+    # 상한 소비 + 챌린지 4개: 배달 40 + 시간 40 + 감점(-20) = 60
+    with_challenge = calculate({"delivery_total": 200_000, "time_total_min": 2_100, "challenge_completed": 4})
+    assert with_challenge["delivery_contribution"] == 40
+    assert with_challenge["time_contribution"] == 40
+    assert with_challenge["challenge_bonus"] == -20
+    assert with_challenge["score"] == 60
+
+    # 챌린지 감점 상한 (100개여도 -20 상한)
     capped = calculate({"delivery_total": 0, "time_total_min": 0, "challenge_completed": 100})
-    assert capped["challenge_bonus"] == 20
-    assert capped["score"] == 100
+    assert capped["challenge_bonus"] == -20
+    assert capped["score"] == 0  # max(0, 0 + 0 + (-20)) = 0 (하한 클램프)
 
-    # score는 항상 0~100 범위, 가중치 합 40/40/20
-    for data in (best, worst, capped):
+    # score는 항상 0~100 범위
+    for data in (zero, high, with_challenge, capped):
         assert 0 <= data["score"] <= 100
-    assert (
-        best["delivery_contribution"] + best["time_contribution"] + capped["challenge_bonus"]
-    ) == 100
 
 
 def test_분석_저장시_점수_재산출():
@@ -108,9 +111,9 @@ def test_점수_음수_입력_방어():
         "time_total_min": -500,
         "challenge_completed": -3,
     })
-    # 음수를 0으로 clamp → 최선 케이스와 동일 (배달 40 + 시간 40 + 보너스 0 = 80)
-    assert result["delivery_contribution"] == 40, "음수 delivery_total은 0으로 clamp되어야 함"
-    assert result["time_contribution"] == 40, "음수 time_total_min은 0으로 clamp되어야 함"
+    # 음수를 0으로 clamp → 소비 0 / 챌린지 0 → 위험 없음 (배달 0 + 시간 0 + 감점 0 = 0)
+    assert result["delivery_contribution"] == 0, "음수 delivery_total은 0으로 clamp되어야 함"
+    assert result["time_contribution"] == 0, "음수 time_total_min은 0으로 clamp되어야 함"
     assert result["challenge_bonus"] == 0, "음수 challenge_completed는 0으로 clamp되어야 함"
-    assert result["score"] == 80
+    assert result["score"] == 0
     assert result["success"] is True

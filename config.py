@@ -33,4 +33,4 @@ MODEL_CHALLENGE = "claude-haiku-4-5"
 SCORE_DELIVERY_WEIGHT = 0.4     # 배달 기여 40%
 SCORE_TIME_WEIGHT = 0.4         # 시간 기여 40%
 SCORE_CHALLENGE_WEIGHT = 0.2    # 챌린지 보너스 20%
-CHALLENGE_COMPLETE_BONUS = 5    # 챌린지 달성 보너스 (FR-38)
+CHALLENGE_COMPLETE_BONUS = 5    # 챌린지 달성 시 감점 폭(점/개) (FR-38)

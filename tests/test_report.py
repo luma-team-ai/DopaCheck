@@ -195,6 +195,54 @@ def test_주간_집계_및_비교차트_데이터(logged_in_client):
     assert b'id="share-card"' in res.data
 
 
+# ── _fetch_score challenge_bonus 음수 보존 테스트 (#175 P1-A) ────────────────
+
+from unittest.mock import MagicMock, patch
+from routes.report import _fetch_score
+
+
+def _make_db_mock(row: dict):
+    """db() 컨텍스트 매니저를 row 하나 반환하도록 mock한다."""
+    cursor_mock = MagicMock()
+    cursor_mock.fetchone.return_value = row
+    cm = MagicMock()
+    cm.__enter__ = MagicMock(return_value=cursor_mock)
+    cm.__exit__ = MagicMock(return_value=False)
+    return cm
+
+
+def test_fetch_score_challenge_bonus_음수_유지():
+    """challenge_bonus=-10이 0으로 죽지 않고 -10으로 반환되어야 한다 (#175 P1-A)."""
+    row = {"score": 55, "delivery_contribution": 40, "time_contribution": 15, "challenge_bonus": -10}
+    with patch("routes.report.db", return_value=_make_db_mock(row)):
+        result = _fetch_score(1, "2026-06-08")
+    assert result["challenge_bonus"] == -10
+
+
+def test_fetch_score_challenge_bonus_최솟값_클램프():
+    """challenge_bonus가 -20 미만이면 -20으로 강제 클램프되어야 한다 (#175 P1-A)."""
+    row = {"score": 80, "delivery_contribution": 50, "time_contribution": 30, "challenge_bonus": -25}
+    with patch("routes.report.db", return_value=_make_db_mock(row)):
+        result = _fetch_score(1, "2026-06-08")
+    assert result["challenge_bonus"] == -20
+
+
+def test_fetch_score_challenge_bonus_양수_입력_0으로_클램프():
+    """challenge_bonus가 비정상 양수로 들어와도 0으로 클램프된다 (#175 P1-A)."""
+    row = {"score": 30, "delivery_contribution": 20, "time_contribution": 10, "challenge_bonus": 5}
+    with patch("routes.report.db", return_value=_make_db_mock(row)):
+        result = _fetch_score(1, "2026-06-08")
+    assert result["challenge_bonus"] == 0
+
+
+def test_fetch_score_challenge_bonus_None_처리():
+    """challenge_bonus가 None이면 0을 반환한다 (#175 P1-A)."""
+    row = {"score": 45, "delivery_contribution": 30, "time_contribution": 15, "challenge_bonus": None}
+    with patch("routes.report.db", return_value=_make_db_mock(row)):
+        result = _fetch_score(1, "2026-06-08")
+    assert result["challenge_bonus"] == 0
+
+
 # ── clamp_score 경계값 테스트 (점수 0~100 강제 — conic-gradient 방어) ────────
 
 from routes.report import clamp_score
