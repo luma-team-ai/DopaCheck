@@ -1,6 +1,6 @@
-{# 모바일 앱 셸 레이아웃 (Stitch) — 공통 베이스 (현재 history 화면들이 상속).
+{# 모바일 앱 셸 레이아웃 — 공통 베이스 (history 화면들이 상속).
    공통 header/footer 컴포넌트(components/header.html, footer.html) 사용.
-   하단탭은 자식이 {% block active_tab %}로 지정 (미지정 시 'delivery' 기본). #}
+   하단탭은 자식이 {% block active_tab %}로 지정 (미지정 시 탭 미선택). #}
 <!DOCTYPE html>
 <html class="dark" lang="ko">
 <head>
@@ -11,17 +11,17 @@
   {% include "partials/_stitch_head.html" %}
   {% block head %}{% endblock %}
 </head>
-<body class="min-h-screen bg-background text-on-surface">
-  <!-- Ambient Background Orbs -->
-  <div class="bg-orb w-96 h-96 bg-primary top-[-10%] left-[-10%]"></div>
-  <div class="bg-orb w-[500px] h-[500px] bg-secondary bottom-[-10%] right-[-10%]" style="animation-delay: -5s;"></div>
+<body class="bg-[#0A0A0F] text-on-surface">
+  <div class="noise-overlay"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
 
   <!-- Top App Bar -->
   {% set page_title %}{% block page_title %}{% endblock %}{% endset %}
   {% include "components/header.html" %}
 
   <!-- Main Content -->
-  <main class="mt-[56px] px-container-padding pb-[100px] max-w-lg mx-auto w-full">
+  <main class="pt-[80px] pb-[100px] px-container-padding max-w-[600px] mx-auto">
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="mt-4 space-y-2">
@@ -41,7 +41,7 @@
 
   <!-- Bottom Navigation -->
   {% block active_tab %}{% endblock %}
-  {% set active_tab = self.active_tab()|trim if self.active_tab is defined and self.active_tab()|trim else 'delivery' %}
+  {% set active_tab = self.active_tab()|trim if self.active_tab is defined and self.active_tab()|trim else '' %}
   {% include "components/footer.html" %}
 
   {% block scripts %}{% endblock %}
