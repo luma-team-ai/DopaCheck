@@ -1,3 +1,7 @@
+{# 분 → "N시간 M분" 환산 (0시간이면 분만, 0분이면 시간만) #}
+{% macro hm(m) -%}
+{%- if m >= 60 -%}{{ m // 60 }}시간{% if m % 60 %} {{ m % 60 }}분{% endif %}{%- else -%}{{ m }}분{%- endif -%}
+{%- endmacro -%}
 <!DOCTYPE html>
 <html class="dark" lang="ko">
 
@@ -331,13 +335,13 @@
           </p>
           <p class="text-xs text-on-surface-variant mt-1">
             {% set time_parts = [] %}
-            {% if this_time.youtube_min > 0 %}{% set _ = time_parts.append("유튜브 " ~ this_time.youtube_min ~ "분") %}{%
+            {% if this_time.youtube_min > 0 %}{% set _ = time_parts.append("유튜브 " ~ hm(this_time.youtube_min)) %}{%
             endif %}
-            {% if this_time.instagram_min > 0 %}{% set _ = time_parts.append("인스타 " ~ this_time.instagram_min ~ "분")
+            {% if this_time.instagram_min > 0 %}{% set _ = time_parts.append("인스타 " ~ hm(this_time.instagram_min))
             %}{% endif %}
-            {% if this_time.tiktok_min > 0 %}{% set _ = time_parts.append("틱톡 " ~ this_time.tiktok_min ~ "분") %}{% endif
+            {% if this_time.tiktok_min > 0 %}{% set _ = time_parts.append("틱톡 " ~ hm(this_time.tiktok_min)) %}{% endif
             %}
-            {% if this_time.game_min > 0 %}{% set _ = time_parts.append("게임 " ~ this_time.game_min ~ "분") %}{% endif %}
+            {% if this_time.game_min > 0 %}{% set _ = time_parts.append("게임 " ~ hm(this_time.game_min)) %}{% endif %}
             {{ time_parts | join(" · ") if time_parts else "앱별 기록 없음" }}
           </p>
           {% else %}
