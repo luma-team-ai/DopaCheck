@@ -1,9 +1,7 @@
 """tests/test_ocr_prep.py — OCR 이미지 전처리 및 파라미터 검증 (#188)"""
-import base64
 from io import BytesIO
 from unittest.mock import MagicMock, patch
 
-import pytest
 from PIL import Image, ImageDraw
 
 from ai.image_prep import count_image_tokens, resized_size, preprocess_receipt
@@ -12,7 +10,11 @@ from ai.image_prep import count_image_tokens, resized_size, preprocess_receipt
 # ── resized_size 단위 테스트 ──────────────────────────────
 
 def test_resized_size_official_example():
-    """공식 Anthropic 예시: 1075×1520 → 924×1307"""
+    """공식 Anthropic 예시: 1075×1520 → 924×1307.
+
+    출처: platform.claude.com/docs vision — "How Claude resizes and pads images"
+    (sonnet급 native = long edge 1568px + 비전타일 1568). #188 PR.
+    """
     result = resized_size(1075, 1520)
     assert result == (924, 1307), f"expected (924, 1307), got {result}"
 

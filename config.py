@@ -31,7 +31,7 @@ MODEL_CHALLENGE = "claude-haiku-4-5"
 
 # ── OCR 비전 입력 튜닝 (#188) — sonnet-4-6 native 해상도 기준 ──
 OCR_MAX_EDGE = 1568            # long edge 상한 px (sonnet급; Opus 4.7+는 2576)
-OCR_MAX_TOKENS = 1568          # 비전 토큰 상한 (Opus 4.7+는 4784)
+OCR_MAX_VISION_TOKENS = 1568   # 비전 타일(토큰) 상한 ⌈w/28⌉×⌈h/28⌉ — 세로 영수증은 이게 먼저 걸림 (Opus 4.7+는 4784). 출력 토큰(OCR_MAX_OUTPUT_TOKENS)과 구분
 OCR_TEMPERATURE = 0            # 추출 결정성 (정확도)
 OCR_MAX_OUTPUT_TOKENS = 2048   # 긴 영수증 JSON 잘림 방지
 

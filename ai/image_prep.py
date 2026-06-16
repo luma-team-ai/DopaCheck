@@ -1,12 +1,11 @@
 """영수증 이미지 전처리 — Claude native 해상도 리사이즈 + 대비강화 (#188)."""
 import math
-import base64
 import logging
 from io import BytesIO
 
 from PIL import Image, ImageOps, ImageEnhance
 
-from config import OCR_MAX_EDGE, OCR_MAX_TOKENS
+from config import OCR_MAX_EDGE, OCR_MAX_VISION_TOKENS
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +15,8 @@ def count_image_tokens(width: int, height: int) -> int:
 
 
 def resized_size(width: int, height: int, max_edge: int = 1568, max_tokens: int = 1568) -> tuple[int, int]:
+    if width <= 0 or height <= 0:
+        return (max(width, 0), max(height, 0))
     def fits(w: int, h: int) -> bool:
         return (math.ceil(w / 28) * 28 <= max_edge
                 and math.ceil(h / 28) * 28 <= max_edge
@@ -57,7 +58,7 @@ def preprocess_receipt(image_bytes: bytes) -> tuple[bytes, str]:
         img = Image.open(BytesIO(image_bytes))
         img = ImageOps.exif_transpose(img)
         img = img.convert("RGB")
-        tw, th = resized_size(img.width, img.height, OCR_MAX_EDGE, OCR_MAX_TOKENS)
+        tw, th = resized_size(img.width, img.height, OCR_MAX_EDGE, OCR_MAX_VISION_TOKENS)
         if (tw, th) != (img.width, img.height):
             img = img.resize((tw, th), Image.LANCZOS)
         img = ImageOps.autocontrast(img, cutoff=1)

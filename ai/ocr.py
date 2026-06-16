@@ -2,7 +2,7 @@
 import base64
 import json
 
-from ai.image_prep import preprocess_receipt, _detect_media_type  # noqa: F401 — _detect_media_type re-exported for backward compat
+from ai.image_prep import preprocess_receipt
 from ai.utils import extract_json, extract_text, get_client
 from config import MODEL_OCR, OCR_TEMPERATURE, OCR_MAX_OUTPUT_TOKENS
 
