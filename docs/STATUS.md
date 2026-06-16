@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-16
+> 마지막 갱신: 2026-06-16 (#160 머지)
 
 <a id="sprint"></a>
 ## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
@@ -50,6 +50,7 @@
 ## 마지막 머지 PR
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
+- **#160** admin 챌린지 관리 AI 추천 + 버그 수정 (**CLOSED**) — 관리자 페이지 AI 챌린지 추천(`suggest_new_challenges`/`/admin/challenges/ai-suggest`), 챌린지 삭제 FK 픽스(`user_challenges` 선삭제), `is_ai_generated` 폼 입력·참여자수 집계·XSS 방어·LLM 출력 검증 반영. code-reviewer 통과, pytest **143 PASS/3 skip**. ⚠️ **stale base**: #159(ai-join FR-33~35) 이전 base라 머지 충돌 해소 시 `routes/challenge.py`·`index.html`은 main(#159) 채택 → #160의 "유저 ai-join 제거"·"recommend 단위정규화 제거"는 **미반영(=#159 픽스 유지, 회귀 없음)**. 프론트·백 정합(404 없음). 작성자에 새 base 재작업 안내 코멘트. (작성 EunSeok→정재봉 검수·머지)
 - **🧹 제로베이스 정리** — 열린 PR 전부 처리 후 머지 완료된 원격 브랜치 9종 일괄 삭제(원격=main만), 로컬 잔여 워크트리(backend/102) 제거. main `90770a2`, pytest **143 PASS / 3 skip / 0 fail**, 작업트리 clean. ⚠️ **stale base 회귀 주의**: 이번 배치 PR(#145·#146·#148)이 모두 옛 base라 머지 시 최신작업 revert 위험 → 기능 커밋만 현재 main 위로 재적용하는 방식으로 처리.
 - **#156** history 헤더 타이틀(`page_title` 블록) 제거 (**CLOSED**) — 다른 화면 UI 일치. CLEAN·surgical(2줄), stale revert 없음. Trivial. (작성 vapsnamheo-dev→정재봉 머지)
 - **main 그린화** — `tests/test_report.py` 비교차트 테스트를 #142 재디자인 기준으로 갱신(compareChart→chartDelivery/Time/Score). pytest **143 PASS / 3 skip / 0 fail**.
