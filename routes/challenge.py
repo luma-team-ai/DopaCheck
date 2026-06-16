@@ -3,7 +3,7 @@ import logging
 import time
 import uuid as _uuid
 
-from flask import Blueprint, jsonify, render_template, session
+from flask import Blueprint, jsonify, render_template, request, session
 
 import ai.challenge as ai_challenge
 from config import AI_RECOMMEND_CACHE_TTL
@@ -18,6 +18,8 @@ challenge_bp = Blueprint("challenge", __name__, url_prefix="/challenge")
 # ── AI 추천 세션 캐시 키 ──────────────────────────────────
 _AI_CACHE_KEY = "ai_recommendations"
 _AI_CACHE_TS_KEY = "ai_recommendations_ts"
+_AI_CACHE_VER_KEY = "ai_recommendations_ver"
+_AI_CACHE_VERSION = "v2"  # target_value 단위 정규화 적용 버전 — 변경 시 구버전 캐시 자동 무효화
 
 
 def _calc_avg_delivery_per_week(delivery_rows: list) -> float:
@@ -73,12 +75,12 @@ def challenge_page():
     # CSRF 토큰 생성 (join POST에서 검증)
     csrf_token = get_or_create_csrf_token()
 
-    # 기본 챌린지 목록 (FR-32)
+    # 기본 챌린지 목록 — AI 생성 챌린지 제외 (FR-32)
     try:
         with db() as cursor:
             cursor.execute(
                 "SELECT id, title, description, target_type, target_value"
-                " FROM challenges"
+                " FROM challenges WHERE is_ai_generated = 0"
             )
             challenges = cursor.fetchall() or []
     except Exception as e:
@@ -106,6 +108,20 @@ def challenge_page():
     # AI 추천 (FR-33) — 세션 캐시로 TTL 내 중복 LLM 호출 방지
     ai_recommendations = _get_ai_recommendations(user_id)
 
+    # 사용자가 이미 참여한 AI 챌린지 title 집합 (AI 추천 섹션 상태 표시용)
+    try:
+        with db() as cursor:
+            cursor.execute(
+                "SELECT c.title FROM challenges c"
+                " JOIN user_challenges uc ON c.id = uc.challenge_id"
+                " WHERE uc.user_id = %s AND c.is_ai_generated = 1",
+                (user_id,),
+            )
+            ai_joined_titles = {row["title"] for row in (cursor.fetchall() or [])}
+    except Exception as e:
+        logger.warning("AI 참여 챌린지 조회 실패: %s", e)
+        ai_joined_titles = set()
+
     return render_template(
         "challenge/index.html",
         challenges=challenges,
@@ -113,6 +129,7 @@ def challenge_page():
         completed_ids=completed_ids,
         progress_map=progress_map,
         ai_recommendations=ai_recommendations,
+        ai_joined_titles=ai_joined_titles,
         csrf_token=csrf_token,
         # 하단 탭바 활성 표시
         active_tab="challenge",
@@ -125,12 +142,14 @@ def _get_ai_recommendations(user_id: int) -> list:
     cached = session.get(_AI_CACHE_KEY)
     cached_ts = session.get(_AI_CACHE_TS_KEY)
     cached_uid = session.get("ai_recommendations_uid")
+    cached_ver = session.get(_AI_CACHE_VER_KEY)
 
     now = time.time()
     if (
         cached is not None
         and cached_ts is not None
         and cached_uid == user_id
+        and cached_ver == _AI_CACHE_VERSION
         and (now - cached_ts) < AI_RECOMMEND_CACHE_TTL
     ):
         logger.debug("AI 추천 캐시 적중 (TTL 남은 시간: %.0f초)", AI_RECOMMEND_CACHE_TTL - (now - cached_ts))
@@ -207,6 +226,7 @@ def _get_ai_recommendations(user_id: int) -> list:
         session[_AI_CACHE_KEY] = recommendations
         session[_AI_CACHE_TS_KEY] = now
         session["ai_recommendations_uid"] = user_id
+        session[_AI_CACHE_VER_KEY] = _AI_CACHE_VERSION
 
         return recommendations
 
@@ -256,6 +276,70 @@ def join(challenge_id: str):
             )
     except Exception as e:
         logger.warning("챌린지 참여 실패: %s", e)
+        return jsonify({"error": "서버 오류가 발생했습니다."}), 503
+
+    return jsonify({"success": True, "message": "챌린지에 참여했습니다!"}), 201
+
+
+@challenge_bp.route("/ai-join", methods=["POST"])
+@login_required
+def ai_join():
+    """AI 추천 챌린지를 DB에 upsert한 뒤 참여한다.
+
+    1. title UNIQUE 제약을 이용해 INSERT IGNORE로 중복 없이 챌린지 생성
+    2. title로 id를 조회해 기존 join 로직과 동일하게 user_challenges에 삽입
+    """
+    verify_csrf()
+
+    user_id = session.get("user_id")
+    data = request.get_json(silent=True) or {}
+
+    title = (data.get("title") or "").strip()
+    description = (data.get("description") or "").strip()
+    target_type = (data.get("target_type") or "").strip()
+    target_value = data.get("target_value")
+
+    if not title or target_type not in ("delivery", "time", "both"):
+        return jsonify({"error": "잘못된 챌린지 데이터입니다."}), 400
+    try:
+        target_value = int(target_value)
+        if target_value <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return jsonify({"error": "목표 값이 올바르지 않습니다."}), 400
+
+    try:
+        with db() as cursor:
+            # title UNIQUE 제약 — 동일 제목 챌린지가 이미 있으면 INSERT 무시
+            new_id = str(_uuid.uuid4())
+            cursor.execute(
+                "INSERT IGNORE INTO challenges (id, title, description, target_type, target_value, is_ai_generated)"
+                " VALUES (%s, %s, %s, %s, %s, 1)",
+                (new_id, title, description, target_type, target_value),
+            )
+            cursor.execute("SELECT id FROM challenges WHERE title = %s", (title,))
+            row = cursor.fetchone()
+            if not row:
+                return jsonify({"error": "챌린지 생성에 실패했습니다."}), 503
+            challenge_id = row["id"]
+
+            # 중복 참여 차단 (FR-35)
+            cursor.execute(
+                "SELECT id FROM user_challenges"
+                " WHERE user_id = %s AND challenge_id = %s AND is_completed = 0"
+                " FOR UPDATE",
+                (user_id, challenge_id),
+            )
+            if cursor.fetchone():
+                return jsonify({"error": "이미 참여 중인 챌린지입니다."}), 409
+
+            cursor.execute(
+                "INSERT INTO user_challenges (user_id, challenge_id, progress, is_completed)"
+                " VALUES (%s, %s, 0, 0)",
+                (user_id, challenge_id),
+            )
+    except Exception as e:
+        logger.warning("AI 챌린지 참여 실패: %s", e)
         return jsonify({"error": "서버 오류가 발생했습니다."}), 503
 
     return jsonify({"success": True, "message": "챌린지에 참여했습니다!"}), 201
