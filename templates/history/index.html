@@ -3,6 +3,13 @@
 
 {% block content %}
 
+<!-- 뒤로가기 (detail.html 패턴 참조) -->
+<div class="flex items-center mb-3">
+  <a href="/" class="text-primary hover:opacity-80 active:scale-95 flex items-center">
+    <span class="material-symbols-outlined">arrow_back</span>
+  </a>
+</div>
+
 <!-- 통합 필터 칩 (FR-24) -->
 <section class="flex gap-2 overflow-x-auto pb-5 no-scrollbar -mx-1 px-1">
   {% set chips = [
@@ -59,7 +66,7 @@
 
       <!-- 삭제 버튼 -->
       <button class="text-outline-variant hover:text-error transition-colors p-1 flex-shrink-0 active:scale-90"
-              onclick="event.stopPropagation(); deleteRecord('{{ r.id }}', '{{ r.type }}', this)">
+              onclick="event.stopPropagation(); openDeleteModal('{{ r.id }}', '{{ r.type }}', this)">
         <span class="material-symbols-outlined text-[20px]">delete</span>
       </button>
     </div>
@@ -83,6 +90,20 @@
 </div>
 {% endif %}
 
+<!-- 삭제 확인 모달 (mypage 로그아웃 확인 UI 참조) -->
+<div id="deleteConfirmModal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center px-edge-padding">
+  <div class="glass-card bg-surface-container-high/90 border border-error/20 rounded-2xl w-full max-w-[340px] p-6 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
+    <div class="w-12 h-12 rounded-full bg-error-container/20 flex items-center justify-center">
+      <span class="material-symbols-outlined text-error text-[24px]">delete</span>
+    </div>
+    <p class="font-body-md text-body-md text-on-surface text-center">정말 삭제하시겠습니까?</p>
+    <div class="flex gap-3 w-full">
+      <button type="button" id="cancelDelete" class="w-1/2 h-[48px] bg-surface-container-high border border-outline-variant/20 rounded-xl font-semibold hover:bg-white/5 transition-colors active:scale-[0.98]">취소</button>
+      <button type="button" id="confirmDelete" class="w-1/2 h-[48px] bg-error text-on-error font-bold rounded-xl hover:bg-opacity-90 transition-all active:scale-[0.98]">삭제</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -91,9 +112,32 @@ function goDetail(id, type) {
   window.location.href = `/history/${id}?type=${type}`;
 }
 
-async function deleteRecord(id, type, btn) {
-  if (!confirm('이 기록을 삭제하시겠습니까?')) return;
+// 삭제 확인 모달 제어
+const deleteModal = document.getElementById('deleteConfirmModal');
+let pendingDelete = null; // { id, type, btn }
 
+function openDeleteModal(id, type, btn) {
+  pendingDelete = { id, type, btn };
+  deleteModal.classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+  deleteModal.classList.add('hidden');
+  pendingDelete = null;
+}
+
+document.getElementById('cancelDelete').addEventListener('click', closeDeleteModal);
+document.getElementById('confirmDelete').addEventListener('click', () => {
+  if (!pendingDelete) return;
+  const { id, type, btn } = pendingDelete;
+  closeDeleteModal();
+  deleteRecord(id, type, btn);
+});
+// 바깥쪽 클릭 / ESC 로 닫기 (mypage 모달 패턴)
+deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) closeDeleteModal(); });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDeleteModal(); });
+
+async function deleteRecord(id, type, btn) {
   const card = btn.closest('.history-card');
   card.style.transition = 'all 0.35s cubic-bezier(0.4,0,0.2,1)';
   card.style.opacity = '0';
