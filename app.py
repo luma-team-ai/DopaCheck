@@ -6,7 +6,7 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, send_from_directory, session, url_for
+from flask import Flask, flash, jsonify, redirect, send_from_directory, session, url_for
 from werkzeug.routing import BuildError
 
 load_dotenv()
@@ -63,6 +63,12 @@ app.register_blueprint(admin_bp)
 if os.environ.get("FLASK_ENV") == "development":
     from routes.dev_only import dev_bp
     app.register_blueprint(dev_bp)
+
+
+@app.route("/health")
+def health():
+    """CloudType 헬스체크 엔드포인트 — 콜드스타트 감지·로드밸런서 probe용."""
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route("/favicon.ico")
