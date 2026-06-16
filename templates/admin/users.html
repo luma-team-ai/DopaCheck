@@ -70,16 +70,16 @@
   <div class="max-w-[480px] mx-auto min-h-screen flex flex-col relative">
 
     <!-- Top App Bar -->
-    <header class="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm flex items-center justify-between px-container-padding h-[56px]">
-      <div class="flex items-center gap-4">
-        <a href="{{ url_for('admin.admin_dashboard') }}" class="active:scale-90 transition-transform">
-          <span class="material-symbols-outlined text-on-surface">arrow_back</span>
-        </a>
-        <h1 class="text-[18px] font-bold text-white">전체 가입자</h1>
-      </div>
-      <div class="admin-badge">
-        <div class="admin-badge-inner">
-          <span class="text-[10px] font-bold text-error">ADMIN</span>
+    <header class="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-md border-b border-outline-variant/30 shadow-sm">
+      <div class="max-w-[480px] mx-auto w-full px-container-padding h-[56px] flex items-center justify-between">
+        <div class="flex items-center gap-4">
+          <a href="{{ url_for('admin.admin_dashboard') }}" class="active:scale-90 transition-transform">
+            <span class="material-symbols-outlined text-on-surface">arrow_back</span>
+          </a>
+          <h1 class="text-[18px] font-bold text-white">전체 가입자</h1>
+        </div>
+        <div class="bg-error-container/20 border border-error-container/30 px-3 py-1 rounded-full">
+          <span class="text-label-caps font-label-caps text-error">ADMIN</span>
         </div>
       </div>
     </header>
