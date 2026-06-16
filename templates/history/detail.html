@@ -50,6 +50,9 @@
 
   <!-- 음식 항목 -->
   {% if record['items'] %}
+  {% set all_zero = record['items'] | selectattr('price') | list | length == 0 %}
+  {% set food_total = (record.total_price | int) - (record.delivery_fee | default(0) | int) %}
+  {% set item_count = record['items'] | length %}
   <div class="glass-card rounded-xl p-5">
     <h2 class="text-sm font-semibold text-on-surface-variant uppercase tracking-wider mb-3">주문 내역</h2>
     <div class="space-y-3">
@@ -67,7 +70,11 @@
           </div>
         </div>
         <div class="text-right">
+          {% if item.price %}
           <p class="text-sm font-semibold text-on-surface">{{ "{:,}".format(item.price | int) }}원</p>
+          {% elif all_zero and item_count > 0 %}
+          <p class="text-sm font-semibold text-on-surface">{{ "{:,}".format(food_total // item_count) }}원</p>
+          {% endif %}
           {% if item.quantity and item.quantity > 1 %}
           <p class="text-[11px] text-on-surface-variant">× {{ item.quantity }}</p>
           {% endif %}
