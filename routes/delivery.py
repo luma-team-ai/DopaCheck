@@ -161,12 +161,13 @@ def analyze():
         total_price = int(ocr_result.get("total_price") or 0)
     except Exception as e:
         logger.warning("OCR 실패 — fallback 수동 입력 폼으로 전환: %s", e)
-        flash("영수증 인식에 실패했습니다. 직접 입력해주세요.", "warning")
+        # flash 미사용: manual.html은 flash를 소비하지 않아 메시지가 다음 페이지로 누수됨.
+        # ocr_failed=1로 manual.html이 자체 경고 카드를 표시하므로 flash 불필요 (#215)
         return redirect(url_for("delivery.manual_page", ocr_failed=1))
 
     # OCR 결과 0원 — 영수증이 아닌 이미지일 가능성이 높으므로 수동 입력으로 전환
     if total_price == 0:
-        flash("금액을 인식하지 못했습니다. 직접 입력해주세요.", "warning")
+        # flash 미사용 사유 동일 — ocr_failed=1 경고 카드로 대체 (#215)
         return redirect(url_for("delivery.manual_page", ocr_failed=1))
 
     # ── 칼로리 추론 이후 공통 파이프라인 (FR-3~8) ─────────────
