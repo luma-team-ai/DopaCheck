@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-16 (#199 OCR 인식 정확도 개선 머지)
+> 마지막 갱신: 2026-06-17 (#214 /time 하루 입력·이번주 누적 / #213 AI 코멘트 정합 / #212 OCR 0원 가드 머지)
 
 <a id="sprint"></a>
 ## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
@@ -20,15 +20,14 @@
 | 담당 | 남은 일 (이슈) | 우선 | 근거 |
 |------|---------------|------|------|
 | **김승현** (DB) | ☐ **#131 랭킹/percentile 시연 더미 20건** — `db/seed.sql` 확장(users·records·scores) | 🔴 P1 | admin 랭킹·분포 화면 빈 상태, 시연 전제 |
-| **이은석** (서버/프론트) | ☐ **#128 time `/analyze` CSRF 403 회귀 테스트** (test_time skip 해제) | 🟡 P2 | 회귀 방어 부재 |
-| | ☐ **#130 모바일(Chrome/Safari) QA + 배포 안정화** | 🟡 P2 | PRD §9 |
 | **김관영** (delivery) | ☐ **#129 통합 테스트 + OCR 정확도 QA 주도** — 업로드→OCR→저장→히스토리→점수 + 영수증 5종 | 🟡 P2 | PRD §9 |
-| **오영석** (AI/챌린지) | ☐ **#60 챌린지 AI 비용절감·ID 검증 P2** (PR머신 후속) | 🟡 P2 | #59 후속 |
-| **정재봉** (A/메타) | ☐ 통합 검수·PR 머지 오케스트레이션 · ~~#126 풀 타임아웃 DCL P2~~ ✅ (#132) | — | 상시 |
+| **이은석** (서버/프론트) | ☐ **#130 모바일(Chrome/Safari) QA + 배포 안정화** | 🟡 P2 | PRD §9 |
+| **정재봉** (A/메타) | ☐ 통합 검수·PR 머지 오케스트레이션(상시) | — | 상시 |
+
+> ✅ **클로즈된 잔여 항목**: #128 CSRF 회귀 테스트(#168) · #60 챌린지 AI 비용절감·달성 판정(#152·#194·#203~#205·#207·#208) · #126 풀 타임아웃 DCL(#132). 남은 P1은 **#131 시연 더미 데이터** 하나, 나머지는 QA.
 
 **Day별 흐름 (잔여)**
 - **Day 1 (시연 데이터)**: 김승현 #131 seed 20건
-- **Day 1.5~2 (안정화)**: 이은석 #128 CSRF 테스트 · 오영석 #60 챌린지 P2
 - **Day 2~2.5 (통합)**: 김관영 #129 통합테스트·OCR QA · 이은석 #130 모바일 QA (전원 데모 완주)
 
 ## 인프라
@@ -48,6 +47,18 @@
 | 운영 마이그레이션 001~003 (role·challenges dedup·uc index) | ✅ 파일 머지 (운영 ALTER 적용 필요) | 김승현/정재봉 |
 
 ## 마지막 머지 PR
+
+### 2026-06-17 배치 (정재봉 검수·머지)
+- **#214** /time 하루 단위 입력·이번주 누적 표시·168h 초과 차단 — 일일 입력 클램프 168h→**24h**, `_get_week_totals`(월~일 KST) 앱별 누적 카드(`time_page`·`analyze` 둘 다 전달, INSERT 직후 같은 트랜잭션 self-read로 오늘 입력 포함), index/result 헤드라인 "오늘" + 진행바. code-reviewer **P1 2건**: ① `over_limit=total_h>168`이 24h 클램프(합산 최대 96h)로 영영 False → **주간 누적(`week_total_h>168`) 기준 재정의** + 배너 정합 ② 트랜잭션 self-read = SQL 보장(버그 아님)→의도 주석. P2 분→시간 환산 테스트 추가. AI 코멘트 context 키(#211 의존) 미변경 확인. pytest **201 PASS/1 skip**. G6 PASS. (작성 EunSeok→정재봉 검수·머지)
+- **#213** AI 코치 한마디 SNS·게임 시간/기회비용 오참조 수정 (**#211 CLOSED**) — `ai/comment.py generate()`가 LLM에 **영문 키 raw JSON**(`json.dumps`)을 덤프해 단위·기간 오해("SNS 40h"를 SNS+게임 합으로, 주간 260,000원을 "월 260만원"으로 왜곡)하던 것을, comment_type별(time/delivery/report) **한국어 라벨+단위 명시 컨텍스트** + "주어진 수치만 사용, 임의 환산·기간 변경 금지" 가드로 교체. 프롬프트 인젝션 완화(`_safe_str` 200자 truncate·개행/탭/널 제거) 유지. code-reviewer **P1 1건**(inf→OverflowError 계약 위반)→`math.isfinite` 가드. pytest **200 PASS/1 skip**. G6 PASS. (작성·검수·머지 정재봉)
+- **#212** OCR 결과 0원 시 수동 입력 전환 — 비영수증 이미지 저장 방지 — OCR 성공해도 `total_price==0`이면 0원 기록 저장 대신 `manual_page` redirect(`routes/delivery.py` 5줄). 머지 프리뷰 무충돌, pytest **200 PASS/1 skip**. (작성 Ketose333→정재봉 검수·머지)
+- **#210·#209** admin user_detail 500 수정 — #209 배달 items가 OCR 단일 dict 반환 시 Jinja2 순회 오류 → `[dict]` 래핑으로 항상 list 보장. #210 users 페이지 UI 개선 동반. (작성 EunSeok→정재봉 머지)
+- **#208·#207** AI time 챌린지 `target_value` 단위 오염 수정 (**#161**) — 시간↔분 혼용으로 오염된 임계값(100→20) 정정 + 오염 점검 스크립트(`scripts/`) 추가.
+- **#206** 월요일 챌린지 배치 멀티워커 중복 실행 차단 — **advisory lock** 적용(gthread/멀티워커 환경 중복 정산 방지).
+- **#205·#204·#203** 챌린지 달성 판정 완성 (**#139/#194 후속**) — `judge_week`·`<` 조건·타입별 개별 표시, 달성률 progress 원시값 명시 + None 방어, `started_at` 방어 가드 + 비참여자 judge 쿼리 절약.
+- **#194** 챌린지 목록 탭·정렬 필터 추가 + 달성 판정 로직 수정 (**#60/#151**) — 진행중/완료/추천 탭, 정렬 필터, time 챌린지 단위 정합.
+- **#200** PR #197 P2 개선 (**#198 CLOSED**) — `context_processor`·SQL 검증·fetch 방어.
+- 참고(6/16 후반 머지): **#197** admin 서브페이지 헤더 통일·시간분석 기록 버튼·사용자 필터 · **#196/#193** 홈 모달 badge XSS 구조 개선(허용목록 클래스)·fetch 에러 캐시 초기화(#185·#195) · **#192/#190** 배달 상세 아이템 가격 합계 표시(#191) · **#187** noise-overlay 외부 URL 제거·자체 SVG(#163) · **#184** 배달 오버레이·OCR 프롬프트·파일타입 검증(#60) · **#183** 히스토리 뒤로가기→리포트(#177) · **#181** 홈 '이번 주 핵심' 개별 모달(#180)
 
 ### 2026-06-16 배치 (정재봉 검수·머지)
 - **#199** 영수증 OCR 인식 정확도 개선 (**#188 CLOSED**) — Sonnet 비전이 작은 글씨(메뉴명·가격)를 더 잘 읽도록 이미지 전처리 추가. `ai/image_prep.py`(신규): Anthropic 공식 `resized_size`로 Claude native 해상도(sonnet = long edge 1568px + 비전타일 1568, 세로 영수증은 타일 상한이 먼저 걸림)에 맞춰 LANCZOS 사전 리사이즈 + EXIF 회전보정 + autocontrast/Sharpness → 무손실 PNG(실패 시 원본 fallback). `ai/ocr.py`: 전처리 연결 + `temperature=0` + `max_tokens 2048` + 프롬프트 보강. `config.py` OCR 상수(모델 sonnet-4-6 유지). `requirements.txt` **Pillow** 추가(py3.10 휠 검증). code-reviewer P1 2건 → 미사용 import 제거·`OCR_MAX_VISION_TOKENS` 리네임, **'토큰 3136 상향' 제안은 반려**(공식 예시 resized_size(1075,1520)=(924,1307)이 1568 확정, 3136이면 native 초과로 역행). rebase(stale base #190~#197) 충돌 0, pytest **165 PASS/1 skip**. G1/G6 PASS. ⚠️ **실인식 품질은 배포 후 실서버 영수증으로 검증 예정**(로컬 .env 키 만료). (작성·검수·머지 정재봉)
