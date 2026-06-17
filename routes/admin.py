@@ -395,9 +395,18 @@ def user_detail(user_id: int):
             raw = r.get("items")
             if isinstance(raw, str):
                 try:
-                    r["items"] = json.loads(raw)
+                    parsed = json.loads(raw)
+                    # OCR가 dict를 반환한 경우 배열로 감싸 템플릿 순회 오류 방지
+                    if isinstance(parsed, list):
+                        r["items"] = parsed
+                    elif isinstance(parsed, dict):
+                        r["items"] = [parsed]
+                    else:
+                        r["items"] = []
                 except (json.JSONDecodeError, TypeError):
                     r["items"] = []
+            elif isinstance(raw, dict):
+                r["items"] = [raw]
             elif not isinstance(raw, list):
                 r["items"] = []
             r["date_label"] = _fmt_dt(r["created_at"])
