@@ -8,27 +8,60 @@ from config import BOOK_HOURS, DEFAULT_HOURLY_WAGE, LECTURE_HOURS, WORKOUT_HOURS
 from db.client import db
 from routes.auth import login_required
 from utils.csrf import get_or_create_csrf_token, verify_csrf
+from utils.week import kst_bounds, kst_today, week_bounds
 
 logger = logging.getLogger(__name__)
 
 time_bp = Blueprint("time", __name__, url_prefix="/time")
 
 
+def _get_week_totals(cursor, user_id: int) -> dict:
+    """이번 주(월~일, KST) time_records 앱별 누적 시간(시간 단위)을 반환한다."""
+    week_start, week_end = week_bounds(kst_today())
+    gte_at, lt_at = kst_bounds(week_start, week_end)
+    cursor.execute(
+        """
+        SELECT
+            COALESCE(SUM(youtube_min), 0)   AS yt,
+            COALESCE(SUM(instagram_min), 0) AS ig,
+            COALESCE(SUM(tiktok_min), 0)    AS tt,
+            COALESCE(SUM(game_min), 0)      AS gm
+        FROM time_records
+        WHERE user_id = %s AND created_at >= %s AND created_at < %s
+        """,
+        (user_id, gte_at, lt_at),
+    )
+    row = cursor.fetchone()
+    yt = round((row["yt"] or 0) / 60, 1)
+    ig = round((row["ig"] or 0) / 60, 1)
+    tt = round((row["tt"] or 0) / 60, 1)
+    gm = round((row["gm"] or 0) / 60, 1)
+    return {
+        "week_youtube_h": yt,
+        "week_instagram_h": ig,
+        "week_tiktok_h": tt,
+        "week_game_h": gm,
+        "week_total_h": round(yt + ig + tt + gm, 1),
+    }
+
+
 @time_bp.route("")
 @login_required
 def time_page():
-    """앱별 주간 사용 시간 + 시급 입력 폼. (FR-9, FR-10)"""
+    """앱별 일간 사용 시간 + 이번 주 누적 + 시급 입력 폼. (FR-9, FR-10)"""
     user_id = session["user_id"]
-    # users 테이블에서 저장된 시급 불러오기 (기본값: 최저시급)
     with db() as cursor:
-        cursor.execute(
-            "SELECT hourly_wage FROM users WHERE id = %s",
-            (user_id,),
-        )
+        cursor.execute("SELECT hourly_wage FROM users WHERE id = %s", (user_id,))
         row = cursor.fetchone()
+        week = _get_week_totals(cursor, user_id)
     hourly_wage = row["hourly_wage"] if row else DEFAULT_HOURLY_WAGE
     csrf_token = get_or_create_csrf_token()
-    return render_template("time/index.html", hourly_wage=hourly_wage, csrf_token=csrf_token)
+    return render_template(
+        "time/index.html",
+        hourly_wage=hourly_wage,
+        csrf_token=csrf_token,
+        **week,
+    )
 
 
 @time_bp.route("/analyze", methods=["POST"])
@@ -53,7 +86,7 @@ def analyze():
             val = float(request.form.get(field, 0) or 0)
         except (ValueError, TypeError):
             val = 0.0
-        return max(0.0, min(val, 168.0))
+        return max(0.0, min(val, 24.0))  # 하루 최대 24h
 
     youtube_h   = _parse_hours("youtube_h")
     instagram_h = _parse_hours("instagram_h")
@@ -76,11 +109,9 @@ def analyze():
     # ── 3. 게임 시간 환산 (FR-12) ─────────────────────────────────────
     game_cost = int(game_h * hourly_wage)               # N원짜리 취미
 
-    # ── P2 합산 168h 초과 검증 ────────────────────────────────────────
-    # 각 필드는 0~168h로 클램핑되나 합산은 최대 672h까지 가능.
-    # 1주=168h 초과 시 결과는 표시하되 경고 플래그를 템플릿에 전달.
+    # 오늘 입력 총합(원형 차트·헤드라인 표시용). 각 필드는 24h로 클램핑되므로
+    # 4필드 합산 최대 96h — 일일 표시 전용이며 168h 초과 판정에는 쓰지 않는다.
     total_h = sns_total_h + game_h
-    over_limit = total_h > 168.0
 
     # ── 4. AI 공감 코멘트 (FR-14) ─────────────────────────────────────
     context = {
@@ -121,6 +152,14 @@ def analyze():
             "UPDATE users SET hourly_wage = %s WHERE id = %s",
             (hourly_wage, user_id),
         )
+        # 결과 페이지에 이번 주 누적(오늘 포함) 전달.
+        # 같은 트랜잭션 내 미커밋 INSERT 포함 — 오늘 입력이 주간 집계에 반영됨.
+        week = _get_week_totals(cursor, user_id)
+
+    # ── 이번 주 누적(오늘 포함) 기준 168h 초과 판정 ──────────────────
+    # 일일 입력은 24h씩 클램핑되어 합산 최대 96h라 168h 초과가 불가능하므로,
+    # 경고 배너는 주간 누적(week_total_h)을 기준으로 띄운다.
+    over_limit = week["week_total_h"] > 168.0
 
     # ── 6. 도파민 점수 재산출 (FR-31) — stub이면 조용히 무시 ──────────
     # P3-1: score.py 구현 완료 후 최상단 import로 올릴 것 (김승현 PR 완료 시).
@@ -152,4 +191,6 @@ def analyze():
         game_cost=game_cost,
         # AI
         ai_comment=ai_msg,
+        # 이번 주 누적 (오늘 포함)
+        **week,
     )

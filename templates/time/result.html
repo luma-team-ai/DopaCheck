@@ -249,27 +249,65 @@
       </a>
     </div>
 
-    <!-- P2-1: 합산 168h 초과 경고 배너 -->
+    <!-- P2-1: 이번 주 누적 168h 초과 경고 배너 -->
     {% if over_limit %}
     <div class="animate-in delay-1 rounded-xl p-4 flex items-start gap-3"
       style="background:rgba(255,180,171,0.1);border:1px solid rgba(255,180,171,0.3);">
       <span class="material-symbols-outlined text-[#ffb4ab] flex-shrink-0"
         style="font-variation-settings:'FILL' 1;">warning</span>
       <div>
-        <p class="text-[#ffb4ab] font-semibold text-sm">1주일 초과 입력</p>
-        <p class="text-[#c8c4d8] text-xs mt-0.5">입력한 총 시간({{ '%.1f'|format(total_h) }}h)이 1주일(168h)을 초과합니다. 각 앱의 시간을 다시
-          확인해보세요.</p>
+        <p class="text-[#ffb4ab] font-semibold text-sm">이번 주 누적 168시간 초과</p>
+        <p class="text-[#c8c4d8] text-xs mt-0.5">이번 주 누적 시간({{ '%.1f'|format(week_total_h) }}h)이 1주일(168h)을 초과했습니다. 각
+          앱의 시간을 다시 확인해보세요.</p>
       </div>
     </div>
     {% endif %}
 
     <!-- 헤드라인 -->
     <section class="animate-in {% if over_limit %}delay-2{% else %}delay-1{% endif %}">
-      <p class="text-[12px] text-[#c8c4d8] uppercase tracking-widest mb-1">이번 주 결과</p>
+      <p class="text-[12px] text-[#c8c4d8] uppercase tracking-widest mb-1">오늘 분석 결과</p>
       <h2 class="text-[28px] font-bold leading-tight" style="font-family:'Plus Jakarta Sans',sans-serif;">
-        총 <span class="text-primary">{{ '%.1f'|format(total_h) }}시간</span>을<br>소비했어요
+        오늘 <span class="text-primary">{{ '%.1f'|format(total_h) }}시간</span>을<br>소비했어요
       </h2>
     </section>
+
+    <!-- 이번 주 누적 카드 -->
+    <div class="result-card animate-in delay-2">
+      <p class="text-[12px] text-[#c8c4d8] uppercase tracking-widest mb-3">이번 주 누적 사용량</p>
+      <div class="flex items-end gap-2 mb-3">
+        <span class="text-3xl font-extrabold text-primary tabular-nums">{{ week_total_h }}</span>
+        <span class="text-[#c8c4d8] text-base mb-0.5">h</span>
+        <span class="text-[#c8c4d8] text-xs mb-1 ml-1">/ 168h ({{ '%.0f'|format(week_total_h / 168 * 100) }}%)</span>
+      </div>
+      <div class="w-full bg-[#1f1f27] rounded-full h-2 mb-4 overflow-hidden">
+        <div class="h-2 rounded-full"
+             style="width:{{ [week_total_h / 168 * 100, 100] | min | round }}%;
+                    background:linear-gradient(to right,#6b5bff,{% if week_total_h >= 140 %}#ff5b5b{% else %}#c5c0ff{% endif %})">
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-xs text-[#c8c4d8]">
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-[#FF0000] flex-shrink-0"></div>
+          YouTube <span class="text-[#e5e0ee] font-semibold ml-auto">{{ week_youtube_h }}h</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-[#ee2a7b] flex-shrink-0"></div>
+          Instagram <span class="text-[#e5e0ee] font-semibold ml-auto">{{ week_instagram_h }}h</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-[#00f2ea] flex-shrink-0"></div>
+          TikTok <span class="text-[#e5e0ee] font-semibold ml-auto">{{ week_tiktok_h }}h</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <div class="w-2 h-2 rounded-full bg-[#c5c0ff] flex-shrink-0"></div>
+          Game <span class="text-[#e5e0ee] font-semibold ml-auto">{{ week_game_h }}h</span>
+        </div>
+      </div>
+      <div class="mt-3 pt-3 border-t border-white/5 flex justify-between text-xs text-[#c8c4d8]">
+        <span>오늘 입력 포함</span>
+        <span class="text-[#e5e0ee] font-semibold">+{{ '%.1f'|format(total_h) }}h</span>
+      </div>
+    </div>
 
     <!-- 도넛 차트 (FR-13) -->
     {% if sns_total_h + game_h > 0 %}

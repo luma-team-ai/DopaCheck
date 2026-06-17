@@ -190,10 +190,38 @@
     <form action="{{ url_for('time.analyze') }}" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
+      <!-- 이번 주 누적 사용량 카드 -->
+      <section class="mt-4 mb-2">
+        <div class="glass-card p-5 rounded-xl">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-[11px] text-on-surface-variant uppercase tracking-widest font-semibold">이번 주 누적 사용량</p>
+            <span class="text-[11px] text-on-surface-variant">/ 168h</span>
+          </div>
+          <div class="flex items-end gap-2 mb-3">
+            <span id="week-total-display" class="text-3xl font-extrabold text-primary tabular-nums">{{ week_total_h }}</span>
+            <span class="text-on-surface-variant text-base mb-0.5">h</span>
+            <span class="text-on-surface-variant text-xs mb-1 ml-1">{{ '%.0f'|format(week_total_h / 168 * 100) }}%</span>
+          </div>
+          <div class="w-full bg-surface-container-high rounded-full h-2 mb-4 overflow-hidden">
+            <div id="week-progress-bar"
+                 class="h-2 rounded-full transition-all duration-500"
+                 style="width:{{ [week_total_h / 168 * 100, 100] | min | round }}%;
+                        background:linear-gradient(to right,#6b5bff,{% if week_total_h >= 140 %}#ff5b5b{% else %}#c5c0ff{% endif %})">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-on-surface-variant">
+            <span>📺 YouTube <span class="text-on-surface font-semibold">{{ week_youtube_h }}h</span></span>
+            <span>📸 Instagram <span class="text-on-surface font-semibold">{{ week_instagram_h }}h</span></span>
+            <span>🎵 TikTok <span class="text-on-surface font-semibold">{{ week_tiktok_h }}h</span></span>
+            <span>🎮 Game <span class="text-on-surface font-semibold">{{ week_game_h }}h</span></span>
+          </div>
+        </div>
+      </section>
+
       <!-- Headline -->
-      <section class="mb-6 mt-4">
-        <h2 class="text-2xl font-bold mb-2">이번 주, 얼마나 썼나요?</h2>
-        <p class="text-on-surface-variant text-sm">각 앱에 쓴 시간을 시간 단위로 입력해주세요</p>
+      <section class="mb-6 mt-2">
+        <h2 class="text-2xl font-bold mb-2">오늘 하루, 얼마나 썼나요?</h2>
+        <p class="text-on-surface-variant text-sm">각 앱에 오늘 사용한 시간을 입력해주세요</p>
       </section>
 
       <!-- Input Section -->
@@ -213,7 +241,7 @@
           <div class="flex items-center gap-2">
             <input id="youtube_h" name="youtube_h"
               class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
-              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+              placeholder="0" type="number" min="0" max="24" step="0.5" value="0">
             <span class="text-on-surface-variant font-semibold pt-1">h</span>
           </div>
         </div>
@@ -233,7 +261,7 @@
           <div class="flex items-center gap-2">
             <input id="instagram_h" name="instagram_h"
               class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
-              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+              placeholder="0" type="number" min="0" max="24" step="0.5" value="0">
             <span class="text-on-surface-variant font-semibold pt-1">h</span>
           </div>
         </div>
@@ -252,7 +280,7 @@
           <div class="flex items-center gap-2">
             <input id="tiktok_h" name="tiktok_h"
               class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
-              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+              placeholder="0" type="number" min="0" max="24" step="0.5" value="0">
             <span class="text-on-surface-variant font-semibold pt-1">h</span>
           </div>
         </div>
@@ -271,7 +299,7 @@
           <div class="flex items-center gap-2">
             <input id="game_h" name="game_h"
               class="bg-transparent border-none text-right text-3xl font-extrabold w-24 p-0 tabular-nums focus:ring-0 text-primary"
-              placeholder="0" type="number" min="0" max="168" step="0.5" value="0">
+              placeholder="0" type="number" min="0" max="24" step="0.5" value="0">
             <span class="text-on-surface-variant font-semibold pt-1">h</span>
           </div>
         </div>
@@ -310,21 +338,58 @@
   {% set active_tab = 'delivery' %}
   {% include "components/footer.html" %}
 
+  <!-- 토스트 -->
+  <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[200] hidden">
+    <div class="flex items-start gap-3 rounded-xl px-4 py-3 shadow-2xl text-sm font-medium max-w-[340px]"
+         style="background:rgba(255,80,80,0.15);border:1px solid rgba(255,80,80,0.4);backdrop-filter:blur(12px);">
+      <span class="material-symbols-outlined text-[#ff5b5b] text-[20px] flex-shrink-0 mt-0.5"
+            style="font-variation-settings:'FILL' 1;">warning</span>
+      <p id="toast-msg" class="text-[#ffdad6] leading-snug"></p>
+    </div>
+  </div>
+
   <script>
+    const WEEK_TOTAL = {{ week_total_h }};
+    const WEEK_LIMIT = 168;
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    function getTodayTotal() {
+      return ['youtube_h','instagram_h','tiktok_h','game_h']
+        .reduce((s, id) => s + (parseFloat(document.getElementById(id).value) || 0), 0);
+    }
+
     document.querySelectorAll('.input-card').forEach(card => {
-      card.addEventListener('mouseenter', () => {
-        card.style.boxShadow = '0 0 20px rgba(197, 192, 255, 0.05)';
-      });
-      card.addEventListener('mouseleave', () => {
-        card.style.boxShadow = 'none';
-      });
+      card.addEventListener('mouseenter', () => { card.style.boxShadow = '0 0 20px rgba(197,192,255,0.05)'; });
+      card.addEventListener('mouseleave', () => { card.style.boxShadow = 'none'; });
     });
 
     document.querySelectorAll('input[type="number"]').forEach(input => {
       input.addEventListener('input', (e) => {
         if (e.target.value < 0) e.target.value = 0;
-        if (e.target.name !== 'hourly_wage' && e.target.value > 168) e.target.value = 168;
+        if (e.target.name !== 'hourly_wage' && e.target.value > 24) e.target.value = 24;
       });
+    });
+
+    document.querySelector('form').addEventListener('submit', (e) => {
+      const todayTotal = getTodayTotal();
+      const projected = WEEK_TOTAL + todayTotal;
+      if (projected > WEEK_LIMIT) {
+        e.preventDefault();
+        const remain = Math.max(0, WEEK_LIMIT - WEEK_TOTAL).toFixed(1);
+        showToast(
+          `이번 주 한도(${WEEK_LIMIT}h)를 초과합니다.\n` +
+          `현재 누적: ${WEEK_TOTAL}h | 오늘 입력: ${todayTotal.toFixed(1)}h\n` +
+          `남은 시간: ${remain}h 이하로 입력해 주세요.`
+        );
+      }
     });
   </script>
 </body>
