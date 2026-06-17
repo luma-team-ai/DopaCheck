@@ -164,6 +164,11 @@ def analyze():
         flash("영수증 인식에 실패했습니다. 직접 입력해주세요.", "warning")
         return redirect(url_for("delivery.manual_page", ocr_failed=1))
 
+    # OCR 결과 0원 — 영수증이 아닌 이미지일 가능성이 높으므로 수동 입력으로 전환
+    if total_price == 0:
+        flash("금액을 인식하지 못했습니다. 직접 입력해주세요.", "warning")
+        return redirect(url_for("delivery.manual_page", ocr_failed=1))
+
     # ── 칼로리 추론 이후 공통 파이프라인 (FR-3~8) ─────────────
     food_names = [it["name"] for it in items if isinstance(it, dict) and it.get("name")]
     return _finalize_delivery(user_id, items, total_price, delivery_fee, food_names)
