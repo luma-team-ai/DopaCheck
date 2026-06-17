@@ -12,10 +12,25 @@ _SYSTEM = (
     "사용자를 판단하거나 비판하지 않고, 따뜻하고 친근하게 한 문장으로 응답합니다."
 )
 
+# 가드 문구: LLM이 단위·기간을 임의로 바꾸거나 SNS/게임 시간을 합치지 않도록 (#211)
+_GUARD = (
+    "위에 주어진 수치만 사용하세요. 임의로 월간 환산하거나 기간/단위를 바꾸지 마세요. "
+    "SNS 시간과 게임 시간은 별개의 값입니다."
+)
+
 _PROMPTS = {
-    "delivery": "사용자의 배달 분석 결과입니다: {context}\n\n이 결과를 보고 공감 코멘트를 한 문장으로 작성해주세요. 긍정적으로 마무리하세요.",
-    "time": "사용자의 SNS·게임 시간 분석 결과입니다: {context}\n\n이 결과를 보고 공감 코멘트를 한 문장으로 작성해주세요. 긍정적으로 마무리하세요.",
-    "report": "사용자의 주간 리포트 데이터입니다: {context}\n\n이번 주 노력을 인정하고 다음 주를 응원하는 공감 코멘트를 한 문장으로 작성해주세요.",
+    "delivery": (
+        "사용자의 배달 분석 결과입니다:\n{context}\n\n" + _GUARD + "\n\n"
+        "이 결과를 보고 공감 코멘트를 한 문장으로 작성해주세요. 긍정적으로 마무리하세요."
+    ),
+    "time": (
+        "사용자의 SNS·게임 시간 분석 결과입니다:\n{context}\n\n" + _GUARD + "\n\n"
+        "이 결과를 보고 공감 코멘트를 한 문장으로 작성해주세요. 긍정적으로 마무리하세요."
+    ),
+    "report": (
+        "사용자의 주간 리포트 데이터입니다:\n{context}\n\n" + _GUARD + "\n\n"
+        "이번 주 노력을 인정하고 다음 주를 응원하는 공감 코멘트를 한 문장으로 작성해주세요."
+    ),
 }
 
 
@@ -25,8 +40,8 @@ _MAX_STR_LEN = 200  # 문자열 값 최대 길이 (프롬프트 인젝션 완화
 def _sanitize_context(obj, _depth: int = 0):
     """dict/list/str 재귀 순회 — 문자열 값을 200자로 truncate한다.
 
-    프롬프트 인젝션 완화: 사용자 입력이 섞인 컨텍스트를 LLM에 직접 삽입하기 전에
-    모든 문자열 리프 값을 길이 제한 후 json.dumps로 직렬화한다.
+    프롬프트 인젝션 완화 유틸. 라벨링 경로(_safe_str)와 별개로 유지되며,
+    재귀적인 dict/list 컨텍스트를 길이 제한할 때 사용한다.
     """
     if _depth > 10:
         return str(obj)[:_MAX_STR_LEN]
@@ -37,6 +52,153 @@ def _sanitize_context(obj, _depth: int = 0):
     if isinstance(obj, str):
         return obj[:_MAX_STR_LEN]
     return obj
+
+
+def _safe_str(value) -> str:
+    """사용자 유래 문자열을 200자로 truncate + 개행 제거 (프롬프트 인젝션 완화)."""
+    return str(value).replace("\n", " ").replace("\r", " ")[:_MAX_STR_LEN]
+
+
+def _fmt_won(value) -> str:
+    """원 단위 정수 천단위 콤마 포맷. 숫자가 아니면 None."""
+    try:
+        return f"{int(round(float(value))):,}원"
+    except (TypeError, ValueError):
+        return None
+
+
+def _fmt_h(value) -> str:
+    """시간(float) 포맷. 숫자가 아니면 None."""
+    try:
+        return f"{float(value):.1f}시간"
+    except (TypeError, ValueError):
+        return None
+
+
+def _fmt_min_with_h(value) -> str:
+    """분(int)을 '1200분(20.0시간)' 형태로 포맷. 숫자가 아니면 None."""
+    try:
+        m = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f"{int(round(m))}분({m / 60:.1f}시간)"
+
+
+def _fmt_count(value, unit: str) -> str:
+    """환산 개수 포맷('20.0개' 등). 숫자가 아니면 None."""
+    try:
+        return f"{float(value):.1f}{unit}"
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_time_context(ctx: dict) -> list:
+    """time 컨텍스트 → 한국어 라벨 + 단위 라인 리스트."""
+    lines = []
+    sns = _fmt_h(ctx.get("sns_total_h"))
+    if sns is not None:
+        lines.append(f"- SNS 사용 시간(유튜브+인스타+틱톡 합): {sns}")
+    parts = []
+    for key, name in (("youtube_h", "유튜브"), ("instagram_h", "인스타"), ("tiktok_h", "틱톡")):
+        v = _fmt_h(ctx.get(key))
+        if v is not None:
+            parts.append(f"{name} {v}")
+    if parts:
+        lines.append("- SNS 세부: " + " / ".join(parts))
+    game = _fmt_h(ctx.get("game_h"))
+    if game is not None:
+        lines.append(f"- 게임 사용 시간: {game}")
+    conv_parts = []
+    for key, unit, label in (("book_n", "권", "책"), ("lecture_n", "개", "온라인 강의"), ("workout_n", "회", "운동")):
+        v = _fmt_count(ctx.get(key), unit)
+        if v is not None:
+            conv_parts.append(f"{label} {v}")
+    if conv_parts:
+        lines.append("- SNS 시간으로 가능했던 것: " + " / ".join(conv_parts))
+    cost = _fmt_won(ctx.get("game_cost"))
+    wage = _fmt_won(ctx.get("hourly_wage"))
+    if cost is not None:
+        suffix = f" (시급 {wage} 기준)" if wage is not None else ""
+        lines.append(f"- 게임 시간의 '주간' 기회비용: {cost}{suffix}")
+    return lines
+
+
+def _build_delivery_context(ctx: dict) -> list:
+    """delivery 컨텍스트 → 한국어 라벨 + 단위 라인 리스트."""
+    lines = []
+    price = _fmt_won(ctx.get("total_price"))
+    if price is not None:
+        lines.append(f"- 배달 총 지출: {price}")
+    kcal = ctx.get("total_kcal")
+    try:
+        lines.append(f"- 섭취 칼로리: {int(round(float(kcal)))}kcal")
+    except (TypeError, ValueError):
+        pass
+    conversions = ctx.get("conversions")
+    if isinstance(conversions, (list, tuple)) and conversions:
+        # 사용자 유래 라벨 — 길이 제한/개행 제거
+        labels = " / ".join(_safe_str(c) for c in conversions)
+        lines.append(f"- 환산: {labels}")
+    return lines
+
+
+def _build_report_context(ctx: dict) -> list:
+    """report 컨텍스트 → 한국어 라벨 + 단위 라인 리스트(분은 시간 병기)."""
+    lines = []
+    price = _fmt_won(ctx.get("total_price"))
+    if price is not None:
+        lines.append(f"- 배달 총 지출: {price}")
+    cal = ctx.get("total_calories")
+    try:
+        lines.append(f"- 섭취 칼로리: {int(round(float(cal)))}kcal")
+    except (TypeError, ValueError):
+        pass
+    cnt = ctx.get("delivery_count")
+    try:
+        lines.append(f"- 배달 횟수: {int(cnt)}건")
+    except (TypeError, ValueError):
+        pass
+    total = _fmt_min_with_h(ctx.get("total_time_min"))
+    if total is not None:
+        lines.append(f"- SNS+게임 총 사용 시간: {total}")
+    for key, name in (
+        ("youtube_min", "유튜브"),
+        ("instagram_min", "인스타"),
+        ("tiktok_min", "틱톡"),
+        ("game_min", "게임"),
+    ):
+        v = _fmt_min_with_h(ctx.get(key))
+        if v is not None:
+            lines.append(f"- {name} 사용 시간: {v}")
+    score = ctx.get("score")
+    try:
+        lines.append(f"- 도파민 점수: {int(score)}/100")
+    except (TypeError, ValueError):
+        pass
+    return lines
+
+
+_CONTEXT_BUILDERS = {
+    "time": _build_time_context,
+    "delivery": _build_delivery_context,
+    "report": _build_report_context,
+}
+
+
+def _format_context(comment_type: str, context: dict) -> str:
+    """comment_type별로 한국어 라벨 + 단위 명시된 사람이 읽을 수 있는 컨텍스트 문자열 생성 (#211).
+
+    raw json.dumps 대신 라벨링하여 LLM이 값의 의미·단위를 오해하지 않게 한다.
+    숫자는 안전하게 포맷팅, 사용자 유래 문자열은 길이 제한/개행 제거.
+    알 수 없는 type·키 누락에도 죽지 않게 .get + 폴백.
+    """
+    if not isinstance(context, dict):
+        return _safe_str(context)
+    builder = _CONTEXT_BUILDERS.get(comment_type, _build_report_context)
+    lines = builder(context)
+    if not lines:
+        return "(데이터 없음)"
+    return "\n".join(lines)
 
 
 def generate(comment_type: str, context: dict) -> str:
@@ -53,9 +215,10 @@ def generate(comment_type: str, context: dict) -> str:
         예: "오늘도 맛있는 걸 드셨군요! 그 칼로리, 러닝 28분이면 다 태울 수 있어요."
     """
     template = _PROMPTS.get(comment_type, _PROMPTS["report"])
-    # 프롬프트 인젝션 완화: dict를 JSON 직렬화 + 문자열 값 200자 truncate (FR-42)
-    safe_context = _sanitize_context(context)
-    prompt = template.format(context=json.dumps(safe_context, ensure_ascii=False))
+    # raw json.dumps 대신 라벨+단위 명시 컨텍스트 삽입 — LLM 단위 오해 방지 (#211, FR-42)
+    # 숫자 포맷팅은 안전, 사용자 유래 문자열은 200자 truncate/개행 제거로 인젝션 완화
+    context_str = _format_context(comment_type, context)
+    prompt = template.format(context=context_str)
 
     response = get_client().messages.create(
         model=MODEL_COMMENT,
