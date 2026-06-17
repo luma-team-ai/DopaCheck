@@ -445,3 +445,60 @@ def test_수동_입력_비정수_금액_거부(logged_in_client):
 
     assert res.status_code == 302
     assert "/delivery/manual" in res.headers.get("Location", "")
+
+
+# ── flash 메시지 렌더링 테스트 (#216 — 독립 템플릿 flash 누수 차단) ─────
+
+def test_수동_입력_빈_음식명_flash_렌더(logged_in_client):
+    """빈 음식명 → manual 페이지 본문에 검증 에러 flash 가 렌더된다 (#216)."""
+    form_data = {
+        "csrf_token": "test-csrf-token",
+        "manual_input": "1",
+        "food_names": "",
+        "total_price": "5000",
+        "delivery_fee": "0",
+    }
+
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=form_data,
+        content_type="application/x-www-form-urlencoded",
+        follow_redirects=True,
+    )
+
+    assert res.status_code == 200
+    assert "음식명을 1개 이상 입력해주세요." in res.data.decode("utf-8")
+
+
+def test_수동_입력_음수_금액_flash_렌더(logged_in_client):
+    """음수 금액 → manual 페이지 본문에 검증 에러 flash 가 렌더된다 (#216)."""
+    form_data = {
+        "csrf_token": "test-csrf-token",
+        "manual_input": "1",
+        "food_names": "후라이드치킨",
+        "total_price": "-1000",
+        "delivery_fee": "0",
+    }
+
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data=form_data,
+        content_type="application/x-www-form-urlencoded",
+        follow_redirects=True,
+    )
+
+    assert res.status_code == 200
+    assert "총 금액은 0원 이상이어야 합니다." in res.data.decode("utf-8")
+
+
+def test_이미지_미선택_flash_렌더(logged_in_client):
+    """이미지 미선택 → index(업로드 폼) 본문에 flash 가 렌더된다 (#216)."""
+    res = logged_in_client.post(
+        "/delivery/analyze",
+        data={"csrf_token": "test-csrf-token"},
+        content_type="multipart/form-data",
+        follow_redirects=True,
+    )
+
+    assert res.status_code == 200
+    assert "이미지를 선택해주세요." in res.data.decode("utf-8")

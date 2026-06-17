@@ -203,6 +203,19 @@
       </a>
     </div>
 
+    <!-- Flash 메시지 (검증 에러 등) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mt-4 space-y-2">
+          {% for category, message in messages %}
+            <div class="p-3.5 text-sm rounded-xl text-center font-medium {% if category == 'error' %}bg-error-container/20 text-error border border-error/20{% elif category == 'warning' %}bg-tertiary-container/20 text-tertiary border border-tertiary/30{% else %}bg-primary-container/20 text-primary border border-primary/20{% endif %}" style="backdrop-filter: blur(8px);">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
     <!-- Hero: 오늘 도파민 지출 -->
     <div class="glass-card rounded-[2rem] p-card-padding text-center overflow-hidden relative">
       <div class="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none"></div>
