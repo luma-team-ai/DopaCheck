@@ -210,6 +210,19 @@
       </a>
     </div>
 
+    <!-- Flash 메시지 (수동입력 검증 에러 등 — ocr_failed 카드와 별개) -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="mt-4 space-y-2">
+          {% for category, message in messages %}
+            <div class="p-3.5 text-sm rounded-xl text-center font-medium {% if category == 'error' %}bg-error-container/20 text-error border border-error/20{% elif category == 'warning' %}bg-tertiary-container/20 text-tertiary border border-tertiary/30{% else %}bg-primary-container/20 text-primary border border-primary/20{% endif %}" style="backdrop-filter: blur(8px);">
+              {{ message }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
     <!-- Warning Card (OCR 실패 시에만 표시) -->
     {% if ocr_failed %}
     <section class="mt-4 mb-2">
