@@ -409,6 +409,13 @@ def user_detail(user_id: int):
                 r["items"] = [raw]
             elif not isinstance(raw, list):
                 r["items"] = []
+            # OCR가 price를 문자열로 반환하는 경우 int 정규화 (format(:,) ValueError 방지)
+            for item in r["items"]:
+                if isinstance(item, dict):
+                    try:
+                        item["price"] = int(item.get("price") or 0)
+                    except (TypeError, ValueError):
+                        item["price"] = 0
             r["date_label"] = _fmt_dt(r["created_at"])
 
         # 시간 분석 내역

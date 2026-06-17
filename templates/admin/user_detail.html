@@ -126,7 +126,7 @@
               가입일: {{ user.created_label }}
             </span>
             <span class="px-3 py-1.5 bg-surface-container rounded-full text-label-caps font-label-caps text-tertiary border border-tertiary/20">
-              시급: {{ "{:,}".format(user.hourly_wage) }}원
+              시급: {{ "{:,}".format(user.hourly_wage or 0) }}원
             </span>
           </div>
         </div>
@@ -154,14 +154,14 @@
                 </div>
               </div>
               <div class="flex items-center gap-2">
-                <span class="text-body-lg font-title-md text-tertiary">{{ "{:,}".format(r.total_price) }}원</span>
+                <span class="text-body-lg font-title-md text-tertiary">{{ "{:,}".format(r.total_price or 0) }}원</span>
                 <span class="material-symbols-outlined text-on-surface-variant rotate-icon transition-transform duration-300">expand_more</span>
               </div>
             </div>
             <div class="accordion-content bg-surface-container-low/50">
               <div class="p-4 border-t border-white/5 space-y-3">
-                {% if r.items %}
-                  {% for item in r.items %}
+                {% if r['items'] %}
+                  {% for item in r['items'] %}
                   <div class="flex justify-between items-center">
                     <span class="text-body-lg font-body-lg text-on-surface-variant">{{ item.name or item.get('menu', '항목') }}</span>
                     <div class="text-right">
