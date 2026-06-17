@@ -249,16 +249,16 @@
       </a>
     </div>
 
-    <!-- P2-1: 합산 168h 초과 경고 배너 -->
+    <!-- P2-1: 이번 주 누적 168h 초과 경고 배너 -->
     {% if over_limit %}
     <div class="animate-in delay-1 rounded-xl p-4 flex items-start gap-3"
       style="background:rgba(255,180,171,0.1);border:1px solid rgba(255,180,171,0.3);">
       <span class="material-symbols-outlined text-[#ffb4ab] flex-shrink-0"
         style="font-variation-settings:'FILL' 1;">warning</span>
       <div>
-        <p class="text-[#ffb4ab] font-semibold text-sm">1주일 초과 입력</p>
-        <p class="text-[#c8c4d8] text-xs mt-0.5">입력한 총 시간({{ '%.1f'|format(total_h) }}h)이 1주일(168h)을 초과합니다. 각 앱의 시간을 다시
-          확인해보세요.</p>
+        <p class="text-[#ffb4ab] font-semibold text-sm">이번 주 누적 168시간 초과</p>
+        <p class="text-[#c8c4d8] text-xs mt-0.5">이번 주 누적 시간({{ '%.1f'|format(week_total_h) }}h)이 1주일(168h)을 초과했습니다. 각
+          앱의 시간을 다시 확인해보세요.</p>
       </div>
     </div>
     {% endif %}

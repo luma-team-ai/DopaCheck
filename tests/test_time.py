@@ -131,6 +131,45 @@ def test_시간_환산_경계값(logged_in_client):
     assert resp.status_code == 200
 
 
+def test_주간_누적_분에서_시간_환산(logged_in_client):
+    """P2-2: week row(분 단위)가 시간 단위로 올바르게 환산되어 렌더되는지 검증.
+
+    youtube 90분→1.5h, game 1200분→20.0h, instagram/tiktok 0 →
+    week_total_h = 21.5h. _fake_db_analyze와 동일한 fetchone 순서
+    (analyze는 INSERT+UPDATE 후 _get_week_totals SUM 집계 1회)를 따른다.
+    """
+    week_row = {"yt": 90, "ig": 0, "tt": 0, "gm": 1200}
+
+    @contextmanager
+    def _fake_db_week():
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [week_row]
+        yield cursor
+
+    with (
+        patch("routes.time.db", _fake_db_week),
+        patch("routes.time.ai_comment.generate", return_value="환산 테스트"),
+        patch("services.score_service.recalculate_score", side_effect=NotImplementedError),
+    ):
+        resp = logged_in_client.post(
+            "/time/analyze",
+            data={
+                "youtube_h":   "0",
+                "instagram_h": "0",
+                "tiktok_h":    "0",
+                "game_h":      "0",
+                "hourly_wage": str(DEFAULT_HOURLY_WAGE),
+                "csrf_token":  "test-csrf-token",
+            },
+        )
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    # 90분 → 1.5h, 1200분 → 20.0h, 합계 21.5h
+    assert "1.5" in body   # week_youtube_h
+    assert "20.0" in body  # week_game_h
+    assert "21.5" in body  # week_total_h
+
+
 def test_analyze_CSRF_없으면_403(logged_in_client):
     """CSRF 토큰 미전송 시 /time/analyze → 403.
 
