@@ -358,9 +358,9 @@
         <p class="text-sm text-on-surface-variant py-4 text-center">불러오는 중...</p>
       </div>
       <div class="px-5 pt-3 pb-5">
-        <a href="{{ url_for('history.history_list') }}" class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold transition-colors" style="border:1px solid rgba(197,192,255,0.4); color:#c5c0ff;">
-          <span class="material-symbols-outlined" style="font-size:18px">history</span>
-          히스토리 전체 보기
+        <a href="{{ url_for('challenge.challenge_page') }}" class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-sm font-semibold transition-colors" style="border:1px solid rgba(47,224,166,0.4); color:#2fe0a6;">
+          <span class="material-symbols-outlined" style="font-size:18px">emoji_events</span>
+          챌린지 전체 보기
         </a>
       </div>
     </div>
@@ -456,13 +456,16 @@
       completed:   'bg-green-400/15 text-green-400',
       'in-progress': 'bg-outline-variant/30 text-outline',
     };
-    function itemRow(iconHtml, summary, sub, badgeText, badgeType) {
+    function itemRow(iconHtml, summary, sub, badgeText, badgeType, href) {
       const cls = BADGE_CLASSES[badgeType] || '';
       const badge = badgeText && cls
         ? `<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${cls}">${esc(badgeText)}</span>`
         : '';
+      const tag = href ? 'a' : 'div';
+      const hrefAttr = href ? `href="${href}"` : '';
+      const cursorCls = href ? 'cursor-pointer hover:bg-white/5' : '';
       return `
-        <div class="flex items-center gap-3 py-3 border-b border-outline-variant/10 last:border-0">
+        <${tag} ${hrefAttr} class="flex items-center gap-3 py-3 border-b border-outline-variant/10 last:border-0 rounded-lg transition-colors ${cursorCls}">
           ${iconHtml}
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold text-on-surface truncate">${esc(summary)}</p>
@@ -470,7 +473,7 @@
           </div>
           ${badge}
           <span class="material-symbols-outlined text-on-surface-variant/40 flex-shrink-0" style="font-size:16px">chevron_right</span>
-        </div>`;
+        </${tag}>`;
     }
 
     function renderDelivery(list) {
@@ -480,7 +483,9 @@
         `<div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:rgba(255,177,197,0.15)"><span class="material-symbols-outlined text-secondary" style="font-size:20px">receipt_long</span></div>`,
         r.summary,
         `${r.date_label}${r.time_label ? ' · ' + r.time_label : ''}`,
-        ''
+        '',
+        '',
+        `/history/${r.id}?type=delivery`
       )).join('');
     }
 

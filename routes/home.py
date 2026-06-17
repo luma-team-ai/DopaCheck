@@ -205,7 +205,7 @@ def this_week_summary():
 
     with db() as cursor:
         cursor.execute(
-            "SELECT total_price, total_calories, created_at FROM delivery_records "
+            "SELECT id, total_price, total_calories, created_at FROM delivery_records "
             "WHERE user_id = %s AND created_at >= %s AND created_at < %s "
             "ORDER BY created_at DESC LIMIT 10",
             (user_id, this_gte_at, this_lt_at),
@@ -242,6 +242,7 @@ def this_week_summary():
         price = r.get("total_price") or 0
         kcal = r.get("total_calories") or 0
         delivery_list.append({
+            "id": r["id"],
             "date_label": date_label,
             "time_label": time_label,
             "summary": f"배달 {price:,}원 · {kcal:,} kcal",
