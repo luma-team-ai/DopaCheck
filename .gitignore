@@ -30,3 +30,7 @@ node_modules/
 
 # Claude IDE 폴더
 .claude/
+
+# 로컬 작업용 아카이브
+*_local.zip
+docs/_local.zip

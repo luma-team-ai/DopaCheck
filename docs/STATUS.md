@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-06-17 (#214 /time 하루 입력·이번주 누적 / #213 AI 코멘트 정합 / #212 OCR 0원 가드 머지)
+> 마지막 갱신: 2026-06-17 (#218 delivery flash 누수 차단 / #217 OCR flash 완전수정 / 홈 모달 네비 / 레포 무결성 점검·브랜치 정리)
 
 <a id="sprint"></a>
 ## 🎯 Ver1.2 마무리 스프린트 (D-2.5) — 역할 분배
@@ -48,7 +48,13 @@
 
 ## 마지막 머지 PR
 
-### 2026-06-17 배치 (정재봉 검수·머지)
+### 2026-06-17 배치 (오후 — 정재봉 검수·머지)
+- **#218** delivery 독립 템플릿 flash 소비 (**#216 CLOSED**) — `index.html`·`manual.html`·`result.html`이 `_app_base` 미상속·`get_flashed_messages()` 미호출이라 `flash()`가 화면에 안 뜨고 다음 페이지(히스토리)로 누수되던 것을, 3개 템플릿 본문 최상단에 flash 소비 블록(_app_base 스타일 차용) 추가로 해소. 특히 manual 수동입력 검증 에러(음식명·금액)가 이제 화면에 노출. 라우트·CDN 미변경. G6 메타 자체검수 PASS, pytest **204 PASS/1 skip**(신규 렌더 검증 3건). (작성 서브에이전트→정재봉 검수·머지)
+- **#217** OCR 실패·0원 redirect flash 제거 — manual 누수 차단 (**#215 대체·CLOSED**) — `analyze()`의 OCR 실패(L164)·0원(L169) 두 분기 flash가 manual.html 미소비로 누수되던 것 제거(ocr_failed 자체 경고 카드로 대체). #215는 stale 충돌 브랜치 + 0원만 제거하는 불완전 수정이라 닫고 완전 수정으로 대체. delivery 템플릿 전반 flash 누수는 #216으로 분리. pytest **201 PASS/1 skip**. (원 진단 50seok/오영석, 완전수정·머지 정재봉)
+- **홈 모달 네비** (`10bf310`, 브랜치 `fix/home-modal-nav-links`) — 홈 '이번 주 핵심' 모달의 배달 아이템 상세 이동 + 챌린지 버튼을 챌린지 페이지로 연결. ⚠️ **PR 없이 origin/main 직접 머지**(merge 커밋 `0e1f223`) — 검수 이력 없음, 기능은 테스트 그린. 향후 직접 push 자제 권고.
+- **🧹 레포 무결성 점검·정리** — `git fsck` 정상(dangling만), main==origin/main 동기화, Python compileall 통과, pytest 204 PASS. stale 브랜치 정리: 로컬 `rebase/148` 삭제 · 원격 `feat/challenge-weekly-batch`(PR#202 CLOSED, 내용은 #205/#206로 main 반영됨)·`fix/216-delivery-flash`(#218 머지)·`fix/home-modal-nav-links`(직접 머지) 삭제 → **로컬·원격 모두 main만 잔존**. `docs/_local.zip` .gitignore 등록.
+
+### 2026-06-17 배치 (오전 — 정재봉 검수·머지)
 - **#214** /time 하루 단위 입력·이번주 누적 표시·168h 초과 차단 — 일일 입력 클램프 168h→**24h**, `_get_week_totals`(월~일 KST) 앱별 누적 카드(`time_page`·`analyze` 둘 다 전달, INSERT 직후 같은 트랜잭션 self-read로 오늘 입력 포함), index/result 헤드라인 "오늘" + 진행바. code-reviewer **P1 2건**: ① `over_limit=total_h>168`이 24h 클램프(합산 최대 96h)로 영영 False → **주간 누적(`week_total_h>168`) 기준 재정의** + 배너 정합 ② 트랜잭션 self-read = SQL 보장(버그 아님)→의도 주석. P2 분→시간 환산 테스트 추가. AI 코멘트 context 키(#211 의존) 미변경 확인. pytest **201 PASS/1 skip**. G6 PASS. (작성 EunSeok→정재봉 검수·머지)
 - **#213** AI 코치 한마디 SNS·게임 시간/기회비용 오참조 수정 (**#211 CLOSED**) — `ai/comment.py generate()`가 LLM에 **영문 키 raw JSON**(`json.dumps`)을 덤프해 단위·기간 오해("SNS 40h"를 SNS+게임 합으로, 주간 260,000원을 "월 260만원"으로 왜곡)하던 것을, comment_type별(time/delivery/report) **한국어 라벨+단위 명시 컨텍스트** + "주어진 수치만 사용, 임의 환산·기간 변경 금지" 가드로 교체. 프롬프트 인젝션 완화(`_safe_str` 200자 truncate·개행/탭/널 제거) 유지. code-reviewer **P1 1건**(inf→OverflowError 계약 위반)→`math.isfinite` 가드. pytest **200 PASS/1 skip**. G6 PASS. (작성·검수·머지 정재봉)
 - **#212** OCR 결과 0원 시 수동 입력 전환 — 비영수증 이미지 저장 방지 — OCR 성공해도 `total_price==0`이면 0원 기록 저장 대신 `manual_page` redirect(`routes/delivery.py` 5줄). 머지 프리뷰 무충돌, pytest **200 PASS/1 skip**. (작성 Ketose333→정재봉 검수·머지)
