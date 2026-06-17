@@ -67,6 +67,102 @@ def test_공감_코멘트_생성():
         assert len(result) > 0
 
 
+def _captured_prompt(comment_type: str, context: dict) -> str:
+    """generate 호출 시 LLM messages content에 실제로 전달된 프롬프트 문자열을 반환."""
+    from ai.comment import generate
+
+    with patch("ai.utils._client") as mock_client:
+        mock_client.messages.create.return_value = _mock_response("코멘트")
+        generate(comment_type, context)
+        _, kwargs = mock_client.messages.create.call_args
+    return kwargs["messages"][0]["content"]
+
+
+def test_time_컨텍스트_라벨_단위_가드_포함():
+    """#211: time 프롬프트에 한국어 라벨·단위·가드 문구가 들어가고 SNS/게임이 별개 라인."""
+    context = {
+        "youtube_h": 20.0,
+        "instagram_h": 15.0,
+        "tiktok_h": 5.0,
+        "game_h": 20.0,
+        "sns_total_h": 40.0,
+        "book_n": 0.0,
+        "lecture_n": 20.0,
+        "workout_n": 40.0,
+        "game_cost": 260000,
+        "hourly_wage": 13000,
+    }
+    prompt = _captured_prompt("time", context)
+
+    # 라벨/단위
+    assert "게임 사용 시간" in prompt
+    assert "SNS" in prompt
+    assert "시간" in prompt
+    assert "원" in prompt
+    # 가드 문구
+    assert "SNS 시간과 게임 시간은 별개의 값입니다" in prompt
+    assert "임의로 월간 환산하거나" in prompt
+    # raw JSON 영문 키가 그대로 덤프되지 않음
+    assert "sns_total_h" not in prompt
+    assert "game_cost" not in prompt
+    # SNS 시간과 게임 시간이 별개 라인
+    sns_line = next(l for l in prompt.splitlines() if l.startswith("- SNS 사용 시간"))
+    game_line = next(l for l in prompt.splitlines() if l.startswith("- 게임 사용 시간"))
+    assert sns_line != game_line
+    assert "40.0시간" in sns_line   # SNS만 40시간
+    assert "20.0시간" in game_line  # 게임 20시간
+    # 주간 기회비용 — 천단위 콤마, 월간 왜곡 없음
+    assert "260,000원" in prompt
+    assert "주간" in prompt
+
+
+def test_report_분값_시간_병기():
+    """#211: report의 분(min) 값은 '1200분(20.0시간)' 형태로 시간 병기."""
+    context = {
+        "total_price": 50000,
+        "total_calories": 3000,
+        "delivery_count": 3,
+        "total_time_min": 1200,
+        "youtube_min": 600,
+        "instagram_min": 0,
+        "tiktok_min": 0,
+        "game_min": 600,
+        "score": 70,
+    }
+    prompt = _captured_prompt("report", context)
+    assert "1200분(20.0시간)" in prompt
+    assert "게임 사용 시간: 600분(10.0시간)" in prompt
+    assert "70/100" in prompt
+    assert "SNS 시간과 게임 시간은 별개의 값입니다" in prompt
+
+
+def test_delivery_conversions_길이제한_적용():
+    """#211: delivery conversions(사용자 유래 문자열)는 200자 truncate/개행 제거."""
+    context = {
+        "total_price": 21000,
+        "total_kcal": 1940,
+        "conversions": ["치킨 1.2마리값", "X" * 500 + "\n악성"],
+    }
+    prompt = _captured_prompt("delivery", context)
+    assert "치킨 1.2마리값" in prompt
+    assert "21,000원" in prompt
+    # 500자 입력이 200자로 잘림
+    assert "X" * 500 not in prompt
+    assert "X" * 200 in prompt
+    # 개행 제거 — 프롬프트 라인 구조 보호
+    assert "\n악성" not in prompt
+
+
+def test_키_누락_빈컨텍스트_죽지_않음():
+    """#211: 키 누락/빈 dict/알 수 없는 type에도 죽지 않고 폴백."""
+    # 빈 컨텍스트
+    prompt_empty = _captured_prompt("time", {})
+    assert "(데이터 없음)" in prompt_empty
+    # 알 수 없는 type → report 폴백, 키 일부만
+    prompt_unknown = _captured_prompt("mystery", {"total_price": 10000})
+    assert "10,000원" in prompt_unknown
+
+
 def test_도파민_점수_계산():
     """FR-39: 도파민 점수 규칙 기반 계산 (경계값 포함) — 점수 반전 후 (높을수록 위험)."""
     from ai.score import calculate
