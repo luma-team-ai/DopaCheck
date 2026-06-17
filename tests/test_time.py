@@ -7,27 +7,34 @@ import pytest
 from config import BOOK_HOURS, DEFAULT_HOURLY_WAGE, LECTURE_HOURS, WORKOUT_HOURS
 
 
+_WEEK_ROW = {"yt": 0, "ig": 0, "tt": 0, "gm": 0}  # 이번 주 누적 mock 기본값
+
+
 @contextmanager
 def _fake_db():
     """time_page 본문 쿼리에 맞춘 커서 mock.
 
-    PR52 time.py의 time_page fetchone 호출:
-    1. users SELECT hourly_wage → {"hourly_wage": ...}
+    fetchone 호출 순서:
+    1. users SELECT hourly_wage       → {"hourly_wage": ...}
+    2. _get_week_totals SUM 집계 쿼리 → _WEEK_ROW
     """
     cursor = MagicMock()
     cursor.fetchone.side_effect = [
-        {"hourly_wage": DEFAULT_HOURLY_WAGE},  # 테스트 픽스처값(= config.DEFAULT_HOURLY_WAGE)
+        {"hourly_wage": DEFAULT_HOURLY_WAGE},
+        _WEEK_ROW,
     ]
     yield cursor
 
 
 @contextmanager
 def _fake_db_analyze():
-    """analyze 본문의 두 쿼리(INSERT time_records + UPDATE users)를 mock.
+    """analyze 본문 쿼리(INSERT + UPDATE + _get_week_totals) mock.
 
-    fetchone 호출 없음 — execute만 수행하므로 단순 MagicMock으로 충분.
+    fetchone 호출 순서:
+    1. _get_week_totals SUM 집계 쿼리 → _WEEK_ROW
     """
     cursor = MagicMock()
+    cursor.fetchone.side_effect = [_WEEK_ROW]
     yield cursor
 
 
@@ -104,7 +111,7 @@ def test_시간_환산_경계값(logged_in_client):
         )
     assert resp.status_code == 200
 
-    # ── 168h 초과 입력: 각 필드 168h로 클램핑, over_limit 플래그 ───
+    # ── 24h 초과 입력: 각 필드 24h로 클램핑 ────────────────────────
     with (
         patch("routes.time.db", _fake_db_analyze),
         patch("routes.time.ai_comment.generate", return_value="초과 테스트"),
@@ -113,7 +120,7 @@ def test_시간_환산_경계값(logged_in_client):
         resp = logged_in_client.post(
             "/time/analyze",
             data={
-                "youtube_h":   "999",   # max(0, min(999, 168)) = 168
+                "youtube_h":   "999",   # max(0, min(999, 24)) = 24
                 "instagram_h": "0",
                 "tiktok_h":    "0",
                 "game_h":      "0",
