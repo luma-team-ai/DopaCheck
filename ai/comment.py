@@ -1,6 +1,7 @@
 """공감 코멘트 생성 (담당: 오영석 — FR-42)."""
 import json
 import logging
+import math
 
 from ai.utils import extract_text, get_client, extract_json
 from config import MODEL_COMMENT
@@ -36,6 +37,9 @@ _PROMPTS = {
 
 _MAX_STR_LEN = 200  # 문자열 값 최대 길이 (프롬프트 인젝션 완화)
 
+# 프롬프트 경계 보호: 개행/CR/탭/널바이트 제거 (#211 P2)
+_STRIP_CHARS = str.maketrans({"\n": " ", "\r": " ", "\t": " ", "\x00": None})
+
 
 def _sanitize_context(obj, _depth: int = 0):
     """dict/list/str 재귀 순회 — 문자열 값을 200자로 truncate한다.
@@ -55,41 +59,52 @@ def _sanitize_context(obj, _depth: int = 0):
 
 
 def _safe_str(value) -> str:
-    """사용자 유래 문자열을 200자로 truncate + 개행 제거 (프롬프트 인젝션 완화)."""
-    return str(value).replace("\n", " ").replace("\r", " ")[:_MAX_STR_LEN]
+    """사용자 유래 문자열을 200자로 truncate + 개행/탭/널바이트 제거 (프롬프트 인젝션 완화)."""
+    return str(value).translate(_STRIP_CHARS)[:_MAX_STR_LEN]
 
 
 def _fmt_won(value) -> str:
-    """원 단위 정수 천단위 콤마 포맷. 숫자가 아니면 None."""
+    """원 단위 정수 천단위 콤마 포맷. 숫자(유한값)가 아니면 None."""
     try:
-        return f"{int(round(float(value))):,}원"
+        v = float(value)
     except (TypeError, ValueError):
         return None
+    if not math.isfinite(v):
+        return None
+    return f"{int(round(v)):,}원"
 
 
 def _fmt_h(value) -> str:
-    """시간(float) 포맷. 숫자가 아니면 None."""
+    """시간(float) 포맷. 숫자(유한값)가 아니면 None."""
     try:
-        return f"{float(value):.1f}시간"
+        v = float(value)
     except (TypeError, ValueError):
         return None
+    if not math.isfinite(v):
+        return None
+    return f"{v:.1f}시간"
 
 
 def _fmt_min_with_h(value) -> str:
-    """분(int)을 '1200분(20.0시간)' 형태로 포맷. 숫자가 아니면 None."""
+    """분(int)을 '1200분(20.0시간)' 형태로 포맷. 숫자(유한값)가 아니면 None."""
     try:
         m = float(value)
     except (TypeError, ValueError):
+        return None
+    if not math.isfinite(m):
         return None
     return f"{int(round(m))}분({m / 60:.1f}시간)"
 
 
 def _fmt_count(value, unit: str) -> str:
-    """환산 개수 포맷('20.0개' 등). 숫자가 아니면 None."""
+    """환산 개수 포맷('20.0개' 등). 숫자(유한값)가 아니면 None."""
     try:
-        return f"{float(value):.1f}{unit}"
+        v = float(value)
     except (TypeError, ValueError):
         return None
+    if not math.isfinite(v):
+        return None
+    return f"{v:.1f}{unit}"
 
 
 def _build_time_context(ctx: dict) -> list:
