@@ -201,8 +201,14 @@ def _run_recalc(active_challenges, *, score_aggr, judge_aggr, judge_today):
     def _db():
         yield cursor
 
+    # get_week_ranges()는 내부에서 utils.week.kst_today를 직접 호출하므로
+    # score_service.kst_today 패치만으로는 주차 범위가 실제 today에 종속된다.
+    # 이번 주=6/15~6/21, 지난주=6/8~6/14로 고정해 실제 달력과 무관하게 만든다.
+    _fixed_week_ranges = (("2026-06-15", "2026-06-21"), ("2026-06-08", "2026-06-14"))
+
     with patch("services.score_service.db", _db), \
-         patch("services.score_service.kst_today", lambda: judge_today):
+         patch("services.score_service.kst_today", lambda: judge_today), \
+         patch("services.score_service.get_week_ranges", lambda: _fixed_week_ranges):
         recalculate_score(user_id=1)
 
     return cursor
