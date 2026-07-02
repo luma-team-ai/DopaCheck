@@ -15,7 +15,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-06B6D4?logo=tailwindcss&logoColor=white)]()
 [![Claude](https://img.shields.io/badge/Claude_API-D97757?logo=anthropic&logoColor=white)]()
 
-🎬 **[시연 영상](https://youtu.be/v-mCKvA6tYQ)** · 📑 **[발표 자료(PDF)](docs/presentation.pdf)**
+🚀 **[라이브 데모](https://dopacheck.luma200ok.com)** · 🎬 **[시연 영상](https://youtu.be/v-mCKvA6tYQ)** · 📑 **[발표 자료(PDF)](docs/presentation.pdf)**
 
 </div>
 
@@ -29,7 +29,7 @@
 | **개발 기간** | 2026.06.10 ~ 06.17 (7일) |
 | **팀 구성** | AI 심화 과정 6인 팀 |
 | **핵심 개념** | 배달·디지털 소비 → 일상 활동·금전 가치 환산 → 도파민 점수화 |
-| **배포** | Cloudtype (`main` push 자동 배포) |
+| **배포** | OCI(자체 서버) Docker + nginx — [dopacheck.luma200ok.com](https://dopacheck.luma200ok.com) *(초기: Cloudtype)* |
 
 ---
 
@@ -78,7 +78,7 @@
 | **AI** | Claude API (OCR · 칼로리 추론 · 공감 코멘트 · 점수 · 챌린지 추천) |
 | **인증** | OAuth 2.0 (Google · Kakao) |
 | **프론트** | Tailwind CSS (PostCSS 빌드) · Chart.js |
-| **배포** | Cloudtype (`main` push 자동 배포) |
+| **배포** | OCI(자체 서버) Docker + nginx — [dopacheck.luma200ok.com](https://dopacheck.luma200ok.com) *(초기: Cloudtype)* |
 
 ---
 
@@ -151,4 +151,4 @@ flask --app app run --debug   # http://localhost:5000
 - 📋 **[진행 현황 보드 → STATUS.md](docs/STATUS.md)** — 머지 이력·남은 작업·인프라
 - 📑 **[제품 요구사항 → PRD.md](docs/PRD.md)** — 기능 명세(FR)·시나리오·ERD
 - 🛠 **[개발팀 가이드 → DEV_GUIDE.md](docs/guide/DEV_GUIDE.md)** — 구조·역할·협업 규칙·배포·DB 전환 이력
-- 🎬 **[시연 영상](https://youtu.be/v-mCKvA6tYQ)** · 📑 **[발표 자료(PDF)](docs/presentation.pdf)**
+- 🚀 **[라이브 데모](https://dopacheck.luma200ok.com)** · 🎬 **[시연 영상](https://youtu.be/v-mCKvA6tYQ)** · 📑 **[발표 자료(PDF)](docs/presentation.pdf)**

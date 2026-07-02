@@ -1,6 +1,6 @@
 # 프로젝트 현황 — Dopamine Check
 
-> 마지막 갱신: 2026-07-02 (프로젝트 마무리 — 전 이슈 CLOSED, 발표 완료, 문서 최종 정리)
+> 마지막 갱신: 2026-07-02 (OCI 단독 구동 이전 — CloudType 폐기, 라이브 데모 dopacheck.luma200ok.com)
 
 <a id="sprint"></a>
 ## 🏁 프로젝트 완료 (Ver1.2 마무리 스프린트 종료)
@@ -23,10 +23,11 @@
 | 항목 | 상태 | 담당 |
 |------|------|------|
 | GitHub 레포 (`luma-team-ai/dopacheck`) | ✅ 생성 | 정재봉 |
+| **OCI 단독 구동 이전 (2026-07-02)** — CloudType DB 사망(무료 임시디스크·포트 변동)으로 로그인(자동가입 INSERT) 불능 → `oci-arm1`에 MariaDB 11.4 컨테이너(`dopacheck-mariadb`, 영구볼륨) + 앱 컨테이너(`dopacheck-app`, Dockerfile·gunicorn) 이전. 호스트 nginx `dopacheck.conf` → `127.0.0.1:8091`, certbot TLS(자동갱신 크론 공용). **라이브: https://dopacheck.luma200ok.com** · DB 내부망(`dopacheck-net`) 연결, 외부 3307은 로컬 개발용(`dopacheck.luma200ok.com:3307`, DNS 전용 레코드). `deploy-main.yml`(CloudType) 제거. 잔여: Google/Kakao 콘솔에 프로덕션 redirect URI 등록 | 정재봉 |
 | Python 런타임 3.10.2 고정 (`runtime.txt`·`.python-version`) | ✅ 확정 | 정재봉 |
 | DB MariaDB 전환 (#22, RLS→앱 레벨 `user_id` 필터) | ✅ 완료 | 정재봉 |
 | `db/schema.sql` 작성 (MariaDB) | ✅ 완료 | 정재봉 |
-| CloudType 자동배포 워크플로 (`deploy-main.yml`, push 시 배포 + Secrets preflight) | ✅ 완료·검증 | 정재봉 |
+| ~~CloudType 자동배포 워크플로~~ (`deploy-main.yml`) | ⛔ 폐기 (OCI 이전으로 제거, 2026-07-02) | 정재봉 |
 | **Stitch 디자인 기준 정립** (`base.html` 공통 디자인 시스템 — 팀원 상속 기준) | ✅ 완료 (#51) | 정재봉 |
 | Tailwind Play CDN → PostCSS 빌드 전환 (`static/css/tailwind.css` 산출물 커밋, SRI 해소) | ✅ 완료 (#67) | 정재봉 |
 | Google / Kakao OAuth 연동 (#16→#38 머지) | ✅ 완료 | 김승현 |
