@@ -23,7 +23,7 @@
 | 항목 | 상태 | 담당 |
 |------|------|------|
 | GitHub 레포 (`luma-team-ai/dopacheck`) | ✅ 생성 | 정재봉 |
-| **OCI 단독 구동 이전 (2026-07-02)** — CloudType DB 사망(무료 임시디스크·포트 변동)으로 로그인(자동가입 INSERT) 불능 → `oci-arm1`에 MariaDB 11.4 컨테이너(`dopacheck-mariadb`, 영구볼륨) + 앱 컨테이너(`dopacheck-app`, Dockerfile·gunicorn) 이전. 호스트 nginx `dopacheck.conf` → `127.0.0.1:8091`, certbot TLS(자동갱신 크론 공용). **라이브: https://dopacheck.luma200ok.com** · DB 내부망(`dopacheck-net`) 연결, 외부 3307은 로컬 개발용(`dopacheck.luma200ok.com:3307`, DNS 전용 레코드). `deploy-main.yml`(CloudType) 제거. 잔여: Google/Kakao 콘솔에 프로덕션 redirect URI 등록 | 정재봉 |
+| **OCI 단독 구동 이전 (2026-07-02)** — CloudType DB 사망(무료 임시디스크·포트 변동)으로 로그인(자동가입 INSERT) 불능 → `oci-arm1`에 MariaDB 11.4 컨테이너(`dopacheck-mariadb`, 영구볼륨) + 앱 컨테이너(`dopacheck-app`, Dockerfile·gunicorn) 이전. 호스트 nginx `dopacheck.conf` → `127.0.0.1:8091`, certbot TLS(자동갱신 크론 공용). **라이브: https://dopacheck.luma200ok.com** · DB 내부망(`dopacheck-net`) 연결, 외부 3307 폐쇄(로컬 개발=SSH 터널). `deploy-main.yml`(CloudType) 제거. 잔여: Google/Kakao 콘솔에 프로덕션 redirect URI 등록 | 정재봉 |
 | Python 런타임 3.10.2 고정 (`runtime.txt`·`.python-version`) | ✅ 확정 | 정재봉 |
 | DB MariaDB 전환 (#22, RLS→앱 레벨 `user_id` 필터) | ✅ 완료 | 정재봉 |
 | `db/schema.sql` 작성 (MariaDB) | ✅ 완료 | 정재봉 |
