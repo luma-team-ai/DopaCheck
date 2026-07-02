@@ -135,11 +135,13 @@ PR #22(`51be2ed`)로 main이 **Supabase → MariaDB**로 전환됨 (PRD §11 ERD
 
 ---
 
-## 6. 배포 (Cloudtype)
+## 6. 배포 (OCI 자체 서버 — 2026-07-02 Cloudtype에서 이전)
 
-- `main` push 시 `.github/workflows/deploy-main.yml`로 **자동 배포**(Secrets preflight 포함).
-- 런타임: `Procfile` → `gunicorn app:app --workers 2 --timeout 120`. **멀티워커이므로** 주간 챌린지 정산 배치는 advisory lock으로 중복 실행을 차단한다(#206).
-- 운영 마이그레이션(`db/migrations/001~004`)은 **수동 적용** 필요. 점수 의미 반전(#182) 배포 시 순서: 코드 배포 → `python -m scripts.backfill_scores` → `004_add_challenge_bonus_check.sql`.
+- **라이브**: https://dopacheck.luma200ok.com — `oci-arm1` 서버에서 Docker 구동, 호스트 nginx가 `127.0.0.1:8091`로 프록시(TLS=certbot 자동갱신).
+- **구성**: 앱 `dopacheck-app`(Dockerfile, gunicorn 2워커) + DB `dopacheck-mariadb`(MariaDB 11.4, 영구볼륨) — `dopacheck-net` 내부 네트워크로 연결. DB 외부 포트는 폐쇄(로컬 개발=SSH 터널 `ssh -L 3307:localhost:3307 oci-arm1`).
+- **재배포**: `rsync -az --delete --exclude .git --exclude .env ./ oci-arm1:~/dopacheck/` → 서버에서 `docker build -t dopacheck-app . && docker rm -f dopacheck-app && docker run -d --name dopacheck-app --restart unless-stopped --network dopacheck-net -p 127.0.0.1:8091:8000 --env-file .env dopacheck-app` (CloudType 자동배포 워크플로 `deploy-main.yml`은 제거됨).
+- 런타임: `gunicorn app:app --workers 2 --timeout 120`(Dockerfile CMD, 구 Procfile과 동일). **멀티워커이므로** 주간 챌린지 정산 배치는 advisory lock으로 중복 실행을 차단한다(#206).
+- 운영 마이그레이션(`db/migrations/001~004`)은 신규 DB 스키마(`db/schema.sql`)에 이미 반영됨. 새 마이그레이션 발생 시 **수동 적용** 필요. 점수 의미 반전(#182) 배포 시 순서: 코드 배포 → `python -m scripts.backfill_scores` → `004_add_challenge_bonus_check.sql`.
 
 ---
 
