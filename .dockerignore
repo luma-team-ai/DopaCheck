@@ -1,5 +1,15 @@
 .git
+
+# ⚠️ `.env` 는 컨텍스트 루트의 파일만 매치한다 — 하위 디렉터리는 안 걸린다.
+#    Dockerfile 이 `COPY . .` 라서 배포용 시크릿(deploy/home/.env)이 이미지에 구워질 수 있다.
+#    그래서 루트와 하위를 둘 다 막고, 스키마(.env.example)만 되살린다.
 .env
+**/.env
+**/.env.*
+!**/.env.example
+
+# 배포 형상 — 이미지 안에서 쓰이지 않는다(시크릿 유입 경로를 아예 없앤다)
+deploy/
 node_modules
 __pycache__
 *.pyc

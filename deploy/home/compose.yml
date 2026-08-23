@@ -1,0 +1,84 @@
+# DopaCheck 홈서버(hmoeserver) 배포 정의 — dopacheck.luma200ok.com
+#
+# 실행 위치: 이 파일이 있는 deploy/home/ 디렉터리. `.env` 도 같은 디렉터리에 둔다(.env.example 참고).
+# 서버 배치: /opt/deploy/dopacheck (이 레포 체크아웃) — community·mes·pension 과 같은 방식.
+#
+#   cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --build
+#
+# 2026-08-23 이 정의를 레포로 편입하기 전까지는 서버 디스크(/home/jb/srv/dopacheck/compose.yml)에만
+# 존재했다 — 서버가 날아가면 복원할 근거가 없는 상태였다(luma200ok/home-infra#13).
+#
+# 공개 경로: 인터넷 → Cloudflare 엣지 → cloudflared → shared-net → 이 스택의 app.
+# 호스트 포트를 열어 공개하지 않는다(8091 은 로컬 스모크 전용 127.0.0.1 바인딩).
+
+# ⚠️ 프로젝트명 고정 — 절대 바꾸지 말 것.
+#    MariaDB 데이터는 볼륨 `dopacheck_mariadbdata` 에 있고, 이 이름은 프로젝트명에서 파생된다.
+#    프로젝트명을 바꾸면 compose 가 **에러 없이** 빈 볼륨을 새로 만들어 붙이고 그 위에 initdb 를
+#    돌린다 — "DB 는 살아있는데 데이터가 없는" 상태가 된다.
+#    같은 이유로 실행 디렉터리명에 의존하지 않도록 여기에 명시한다.
+name: dopacheck
+
+networks:
+  # 내부 통신(app ↔ mariadb) 전용. compose 가 dopacheck_default 로 만든다.
+  default:
+  # Cloudflare Tunnel 공개 경로. 외부 네트워크라 이 compose 가 만들지 않는다.
+  #   docker network create shared-net
+  shared-net:
+    external: true
+
+volumes:
+  mariadbdata:
+
+services:
+  mariadb:
+    # 다이제스트 핀 — 태그 유지는 버전 유지가 아니다. DB 는 마이너 버전이 바뀌면
+    # 데이터 디렉터리 업그레이드가 돌 수 있어 특히 위험하다.
+    # 갱신은 `pull` 이 아니라 이 줄을 새 다이제스트로 바꿔 커밋하는 방식으로만 한다.
+    # 2026-08-23 서버에서 돌던 이미지(mariadb:11.4) 그대로.
+    image: mariadb@sha256:4f1d8d202fcf7bcb3902f63af09f9c1a050c2922a89652f22abaec0d4f015e83
+    container_name: dopacheck-mariadb
+    restart: unless-stopped
+    environment:
+      # 값이 컨테이너를 건드리기 전에 배포가 멈추도록 :?required 가드를 건다.
+      # ⚠️ 가드는 up 뿐 아니라 down·stop·logs·ps 까지 막는다 — .env 가 없을 땐
+      #    `docker stop dopacheck-mariadb` / `docker start ...` 로 우회한다.
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?required}
+      MARIADB_DATABASE: ${DB_NAME:?required}
+    volumes:
+      - mariadbdata:/var/lib/mysql
+    networks:
+      - default
+    # 메모리 상한(luma200ok/home-infra#9) — 실측 93MiB. 상한이 없으면 이 컨테이너의 폭주가
+    # OOM killer 를 불러 무관한 서비스를 죽인다(OOM killer 는 원인 제공자가 아니라
+    # 그 순간 점수가 가장 높은 프로세스를 죽인다). 데이터 성장 여유를 크게 둔다.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  app:
+    build:
+      # 컨텍스트는 레포 루트(이 파일 기준 두 단계 위) — Dockerfile·app.py 가 거기에 있다.
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: dopacheck-app
+    restart: unless-stopped
+    # 앱이 읽는 키가 많아(DB·OAuth·Flask·Anthropic) environment 로 일일이 옮기지 않고
+    # env_file 로 통째로 전달한다. 스키마는 .env.example 참고.
+    env_file: .env
+    depends_on:
+      - mariadb
+    ports:
+      # 홈서버 로컬 스모크 전용. 공개는 터널이 shared-net 으로 담당한다.
+      - "127.0.0.1:8091:8000"
+    networks:
+      - default
+      # 터널이 http://dopacheck-app:8000 으로 도달한다.
+      # ⚠️ 이 조인이 빠지면 컨테이너 recreate 마다 dopacheck.luma200ok.com 이 502 가 된다
+      #    (hajacheck 가 실제로 그 상태였다 — luma-team-ai/HajaCheck#1737).
+      - shared-net
+    # 메모리 상한(luma200ok/home-infra#9) — 실측 130MiB.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
