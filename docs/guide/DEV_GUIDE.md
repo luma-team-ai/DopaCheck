@@ -135,13 +135,35 @@ PR #22(`51be2ed`)로 main이 **Supabase → MariaDB**로 전환됨 (PRD §11 ERD
 
 ---
 
-## 6. 배포 (OCI 자체 서버 — 2026-07-02 Cloudtype에서 이전)
+## 6. 배포 (홈서버 hmoeserver — 2026-08-21 OCI에서 이전)
 
-- **라이브**: https://dopacheck.luma200ok.com — `oci-arm1` 서버에서 Docker 구동, 호스트 nginx가 `127.0.0.1:8091`로 프록시(TLS=certbot 자동갱신).
-- **구성**: 앱 `dopacheck-app`(Dockerfile, gunicorn 2워커) + DB `dopacheck-mariadb`(MariaDB 11.4, 영구볼륨) — `dopacheck-net` 내부 네트워크로 연결. DB 외부 포트는 폐쇄(로컬 개발=SSH 터널 `ssh -L 3307:localhost:3307 oci-arm1`).
-- **재배포**: `rsync -az --delete --exclude .git --exclude .env ./ oci-arm1:~/dopacheck/` → 서버에서 `docker build -t dopacheck-app . && docker rm -f dopacheck-app && docker run -d --name dopacheck-app --restart unless-stopped --network dopacheck-net -p 127.0.0.1:8091:8000 --env-file .env dopacheck-app` (CloudType 자동배포 워크플로 `deploy-main.yml`은 제거됨).
+- **라이브**: https://dopacheck.luma200ok.com — 홈서버 `hmoeserver`(`ssh jb`)에서 docker compose 스택으로 구동.
+- **공개 경로**: 인터넷 → Cloudflare 엣지 → `cloudflared` 터널 → 공용 도커망 `shared-net` → `dopacheck-app:8000`.
+  **포트 개방·공인 IP 노출·호스트 nginx 가 전부 없다.** `127.0.0.1:8091` 은 서버 로컬 스모크 전용이다.
+- **구성**: 앱 `dopacheck-app`(Dockerfile, gunicorn 2워커) + DB `dopacheck-mariadb`(MariaDB 11.4, 볼륨 `dopacheck_mariadbdata`).
+  둘은 스택 내부망 `dopacheck_default` 로 연결되고, **DB 는 shared-net 에 붙지 않는다.**
+- **정의 위치**: `deploy/home/compose.yml` (이 레포). 서버 체크아웃은 `/opt/deploy/dopacheck`.
+  2026-08-23 이전에는 이 정의가 서버 디스크에만 있어 복원 근거가 없었다(luma200ok/home-infra#13).
+- **재배포**:
+
+  ```bash
+  ssh jb
+  cd /opt/deploy/dopacheck && git pull --ff-only
+  cd deploy/home && docker compose up -d --build
+  ```
+
+- **시크릿**: 서버의 `deploy/home/.env`(앱용)·`.env.db`(DB root) — 둘 다 미커밋, 권한 600.
+  스키마는 `.env.example`·`.env.db.example` 참고. DB root 비밀번호를 앱 컨테이너에 넣지 않으려고 파일을 나눴다.
+- **DB 접속 호스트는 `dopacheck-mariadb`**(고유 컨테이너명). 서비스명 `mariadb` 를 쓰면 앱이 조인한
+  공유망 shared-net 의 동명 별칭으로 해석될 수 있다.
 - 런타임: `gunicorn app:app --workers 2 --timeout 120`(Dockerfile CMD, 구 Procfile과 동일). **멀티워커이므로** 주간 챌린지 정산 배치는 advisory lock으로 중복 실행을 차단한다(#206).
 - 운영 마이그레이션(`db/migrations/001~004`)은 신규 DB 스키마(`db/schema.sql`)에 이미 반영됨. 새 마이그레이션 발생 시 **수동 적용** 필요. 점수 의미 반전(#182) 배포 시 순서: 코드 배포 → `python -m scripts.backfill_scores` → `004_add_challenge_bonus_check.sql`.
+- 빈 서버에서 복원하면 `db/schema.sql` 이 initdb 로 자동 적용된다(빈 볼륨일 때만). **데이터 자체는 볼륨 백업이 유일한 근거다** — 절차는 `deploy/home/compose.yml` 헤더 주석 참고.
+
+> ⚠️ **폐기됨 — OCI(oci-arm1) 배포 절차.** `rsync → docker build → docker rm -f dopacheck-app → docker run --network dopacheck-net` 는 더 이상 쓰지 않는다.
+> 그 절차를 따르면 compose 관리 밖 컨테이너가 뜨면서 `shared-net` 조인이 사라져 **dopacheck.luma200ok.com 이 502** 가 되고,
+> `container_name` 충돌로 배포가 중간에 실패한다(같은 형태의 사고: luma-team-ai/HajaCheck#1737).
+> oci-arm1 은 2026-08-21 전 서비스 이전으로 정지 상태이며, 이 도메인을 서빙하는 것은 홈서버뿐이다.
 
 ---
 

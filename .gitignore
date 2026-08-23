@@ -1,6 +1,11 @@
 # 환경변수 — 절대 커밋 금지
+# 전역 gitignore 에 의존하지 않고 레포 안에서 자족적이어야 한다 — 서버 clone 에는 전역 설정이 없다.
 .env
+.env.*
+*.env
 .env.local
+!.env.example
+!.env.db.example
 
 # CloudType 수동배포 매니페스트 — 시크릿 평문 포함, 커밋 금지 (배포는 .github/workflows/deploy-main.yml 사용)
 dopacheck.yaml

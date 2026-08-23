@@ -1,6 +1,6 @@
 # DopaCheck 홈서버(hmoeserver) 배포 정의 — dopacheck.luma200ok.com
 #
-# 실행 위치: 이 파일이 있는 deploy/home/ 디렉터리. `.env` 도 같은 디렉터리에 둔다(.env.example 참고).
+# 실행 위치: 이 파일이 있는 deploy/home/ 디렉터리. `.env`(앱)·`.env.db`(DB 초기화)도 같은 디렉터리에 둔다.
 # 서버 배치: /opt/deploy/dopacheck (이 레포 체크아웃) — community·mes·pension 과 같은 방식.
 #
 #   cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --build
@@ -8,13 +8,25 @@
 # 2026-08-23 이 정의를 레포로 편입하기 전까지는 서버 디스크(/home/jb/srv/dopacheck/compose.yml)에만
 # 존재했다 — 서버가 날아가면 복원할 근거가 없는 상태였다(luma200ok/home-infra#13).
 #
-# 공개 경로: 인터넷 → Cloudflare 엣지 → cloudflared → shared-net → 이 스택의 app.
+# 공개 경로: 인터넷 → Cloudflare 엣지 → cloudflared → shared-net → dopacheck-app.
 # 호스트 포트를 열어 공개하지 않는다(8091 은 로컬 스모크 전용 127.0.0.1 바인딩).
+#
+# ── 재해복원 절차 ────────────────────────────────────────────────────────────
+# 이 파일 + `.env`·`.env.db` 만으로 **빈 서버에서 스택이 뜬다.** 다만 스택이 뜨는 것과
+# 데이터가 돌아오는 것은 다른 문제다:
+#   1) 스키마 — 아래 mariadb 의 initdb 마운트가 `db/schema.sql` 을 자동 적용한다.
+#      (entrypoint 의 initdb 는 데이터 디렉터리가 **비어 있을 때만** 돌므로 기존 볼륨엔 영향 없다.)
+#      db/migrations/001~004 는 schema.sql 에 이미 반영돼 있다(DEV_GUIDE §6).
+#   2) 데이터 — initdb 로는 복원되지 않는다. 볼륨 백업이 유일한 근거다:
+#        백업: docker exec dopacheck-mariadb mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" \
+#                --single-transaction --routines "$DB_NAME" > dopacheck-$(date +%Y%m%d).sql
+#        복원: docker exec -i dopacheck-mariadb mariadb -uroot -p"..." "$DB_NAME" < <덤프>
+#      (홈서버 정기 백업은 luma200ok/home-infra 의 backup 스택 소관)
 
 # ⚠️ 프로젝트명 고정 — 절대 바꾸지 말 것.
 #    MariaDB 데이터는 볼륨 `dopacheck_mariadbdata` 에 있고, 이 이름은 프로젝트명에서 파생된다.
-#    프로젝트명을 바꾸면 compose 가 **에러 없이** 빈 볼륨을 새로 만들어 붙이고 그 위에 initdb 를
-#    돌린다 — "DB 는 살아있는데 데이터가 없는" 상태가 된다.
+#    프로젝트명을 바꾸면 compose 가 **에러 없이** 빈 볼륨을 새로 만들고 그 위에 initdb 를 돌린다 —
+#    "DB 는 살아있는데 데이터가 없는" 상태가 된다.
 #    같은 이유로 실행 디렉터리명에 의존하지 않도록 여기에 명시한다.
 name: dopacheck
 
@@ -23,6 +35,13 @@ networks:
   default:
   # Cloudflare Tunnel 공개 경로. 외부 네트워크라 이 compose 가 만들지 않는다.
   #   docker network create shared-net
+  #
+  # ⚠️ shared-net 은 홈서버의 **모든 스택이 공유**한다. compose 는 서비스가 조인하는 모든
+  #    네트워크에 **서비스명을 별칭으로 게시**하므로, 아무 조치 없이 조인하면 `app` 같은
+  #    일반명이 공유망에 뜬다. 실제로 2026-08-23 실측에서 community·mes·pension·dopacheck
+  #    네 컨테이너가 shared-net 에 `app` 별칭을 동시에 게시하고 있었다 — 누군가 `app` 으로
+  #    내부 호출을 하면 요청이 네 서비스로 라운드로빈된다.
+  #    그래서 아래 app 서비스는 shared-net 에 **고유 별칭만** 게시한다.
   shared-net:
     external: true
 
@@ -38,16 +57,45 @@ services:
     image: mariadb@sha256:4f1d8d202fcf7bcb3902f63af09f9c1a050c2922a89652f22abaec0d4f015e83
     container_name: dopacheck-mariadb
     restart: unless-stopped
+
+    # root 비밀번호만 담긴 별도 파일. app 과 파일을 나누는 이유는 app 서비스 주석 참고.
+    #
+    # ⚠️ env_file 의 값은 **컨테이너에만** 전달되고 compose 보간(${...})에는 쓰이지 않는다.
+    #    그래서 MARIADB_ROOT_PASSWORD 에는 :?required 가드를 걸 수 없다. 대신 mariadb entrypoint 가
+    #    빈 볼륨에서 root 비밀번호 없이 초기화를 거부하므로 조용히 넘어가지는 않는다
+    #    (기존 볼륨에서는 이 값이 초기화에 쓰이지 않으므로 누락돼도 무해하다).
+    env_file: .env.db
     environment:
+      # 아래 세 값은 프로젝트 디렉터리 `.env` 에서 보간된다 —
       # 값이 컨테이너를 건드리기 전에 배포가 멈추도록 :?required 가드를 건다.
-      # ⚠️ 가드는 up 뿐 아니라 down·stop·logs·ps 까지 막는다 — .env 가 없을 땐
-      #    `docker stop dopacheck-mariadb` / `docker start ...` 로 우회한다.
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?required}
+      # ⚠️ 가드는 up 뿐 아니라 down·stop·logs·ps 까지 막는다 — `.env` 가 없을 땐
+      #    컨테이너명을 직접 쓰는 docker stop/start 로 우회한다(compose 보간을 타지 않는다).
       MARIADB_DATABASE: ${DB_NAME:?required}
+      # 앱 전용 계정. 이게 없으면 신규 볼륨에는 root 만 생겨서, 복원 직후 앱이
+      # DB_USER 로 접속하다 거부당한다(또는 앱에 root 를 쥐여주게 된다).
+      # ⚠️ DB_USER 를 root 로 두면 mariadb entrypoint 가 초기화를 거부한다 — 전용 계정이어야 한다.
+      # ⚠️ initdb 는 빈 데이터 디렉터리에서만 돈다. 기존 운영 볼륨에는 반영되지 않으며,
+      #    운영 DB 에는 이미 이 계정이 존재한다(2026-08-23 실측: DB_USER=dopacheck).
+      MARIADB_USER: ${DB_USER:?required}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?required}
+
     volumes:
       - mariadbdata:/var/lib/mysql
+      # 재해복원용 스키마 시드 — 빈 볼륨일 때만 실행된다(기존 데이터 무영향).
+      # 없으면 복원 시 테이블이 하나도 없는 DB 위에 앱이 떠서 모든 요청이 SQL 에러가 된다.
+      - ../../db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
     networks:
+      # 공유망에 붙이지 않는다 — DB 는 이 스택 밖에서 보일 이유가 없다.
       - default
+
     # 메모리 상한(luma200ok/home-infra#9) — 실측 93MiB. 상한이 없으면 이 컨테이너의 폭주가
     # OOM killer 를 불러 무관한 서비스를 죽인다(OOM killer 는 원인 제공자가 아니라
     # 그 순간 점수가 가장 높은 프로세스를 죽인다). 데이터 성장 여유를 크게 둔다.
@@ -56,6 +104,16 @@ services:
         limits:
           memory: 1G
 
+    # 디스크에도 같은 이유로 상한을 둔다. 호스트에 /etc/docker/daemon.json 이 없어
+    # json-file 이 **무제한**으로 쌓이는 상태였다(2026-08-23 실측).
+    # restart: unless-stopped 와 겹치면 크래시 루프가 루트 파티션을 채우고,
+    # 그때는 메모리 상한과 똑같이 무관한 스택까지 동반 장애가 난다.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   app:
     build:
       # 컨텍스트는 레포 루트(이 파일 기준 두 단계 위) — Dockerfile·app.py 가 거기에 있다.
@@ -63,22 +121,50 @@ services:
       dockerfile: Dockerfile
     container_name: dopacheck-app
     restart: unless-stopped
-    # 앱이 읽는 키가 많아(DB·OAuth·Flask·Anthropic) environment 로 일일이 옮기지 않고
-    # env_file 로 통째로 전달한다. 스키마는 .env.example 참고.
+
+    # ⚠️ 여기서 읽는 `.env` 에는 MARIADB_* 를 넣지 않는다.
+    #    env_file 은 파일의 **모든** 키를 컨테이너 환경에 넣으므로, DB 초기화 전용인
+    #    MARIADB_ROOT_PASSWORD 가 섞여 있으면 앱이 쓰지도 않는 DB 슈퍼유저 크레덴셜이
+    #    앱 프로세스 환경에 상주한다(`/proc/self/environ`·`docker inspect` 로 평문 노출).
+    #    그래서 DB 초기화 값은 `.env.db` 로 분리했다.
     env_file: .env
+    environment:
+      # .env 오설정으로 뒤집히지 않도록 고정한다(environment 가 env_file 보다 우선).
+      # production 이어야 ProxyFix 가 적용돼 터널이 넘기는 X-Forwarded-Proto/Host 가 반영되고,
+      # dev 전용 블루프린트가 등록되지 않는다(app.py).
+      FLASK_ENV: production
+
     depends_on:
-      - mariadb
+      mariadb:
+        # 기동 순서만이 아니라 DB 준비 완료를 기다린다 — 복원 직후 initdb 가 도는 동안
+        # 들어온 요청이 커넥션 실패로 5xx 가 되는 구간을 없앤다.
+        condition: service_healthy
+
     ports:
       # 홈서버 로컬 스모크 전용. 공개는 터널이 shared-net 으로 담당한다.
       - "127.0.0.1:8091:8000"
+
+    # 시퀀스(- default)와 매핑(shared-net:)은 섞을 수 없다 — 별칭을 주려면 전부 매핑 형태여야 한다.
     networks:
-      - default
+      default:
       # 터널이 http://dopacheck-app:8000 으로 도달한다.
       # ⚠️ 이 조인이 빠지면 컨테이너 recreate 마다 dopacheck.luma200ok.com 이 502 가 된다
       #    (hajacheck 가 실제로 그 상태였다 — luma-team-ai/HajaCheck#1737).
-      - shared-net
+      # 별칭을 명시해 서비스명 `app` 이 공유망에 게시되는 것을 막는다(networks 절 주석 참고).
+      # 컨테이너명 `dopacheck-app` 해석은 그대로라 터널 설정은 건드릴 필요 없다.
+      shared-net:
+        aliases:
+          - dopacheck-app
+
     # 메모리 상한(luma200ok/home-infra#9) — 실측 130MiB.
     deploy:
       resources:
         limits:
           memory: 1G
+
+    # 디스크 상한 — mariadb 쪽 주석과 같은 이유.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
