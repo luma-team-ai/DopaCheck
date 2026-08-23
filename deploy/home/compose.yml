@@ -1,0 +1,303 @@
+# DopaCheck 홈서버(hmoeserver) 배포 정의 — dopacheck.luma200ok.com
+#
+# 실행 위치: 이 파일이 있는 deploy/home/ 디렉터리. `.env`(앱)·`.env.db`(DB root)도 같은 디렉터리에 둔다.
+# 서버 배치: /opt/deploy/dopacheck (이 레포 체크아웃) — community·mes·pension 과 같은 방식.
+#
+#   cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --build
+#
+# 2026-08-23 이 정의를 레포로 편입하기 전까지는 서버 디스크(/home/jb/srv/dopacheck/compose.yml)에만
+# 존재했다 — 서버가 날아가면 복원할 근거가 없는 상태였다(luma200ok/home-infra#13).
+#
+# 공개 경로: 인터넷 → Cloudflare 엣지 → cloudflared → shared-net → dopacheck-app:8000.
+# 호스트 포트를 열어 공개하지 않는다(8091 은 로컬 스모크 전용 127.0.0.1 바인딩).
+#
+# ── 재해복원 절차 ────────────────────────────────────────────────────────────
+# 이 파일 + `.env`·`.env.db` 만으로 **빈 서버에서 스택이 뜬다.** 다만 스택이 뜨는 것과
+# 데이터가 돌아오는 것은 다른 문제다:
+#
+#   1) 스키마 + 기본 데이터 — 아래 mariadb 의 initdb 마운트 두 개가 자동 적용된다.
+#        01-schema.sql <- db/schema.sql  (테이블 DDL. migrations 001~004 이미 반영됨)
+#        02-seed.sql   <- db/seed.sql    (기본 챌린지 7종. UPSERT 라 재실행 안전)
+#      schema 만 심으면 challenges 가 0건이라 앱은 뜨는데 챌린지 목록이 비어 서비스가 성립하지 않는다.
+#      (entrypoint 의 initdb 는 데이터 디렉터리가 **비어 있을 때만** 돌므로 기존 볼륨엔 영향 없다.)
+#      확인: docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM challenges" "$MARIADB_DATABASE"'  -> 7 이상
+#      ⚠️ db/seed_demo.sql(데모 데이터)은 마운트하지 않는다.
+#
+#   2) 사용자 데이터 — initdb 로는 복원되지 않는다. 볼륨 백업이 유일한 근거다.
+#
+# ── 백업 ─────────────────────────────────────────────────────────────────────
+#   ⚠️ 값 보간을 **컨테이너 안에서** 시킨다 — 호스트 셸에는 이 변수들이 없어서
+#      호스트에서 보간하면 빈 값으로 치환돼 Access denied 로 실패한다.
+#   ⚠️ 덤프는 **레포 밖**에 만든다. 실행 위치가 git 체크아웃 안이라, 여기에 쓰면 전 사용자
+#      PII(이메일·닉네임·provider_id)가 untracked 로 뜨고 `git add -A` 한 번에 원격으로 푸시된다.
+#      반대로 `git clean -fdx` 는 그 덤프를 지운다.
+#   ⚠️ "비어 있지 않음"은 무결성 검증이 아니다 — mariadb-dump 는 디스크 소진·커넥션 kill 로
+#      중간에 죽어도 이미 쓴 수십 MB 를 남긴다. **종료코드 + 종결 마커** 두 축으로 본다.
+#   ⚠️ 검증 전에는 최종 파일을 건드리지 않는다 — 파일명이 날짜 단위라 같은 날 두 번 돌리면
+#      같은 경로다. 곧바로 `> "$f"` 로 쓰면 리다이렉트가 명령 실행 **전에** 기존 정상 백업을
+#      0바이트로 잘라내고, 그 실행이 실패하면 그날 백업이 아예 없어진다. 그래서 .part 에 쓰고
+#      통과했을 때만 옮긴다.
+#
+#     준비(1회) — 실행 계정 소유로 만든다. root:0700 으로 만들면 `> "$f"` 리다이렉트가
+#     sudo 를 타지 않아 Permission denied 로 백업이 한 건도 안 만들어진다:
+#       sudo install -d -m 700 -o "$(id -un)" -g "$(id -gn)" /var/backups/dopacheck
+#       : > /var/backups/dopacheck/.wtest && rm /var/backups/dopacheck/.wtest && echo "쓰기 OK"
+#
+#     백업:
+#       f=/var/backups/dopacheck/dopacheck-$(date +%Y%m%d).sql
+#       if docker exec dopacheck-mariadb sh -c \
+#            'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction --routines "$MARIADB_DATABASE"' > "$f.part" \
+#          && tail -1 "$f.part" | grep -q '^-- Dump completed'; then
+#         mv "$f.part" "$f"; echo "백업 OK: $(wc -c < "$f") bytes"
+#       else
+#         rm -f "$f.part"; echo "백업 실패 — 기존 백업($f)은 보존됨"
+#       fi
+#
+# ── 복원 ─────────────────────────────────────────────────────────────────────
+#   ⚠️ **앱을 멈춘 상태에서만** 한다. 덤프에는 DROP TABLE + FOREIGN_KEY_CHECKS=0 이 들어 있는데
+#      그 무력화는 복원 세션 한정이다. 앱이 계속 쓰면 드롭된 테이블 접근으로 500 이 나거나,
+#      복원 전에 만들어진 행이 소리 없이 사라지거나, 재설정된 AUTO_INCREMENT 와 겹치는 id 를
+#      받아 복원 데이터를 덮어쓴다.
+#   ⚠️ **복원 시작 전에 FLASK_SECRET_KEY 를 새 값으로 바꾼다.** 세션은 users.id 하나만 담고
+#      login_required 는 그 id 가 실재하는지·어느 DB 에서 발급됐는지 검증하지 않는다(#223).
+#      복원으로 id 가 다른 사람에게 재할당되면 **기존 쿠키가 그 사람으로 인증된다**(관리자 포함).
+#      회전을 복원 "후"가 아니라 "전"에 해야 갭 동안 발급되는 쿠키까지 무력화된다.
+#
+#       # ① 시크릿 회전 (복원 전)
+#       vi .env      # FLASK_SECRET_KEY 를 새 랜덤 값으로
+#       # ② 앱 정지
+#       docker compose stop dopacheck-app
+#       # ③ 복원
+#       docker exec -i dopacheck-mariadb sh -c \
+#         'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' < "$f"
+#       # ④ 검증
+#       docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users; SELECT COUNT(*) FROM challenges" "$MARIADB_DATABASE"'
+#       # ⑤ 새 시크릿으로 재기동 (전 세션 강제 만료)
+#       docker compose up -d --force-recreate dopacheck-app
+#
+#      (홈서버 정기 백업은 luma200ok/home-infra 의 backup 스택 소관)
+#
+# ── 최초 1회 전환 (서버 디스크 -> 레포 정의) ─────────────────────────────────
+# 기존 스택은 /home/jb/srv/dopacheck 에서 **서비스 키 `app`** 으로 돌고 있었다. 이 정의는 키가
+# `dopacheck-app` 이라 compose 가 옛 컨테이너를 orphan 으로 보는데, `container_name` 이 같아서
+# 이름 충돌로 `up` 이 멈춘다. 그리고 볼륨명이 어긋나면 **에러 없이 빈 볼륨**이 생기고 initdb 가
+# 스키마·시드를 심어 "전부 초록인데 사용자 데이터만 없는" 상태가 된다 — 배포가 실패가 아니라
+# 성공해 보이므로 더 위험하다. 그래서 올리기 **전에** 확인한다.
+#
+#   # ① 기존 볼륨명 — dopacheck_mariadbdata 여야 한다
+#   docker inspect dopacheck-mariadb -f '{{range .Mounts}}{{.Name}}{{end}}'
+#   # ② 기존 서비스 키 — app 이면 구 스택
+#   docker inspect dopacheck-app -f '{{index .Config.Labels "com.docker.compose.service"}}'
+#   # ③ 이미지를 **먼저** 만든다 — 다운타임 밖에서. 앱 이미지는 아직 부동 태그·하한 범위
+#   #    의존성이라(#221) 이 빌드는 실패 가능성이 실재한다. 서비스를 내린 뒤에 처음 빌드하면
+#   #    실패 시 복구 수단 없이 다운된 채로 남는다.
+#   cd /opt/deploy/dopacheck/deploy/home && docker compose build
+#   # ④ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨 삭제)
+#   cd /home/jb/srv/dopacheck && docker compose down
+#   # ⑤ 새 위치에서 올리기
+#   cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --remove-orphans
+#   # ⑥ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨을 재지정한다(쓰기가 더 쌓이기 전에).
+#   #    ⚠️ 볼륨을 재지정할 땐 위 "복원" 절의 시크릿 회전을 함께 한다(#223).
+#   docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users" "$MARIADB_DATABASE"'
+#   # ⑦ 비루트 구동 · DB_HOST · 공유망 별칭 확인
+#   docker exec dopacheck-app id                       # uid=10001(app)
+#   docker exec dopacheck-app env | grep '^DB_HOST='    # dopacheck-mariadb
+#   docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'   # app 이 없어야 한다
+#
+#   롤백: ⑤/⑥ 이 실패하면
+#     cd /opt/deploy/dopacheck/deploy/home && docker compose down     # ⚠️ -v 금지
+#     cd /home/jb/srv/dopacheck && docker compose up -d
+#   (볼륨은 두 정의가 공유하므로 데이터는 그대로다)
+
+# ⚠️ 프로젝트명 고정 — 절대 바꾸지 말 것.
+#    MariaDB 데이터는 볼륨 `dopacheck_mariadbdata` 에 있고, 이 이름은 프로젝트명에서 파생된다.
+#    프로젝트명을 바꾸면 compose 가 **에러 없이** 빈 볼륨을 새로 만들고 그 위에 initdb 를 돌린다 —
+#    "DB 는 살아있는데 데이터가 없는" 상태가 된다.
+#    같은 이유로 실행 디렉터리명에 의존하지 않도록 여기에 명시한다.
+name: dopacheck
+
+networks:
+  # 내부 통신(dopacheck-app ↔ mariadb) 전용. compose 가 dopacheck_default 로 만든다.
+  default:
+  # Cloudflare Tunnel 공개 경로. 외부 네트워크라 이 compose 가 만들지 않는다.
+  #   docker network create shared-net
+  #
+  # ⚠️ shared-net 은 홈서버의 **모든 스택이 공유**한다. compose 는 서비스가 조인하는 모든
+  #    네트워크에 **서비스 키 이름을 별칭으로 게시**하므로, 서비스를 `app` 이라 부르면
+  #    `app` 이라는 일반명이 공유망에 뜬다. 실제로 2026-08-23 실측에서
+  #    community·mes·pension·dopacheck 네 컨테이너가 shared-net 에 `app` 을 동시에 게시하고 있었다 —
+  #    누군가 `app` 으로 내부 호출을 하면 요청이 네 서비스로 라운드로빈된다.
+  #
+  #    ⚠️ `aliases:` 로는 못 막는다. 별칭은 **대체가 아니라 추가**다 —
+  #       실측(2026-08-23): 서비스 `app` 에 `aliases: [x]` 를 주면 등록되는 별칭은
+  #       `[컨테이너명] [app] [x]` 로, 서비스명이 그대로 남는다.
+  #       그래서 **서비스 키 자체를 고유명(`dopacheck-app`)으로 둔다.**
+  #    (규칙화: luma200ok/home-infra#15)
+  shared-net:
+    external: true
+
+volumes:
+  mariadbdata:
+
+services:
+  mariadb:
+    # 다이제스트 핀 — 태그 유지는 버전 유지가 아니다. DB 는 마이너 버전이 바뀌면
+    # 데이터 디렉터리 업그레이드가 돌 수 있어 특히 위험하다.
+    # 갱신은 `pull` 이 아니라 이 줄을 새 다이제스트로 바꿔 커밋하는 방식으로만 한다.
+    # 2026-08-23 서버에서 돌던 이미지(mariadb:11.4) 그대로.
+    #
+    # ⚠️ 앱 이미지(Dockerfile)는 아직 부동 태그(python:3.10-slim)에 requirements 도 하한 범위다 —
+    #    즉 복원 재빌드가 운영과 다른 의존성으로 해석될 수 있다. 이 비대칭은 알고 남긴 것이다:
+    #    DB 는 잘못된 버전이 **데이터를 건드리지만**, 앱은 재빌드해도 코드가 같고 되돌리기 쉽다.
+    #    앱 쪽 고정은 requirements 상한/lock 도입이 필요해 별도로 다룬다(luma-team-ai/DopaCheck#221).
+    image: mariadb@sha256:4f1d8d202fcf7bcb3902f63af09f9c1a050c2922a89652f22abaec0d4f015e83
+    container_name: dopacheck-mariadb
+    restart: unless-stopped
+
+    # root 비밀번호만 담긴 별도 파일. app 과 파일을 나누는 이유는 dopacheck-app 서비스 주석 참고.
+    #
+    # ⚠️ env_file 의 값은 **컨테이너에만** 전달되고 compose 보간(${...})에는 쓰이지 않는다.
+    #    그래서 MARIADB_ROOT_PASSWORD 에는 :?required 가드를 걸 수 없다. 대신 mariadb entrypoint 가
+    #    빈 볼륨에서 root 비밀번호 없이 초기화를 거부하므로 조용히 넘어가지는 않는다
+    #    (기존 볼륨에서는 이 값이 초기화에 쓰이지 않으므로 누락돼도 무해하다).
+    env_file: .env.db
+    environment:
+      # 아래 세 값은 프로젝트 디렉터리 `.env` 에서 보간된다 —
+      # 값이 컨테이너를 건드리기 전에 배포가 멈추도록 :?required 가드를 건다.
+      # ⚠️ 가드는 up 뿐 아니라 down·stop·logs·ps 까지 막는다 — `.env` 가 없을 땐
+      #    컨테이너명을 직접 쓰는 docker stop/start 로 우회한다(compose 보간을 타지 않는다).
+      MARIADB_DATABASE: ${DB_NAME:?required}
+      # 앱 전용 계정. 이게 없으면 신규 볼륨에는 root 만 생겨서, 복원 직후 앱이
+      # DB_USER 로 접속하다 거부당한다(또는 앱에 root 를 쥐여주게 된다).
+      # ⚠️ DB_USER 를 root 로 두면 mariadb entrypoint 가 초기화를 거부한다 — 전용 계정이어야 한다.
+      # ⚠️ initdb 는 빈 데이터 디렉터리에서만 돈다. 기존 운영 볼륨에는 반영되지 않으며,
+      #    운영 DB 에는 이미 이 계정이 존재한다(2026-08-23 실측: DB_USER=dopacheck).
+      MARIADB_USER: ${DB_USER:?required}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?required}
+
+    volumes:
+      - mariadbdata:/var/lib/mysql
+      # 재해복원용 시드 — 빈 볼륨일 때만 실행된다(기존 데이터 무영향). 파일명 순서대로 적용된다.
+      - ../../db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../../db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    networks:
+      # 공유망에 붙이지 않는다 — DB 는 이 스택 밖에서 보일 이유가 없다.
+      # 서비스명 `mariadb` 별칭도 dopacheck_default 안에만 존재하므로 공유망 충돌과 무관하다.
+      - default
+
+    # 메모리 상한(luma200ok/home-infra#9) — 실측 93MiB. 상한이 없으면 이 컨테이너의 폭주가
+    # OOM killer 를 불러 무관한 서비스를 죽인다(OOM killer 는 원인 제공자가 아니라
+    # 그 순간 점수가 가장 높은 프로세스를 죽인다). 데이터 성장 여유를 크게 둔다.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+    # 디스크에도 같은 이유로 상한을 둔다. 호스트에 /etc/docker/daemon.json 이 없어
+    # json-file 이 **무제한**으로 쌓이는 상태였다(2026-08-23 실측, luma200ok/home-infra#16).
+    # restart: unless-stopped 와 겹치면 크래시 루프가 루트 파티션을 채우고,
+    # 그때는 메모리 상한과 똑같이 무관한 스택까지 동반 장애가 난다.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ⚠️ 서비스 키를 `app` 이 아니라 `dopacheck-app` 으로 둔다 — networks 절 주석 참고.
+  #    compose 는 서비스 키를 공유망 shared-net 에 별칭으로 게시하는데, `aliases:` 로는
+  #    그걸 대체할 수 없어서(추가만 된다) 키 이름 자체가 고유해야 한다.
+  dopacheck-app:
+    build:
+      # 컨텍스트는 레포 루트(이 파일 기준 두 단계 위) — Dockerfile·app.py 가 거기에 있다.
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: dopacheck-app
+    restart: unless-stopped
+
+    # 이 컨테이너는 터널로 인터넷에 직접 노출되는 유일한 프로세스이면서, 무관한 세 스택
+    # (community·mes·pension)과 shared-net 을 공유한다. 침해 시 공유망 전체로 번지는 발판이
+    # 되지 않도록 권한 상승을 막는다(비루트 구동은 Dockerfile 의 USER app).
+    security_opt:
+      - no-new-privileges:true
+
+    # ⚠️ 여기서 읽는 `.env` 에는 MARIADB_* 를 넣지 않는다.
+    #    env_file 은 파일의 **모든** 키를 컨테이너 환경에 넣으므로, DB 초기화 전용인
+    #    MARIADB_ROOT_PASSWORD 가 섞여 있으면 앱이 쓰지도 않는 DB 슈퍼유저 크레덴셜이
+    #    앱 프로세스 환경에 상주한다(`/proc/self/environ`·`docker inspect dopacheck-app` 로 평문 노출).
+    #    그래서 DB 초기화 값은 `.env.db` 로 분리했다.
+    env_file: .env
+    environment:
+      # .env 오설정으로 뒤집히지 않도록 고정한다(environment 가 env_file 보다 우선).
+      # production 이어야 ProxyFix 가 적용돼 터널이 넘기는 X-Forwarded-Proto 가 반영되고,
+      # dev 전용 블루프린트가 등록되지 않는다(app.py).
+      FLASK_ENV: production
+
+      # ── 아래 세 값은 "비어 있어도 앱이 정상 기동하는" 키다. 그래서 배포 단계에서 막는다. ──
+      #
+      # ⚠️ REDIRECT_URI 가 비면 routes/auth.py 가 url_for(..., _external=True) 폴백을 탄다.
+      #    FLASK_ENV=production 이면 ProxyFix(x_host=1) 가 켜져 그 호스트가 X-Forwarded-Host 에서
+      #    결정되므로, 요청 헤더가 OAuth redirect_uri 의 호스트를 정하게 된다.
+      #    기존 OCI 구성에는 호스트 nginx 라는 신뢰 홉이 있었지만 홈서버 이전으로 그 홉이 사라졌다.
+      #    :? 가드는 미설정뿐 아니라 **빈 값도** 막으므로 폴백 경로 자체가 없어진다
+      #    (_external=True 사용처는 routes/auth.py 두 곳뿐 — 2026-08-23 전수 확인).
+      #    ProxyFix 신뢰 범위 자체를 좁히는 건 앱 코드 변경이라 별도로 다룬다(#222).
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:?required}
+      KAKAO_REDIRECT_URI: ${KAKAO_REDIRECT_URI:?required}
+      #
+      # ⚠️ FLASK_SECRET_KEY 가 빈 문자열이면 app.py 의 대괄호 접근은 KeyError 를 내지 않고
+      #    Flask 가 세션을 NullSession 으로 둔다 → 컨테이너는 정상 기동하고 healthcheck 도 통과하는데
+      #    **세션을 쓰는 요청(OAuth 로그인 등)만 전부 500** 이 된다. 터널은 정상으로 보고 트래픽을 흘린다.
+      #    복원 절차가 정확히 이 실패 모드를 통과시키므로 배포 단계에서 막는다.
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:?required}
+      #
+      # ⚠️ ANTHROPIC_API_KEY 도 같은 성질이다 — 클라이언트가 지연 생성이라(ai/utils.py:22)
+      #    부팅 경로를 타지 않는다. 비면 컨테이너·healthcheck 는 전부 정상인 채 영수증 OCR 등
+      #    AI 기능(FR-1~8)만 런타임 401 로 죽는다.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?required}
+
+      # DB 접속 호스트를 여기서 고정한다 — 사람이 손으로 적을 이유가 없는 값이다
+      # (컨테이너명은 바로 이 파일이 container_name 으로 정한다).
+      # ⚠️ 서비스 키 `mariadb` 로 적으면 dopacheck_default 안에서는 대개 정상 동작해서
+      #    오설정이 드러나지 않다가, 공유망에 동명 별칭이 뜬 순간부터 간헐적으로 남의 DB 로
+      #    커넥션(=앱 DB 크레덴셜 전송)이 나간다. 구조적으로 그 여지를 없앤다.
+      # ⚠️ DB_HOST 는 db/client.py 의 _env() 로 **최초 DB 접근 시점**에야 읽히고 /health 는
+      #    DB 를 건드리지 않으므로, 누락돼도 컨테이너는 초록으로 뜨고 실사용 요청만 500 이 된다.
+      DB_HOST: dopacheck-mariadb
+
+    depends_on:
+      mariadb:
+        # 기동 순서만이 아니라 DB 준비 완료를 기다린다 — 복원 직후 initdb 가 도는 동안
+        # 들어온 요청이 커넥션 실패로 5xx 가 되는 구간을 없앤다.
+        condition: service_healthy
+
+    ports:
+      # 홈서버 로컬 스모크 전용. 공개는 터널이 shared-net 으로 담당한다.
+      - "127.0.0.1:8091:8000"
+
+    networks:
+      # 터널이 http://dopacheck-app:8000 으로 도달한다.
+      # ⚠️ shared-net 조인이 빠지면 컨테이너 recreate 마다 dopacheck.luma200ok.com 이 502 가 된다
+      #    (hajacheck 가 실제로 그 상태였다 — luma-team-ai/HajaCheck#1737).
+      - default
+      - shared-net
+
+    # 메모리 상한(luma200ok/home-infra#9) — 실측 130MiB.
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+    # 디스크 상한 — mariadb 쪽 주석과 같은 이유.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

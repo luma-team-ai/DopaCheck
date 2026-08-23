@@ -135,13 +135,74 @@ PR #22(`51be2ed`)로 main이 **Supabase → MariaDB**로 전환됨 (PRD §11 ERD
 
 ---
 
-## 6. 배포 (OCI 자체 서버 — 2026-07-02 Cloudtype에서 이전)
+## 6. 배포 (홈서버 hmoeserver — 2026-08-21 OCI에서 이전)
 
-- **라이브**: https://dopacheck.luma200ok.com — `oci-arm1` 서버에서 Docker 구동, 호스트 nginx가 `127.0.0.1:8091`로 프록시(TLS=certbot 자동갱신).
-- **구성**: 앱 `dopacheck-app`(Dockerfile, gunicorn 2워커) + DB `dopacheck-mariadb`(MariaDB 11.4, 영구볼륨) — `dopacheck-net` 내부 네트워크로 연결. DB 외부 포트는 폐쇄(로컬 개발=SSH 터널 `ssh -L 3307:localhost:3307 oci-arm1`).
-- **재배포**: `rsync -az --delete --exclude .git --exclude .env ./ oci-arm1:~/dopacheck/` → 서버에서 `docker build -t dopacheck-app . && docker rm -f dopacheck-app && docker run -d --name dopacheck-app --restart unless-stopped --network dopacheck-net -p 127.0.0.1:8091:8000 --env-file .env dopacheck-app` (CloudType 자동배포 워크플로 `deploy-main.yml`은 제거됨).
+- **라이브**: https://dopacheck.luma200ok.com — 홈서버 `hmoeserver`(`ssh jb`)에서 docker compose 스택으로 구동.
+- **공개 경로**: 인터넷 → Cloudflare 엣지 → `cloudflared` 터널 → 공용 도커망 `shared-net` → `dopacheck-app:8000`.
+  **포트 개방·공인 IP 노출·호스트 nginx 가 전부 없다.** `127.0.0.1:8091` 은 서버 로컬 스모크 전용이다.
+- **구성**: 앱 `dopacheck-app`(Dockerfile, gunicorn 2워커) + DB `dopacheck-mariadb`(MariaDB 11.4, 볼륨 `dopacheck_mariadbdata`).
+  둘은 스택 내부망 `dopacheck_default` 로 연결되고, **DB 는 shared-net 에 붙지 않는다.**
+- **정의 위치**: `deploy/home/compose.yml` (이 레포). 서버 체크아웃은 `/opt/deploy/dopacheck`.
+  2026-08-23 이전에는 이 정의가 서버 디스크에만 있어 복원 근거가 없었다(luma200ok/home-infra#13).
+- **재배포**:
+
+  ```bash
+  ssh jb
+  cd /opt/deploy/dopacheck && git pull --ff-only
+  cd deploy/home && docker compose up -d --build
+  ```
+
+- **최초 1회 전환** (서버 디스크 정의 → 레포 정의). ⚠️ 무점검 `up` 금지 — 두 가지가 조용히 깨진다:
+  구 스택은 서비스 키가 `app` 이라 새 정의(`dopacheck-app`)에서 orphan 이 되는데 `container_name` 이
+  같아 **이름 충돌로 멈추고**, 볼륨명이 어긋나면 **에러 없이 빈 볼륨**이 생겨 initdb 가 스키마·시드를
+  심는다 → 전부 초록인데 사용자 데이터만 없는 상태가 된다(배포가 성공해 보여서 더 위험).
+
+  ```bash
+  # ① 기존 볼륨명 — dopacheck_mariadbdata 여야 한다
+  docker inspect dopacheck-mariadb -f '{{range .Mounts}}{{.Name}}{{end}}'
+  # ② 기존 서비스 키 — app 이면 구 스택
+  docker inspect dopacheck-app -f '{{index .Config.Labels "com.docker.compose.service"}}'
+  # ③ 이미지를 먼저 만든다 — 다운타임 밖에서 (앱 의존성이 아직 하한 범위라 빌드 실패가 실재한다, #221)
+  cd /opt/deploy/dopacheck/deploy/home && docker compose build
+  # ④ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨 삭제)
+  cd /home/jb/srv/dopacheck && docker compose down
+  # ⑤ 새 위치에서 올리기
+  cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --remove-orphans
+  # ⑥ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨 재지정(쓰기가 더 쌓이기 전에)
+  docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users" "$MARIADB_DATABASE"'
+  # ⑦ 비루트 구동 · DB_HOST · 공유망 별칭 확인
+  docker exec dopacheck-app id                      # uid=10001(app)
+  docker exec dopacheck-app env | grep '^DB_HOST='   # dopacheck-mariadb
+  docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'
+  ```
+
+  롤백: ⑤/⑥ 이 실패하면 `cd /opt/deploy/dopacheck/deploy/home && docker compose down`(⚠️ `-v` 금지) 후
+  `cd /home/jb/srv/dopacheck && docker compose up -d` 로 즉시 복귀한다. 볼륨은 두 정의가 공유하므로 데이터는 그대로다.
+
+- **복원은 앱을 멈춘 상태에서만.** 그리고 **복원 시작 전에 `FLASK_SECRET_KEY` 를 회전**한다 —
+  세션이 `users.id` 하나만 담고 그 id 의 실재 여부를 검증하지 않아, 복원으로 id 가 재할당되면
+  기존 쿠키가 다른 사용자로 인증된다(관리자 포함, #223). 절차는 `deploy/home/compose.yml` 헤더 참고.
+
+- **시크릿**: 서버의 `deploy/home/.env`(앱용)·`.env.db`(DB root) — 둘 다 미커밋, 권한 600.
+  스키마는 `.env.example`·`.env.db.example` 참고. DB root 비밀번호를 앱 컨테이너에 넣지 않으려고 파일을 나눴다.
+- **DB 접속 호스트는 `dopacheck-mariadb`**(고유 컨테이너명). 서비스명 `mariadb` 를 쓰면 앱이 조인한
+  공유망 shared-net 의 동명 별칭으로 해석될 수 있다.
 - 런타임: `gunicorn app:app --workers 2 --timeout 120`(Dockerfile CMD, 구 Procfile과 동일). **멀티워커이므로** 주간 챌린지 정산 배치는 advisory lock으로 중복 실행을 차단한다(#206).
 - 운영 마이그레이션(`db/migrations/001~004`)은 신규 DB 스키마(`db/schema.sql`)에 이미 반영됨. 새 마이그레이션 발생 시 **수동 적용** 필요. 점수 의미 반전(#182) 배포 시 순서: 코드 배포 → `python -m scripts.backfill_scores` → `004_add_challenge_bonus_check.sql`.
+- **재해복원**: 빈 서버에서 올리면 `db/schema.sql`(테이블) + `db/seed.sql`(기본 챌린지 7종)이 initdb 로 자동 적용된다(빈 볼륨일 때만).
+  schema 만 심으면 `challenges` 가 0건이라 앱은 뜨는데 챌린지 목록이 비어 서비스가 성립하지 않는다.
+  복원 후 `SELECT COUNT(*) FROM challenges` 가 7 이상인지 확인할 것. **사용자 데이터는 볼륨 백업이 유일한 근거다** — 백업·복원 명령은 `deploy/home/compose.yml` 헤더 주석 참고(값 보간을 컨테이너 안에서 시켜야 한다).
+- **로컬 개발 DB**: 운영 DB 는 홈서버 내부망(`dopacheck_default`)에만 있어 **외부 접속이 불가하다.**
+  로컬은 `db/schema.sql` + `db/seed.sql` 로 띄운 로컬 MariaDB 를 쓴다(루트 `.env.example` 참고).
+  구 안내였던 `ssh -L 3307:localhost:3307 oci-arm1` 은 폐기됐다.
+- **compose 서비스 키는 `dopacheck-app`** (`app` 이 아니다). compose 가 서비스 키를 공유망 `shared-net` 에
+  별칭으로 게시하는데, `aliases:` 로는 대체할 수 없어서(추가만 된다) 키 이름 자체가 고유해야 한다.
+  재배포 후 확인: `docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'` 에 `app` 이 없어야 한다(luma200ok/home-infra#15).
+
+> ⚠️ **폐기됨 — OCI(oci-arm1) 배포 절차.** `rsync → docker build → docker rm -f dopacheck-app → docker run --network dopacheck-net` 는 더 이상 쓰지 않는다.
+> 그 절차를 따르면 compose 관리 밖 컨테이너가 뜨면서 `shared-net` 조인이 사라져 **dopacheck.luma200ok.com 이 502** 가 되고,
+> `container_name` 충돌로 배포가 중간에 실패한다(같은 형태의 사고: luma-team-ai/HajaCheck#1737).
+> oci-arm1 은 2026-08-21 전 서비스 이전으로 정지 상태이며, 이 도메인을 서빙하는 것은 홈서버뿐이다.
 
 ---
 
