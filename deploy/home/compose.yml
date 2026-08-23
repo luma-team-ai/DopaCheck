@@ -16,61 +16,98 @@
 # 데이터가 돌아오는 것은 다른 문제다:
 #
 #   1) 스키마 + 기본 데이터 — 아래 mariadb 의 initdb 마운트 두 개가 자동 적용된다.
-#        01-schema.sql ← db/schema.sql  (테이블 DDL. migrations 001~004 이미 반영됨)
-#        02-seed.sql   ← db/seed.sql    (기본 챌린지 7종. UPSERT 라 재실행 안전)
+#        01-schema.sql <- db/schema.sql  (테이블 DDL. migrations 001~004 이미 반영됨)
+#        02-seed.sql   <- db/seed.sql    (기본 챌린지 7종. UPSERT 라 재실행 안전)
 #      schema 만 심으면 challenges 가 0건이라 앱은 뜨는데 챌린지 목록이 비어 서비스가 성립하지 않는다.
 #      (entrypoint 의 initdb 는 데이터 디렉터리가 **비어 있을 때만** 돌므로 기존 볼륨엔 영향 없다.)
-#      복원 후 확인: docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM challenges" "$MARIADB_DATABASE"'  → 7 이상
+#      확인: docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM challenges" "$MARIADB_DATABASE"'  -> 7 이상
 #      ⚠️ db/seed_demo.sql(데모 데이터)은 마운트하지 않는다.
 #
 #   2) 사용자 데이터 — initdb 로는 복원되지 않는다. 볼륨 백업이 유일한 근거다.
 #
-#      ⚠️ 값 보간을 **컨테이너 안에서** 시킨다 — 호스트 셸에는 이 변수들이 없어서
-#         `-p"$MARIADB_ROOT_PASSWORD"` 로 쓰면 빈 값으로 치환돼 Access denied 로 실패하는데,
-#         리다이렉트는 명령 실행 전에 파일을 만들므로 0바이트 백업이 성공한 이름으로 남는다.
-#      ⚠️ 덤프는 **레포 밖**에 만든다. 실행 위치(/opt/deploy/dopacheck/deploy/home)가 git 체크아웃
-#         안이라, 여기에 쓰면 전 사용자 PII(이메일·닉네임·provider_id)가 담긴 파일이 untracked 로 뜨고
-#         `git add -A` 한 번에 원격으로 푸시된다. 반대로 `git clean -fdx` 는 그 덤프를 지운다.
-#      ⚠️ "비어 있지 않음"은 무결성 검증이 아니다 — mariadb-dump 는 디스크 소진·커넥션 kill 로
-#         중간에 죽어도 이미 쓴 수십 MB 를 남긴다. **종료코드 + 종결 마커** 두 축으로 본다.
+# ── 백업 ─────────────────────────────────────────────────────────────────────
+#   ⚠️ 값 보간을 **컨테이너 안에서** 시킨다 — 호스트 셸에는 이 변수들이 없어서
+#      호스트에서 보간하면 빈 값으로 치환돼 Access denied 로 실패한다.
+#   ⚠️ 덤프는 **레포 밖**에 만든다. 실행 위치가 git 체크아웃 안이라, 여기에 쓰면 전 사용자
+#      PII(이메일·닉네임·provider_id)가 untracked 로 뜨고 `git add -A` 한 번에 원격으로 푸시된다.
+#      반대로 `git clean -fdx` 는 그 덤프를 지운다.
+#   ⚠️ "비어 있지 않음"은 무결성 검증이 아니다 — mariadb-dump 는 디스크 소진·커넥션 kill 로
+#      중간에 죽어도 이미 쓴 수십 MB 를 남긴다. **종료코드 + 종결 마커** 두 축으로 본다.
+#   ⚠️ 검증 전에는 최종 파일을 건드리지 않는다 — 파일명이 날짜 단위라 같은 날 두 번 돌리면
+#      같은 경로다. 곧바로 `> "$f"` 로 쓰면 리다이렉트가 명령 실행 **전에** 기존 정상 백업을
+#      0바이트로 잘라내고, 그 실행이 실패하면 그날 백업이 아예 없어진다. 그래서 .part 에 쓰고
+#      통과했을 때만 옮긴다.
 #
-#        준비(1회):  sudo install -d -m 700 /var/backups/dopacheck
+#     준비(1회) — 실행 계정 소유로 만든다. root:0700 으로 만들면 `> "$f"` 리다이렉트가
+#     sudo 를 타지 않아 Permission denied 로 백업이 한 건도 안 만들어진다:
+#       sudo install -d -m 700 -o "$(id -un)" -g "$(id -gn)" /var/backups/dopacheck
+#       : > /var/backups/dopacheck/.wtest && rm /var/backups/dopacheck/.wtest && echo "쓰기 OK"
 #
-#        백업:
-#          f=/var/backups/dopacheck/dopacheck-$(date +%Y%m%d).sql
-#          if docker exec dopacheck-mariadb sh -c \
-#               'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction --routines "$MARIADB_DATABASE"' > "$f" \
-#             && tail -1 "$f" | grep -q '^-- Dump completed'; then
-#            echo "백업 OK: $(wc -c < "$f") bytes"
-#          else
-#            rm -f "$f"; echo "백업 실패"; exit 1
-#          fi
+#     백업:
+#       f=/var/backups/dopacheck/dopacheck-$(date +%Y%m%d).sql
+#       if docker exec dopacheck-mariadb sh -c \
+#            'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction --routines "$MARIADB_DATABASE"' > "$f.part" \
+#          && tail -1 "$f.part" | grep -q '^-- Dump completed'; then
+#         mv "$f.part" "$f"; echo "백업 OK: $(wc -c < "$f") bytes"
+#       else
+#         rm -f "$f.part"; echo "백업 실패 — 기존 백업($f)은 보존됨"
+#       fi
 #
-#        복원:
-#          docker exec -i dopacheck-mariadb sh -c \
-#            'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' < "$f"
+# ── 복원 ─────────────────────────────────────────────────────────────────────
+#   ⚠️ **앱을 멈춘 상태에서만** 한다. 덤프에는 DROP TABLE + FOREIGN_KEY_CHECKS=0 이 들어 있는데
+#      그 무력화는 복원 세션 한정이다. 앱이 계속 쓰면 드롭된 테이블 접근으로 500 이 나거나,
+#      복원 전에 만들어진 행이 소리 없이 사라지거나, 재설정된 AUTO_INCREMENT 와 겹치는 id 를
+#      받아 복원 데이터를 덮어쓴다.
+#   ⚠️ **복원 시작 전에 FLASK_SECRET_KEY 를 새 값으로 바꾼다.** 세션은 users.id 하나만 담고
+#      login_required 는 그 id 가 실재하는지·어느 DB 에서 발급됐는지 검증하지 않는다(#223).
+#      복원으로 id 가 다른 사람에게 재할당되면 **기존 쿠키가 그 사람으로 인증된다**(관리자 포함).
+#      회전을 복원 "후"가 아니라 "전"에 해야 갭 동안 발급되는 쿠키까지 무력화된다.
+#
+#       # ① 시크릿 회전 (복원 전)
+#       vi .env      # FLASK_SECRET_KEY 를 새 랜덤 값으로
+#       # ② 앱 정지
+#       docker compose stop dopacheck-app
+#       # ③ 복원
+#       docker exec -i dopacheck-mariadb sh -c \
+#         'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' < "$f"
+#       # ④ 검증
+#       docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users; SELECT COUNT(*) FROM challenges" "$MARIADB_DATABASE"'
+#       # ⑤ 새 시크릿으로 재기동 (전 세션 강제 만료)
+#       docker compose up -d --force-recreate dopacheck-app
 #
 #      (홈서버 정기 백업은 luma200ok/home-infra 의 backup 스택 소관)
 #
-# ── 최초 1회 전환 (서버 디스크 → 레포 정의) ─────────────────────────────────
+# ── 최초 1회 전환 (서버 디스크 -> 레포 정의) ─────────────────────────────────
 # 기존 스택은 /home/jb/srv/dopacheck 에서 **서비스 키 `app`** 으로 돌고 있었다. 이 정의는 키가
 # `dopacheck-app` 이라 compose 가 옛 컨테이너를 orphan 으로 보는데, `container_name` 이 같아서
 # 이름 충돌로 `up` 이 멈춘다. 그리고 볼륨명이 어긋나면 **에러 없이 빈 볼륨**이 생기고 initdb 가
 # 스키마·시드를 심어 "전부 초록인데 사용자 데이터만 없는" 상태가 된다 — 배포가 실패가 아니라
 # 성공해 보이므로 더 위험하다. 그래서 올리기 **전에** 확인한다.
 #
-#   # ① 기존 볼륨명이 이 정의와 같은가 (dopacheck_mariadbdata 여야 한다)
+#   # ① 기존 볼륨명 — dopacheck_mariadbdata 여야 한다
 #   docker inspect dopacheck-mariadb -f '{{range .Mounts}}{{.Name}}{{end}}'
-#   # ② 기존 서비스 키 확인 (app 이면 구 스택)
+#   # ② 기존 서비스 키 — app 이면 구 스택
 #   docker inspect dopacheck-app -f '{{index .Config.Labels "com.docker.compose.service"}}'
-#   # ③ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨이 지워진다)
+#   # ③ 이미지를 **먼저** 만든다 — 다운타임 밖에서. 앱 이미지는 아직 부동 태그·하한 범위
+#   #    의존성이라(#221) 이 빌드는 실패 가능성이 실재한다. 서비스를 내린 뒤에 처음 빌드하면
+#   #    실패 시 복구 수단 없이 다운된 채로 남는다.
+#   cd /opt/deploy/dopacheck/deploy/home && docker compose build
+#   # ④ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨 삭제)
 #   cd /home/jb/srv/dopacheck && docker compose down
-#   # ④ 새 위치에서 올리기
-#   cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --build --remove-orphans
-#   # ⑤ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨을 재지정한다(쓰기가 더 쌓이기 전에)
+#   # ⑤ 새 위치에서 올리기
+#   cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --remove-orphans
+#   # ⑥ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨을 재지정한다(쓰기가 더 쌓이기 전에).
+#   #    ⚠️ 볼륨을 재지정할 땐 위 "복원" 절의 시크릿 회전을 함께 한다(#223).
 #   docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users" "$MARIADB_DATABASE"'
-#   # ⑥ 공유망 별칭에 일반명 app 이 없는지
-#   docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'
+#   # ⑦ 비루트 구동 · DB_HOST · 공유망 별칭 확인
+#   docker exec dopacheck-app id                       # uid=10001(app)
+#   docker exec dopacheck-app env | grep '^DB_HOST='    # dopacheck-mariadb
+#   docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'   # app 이 없어야 한다
+#
+#   롤백: ⑤/⑥ 이 실패하면
+#     cd /opt/deploy/dopacheck/deploy/home && docker compose down     # ⚠️ -v 금지
+#     cd /home/jb/srv/dopacheck && docker compose up -d
+#   (볼륨은 두 정의가 공유하므로 데이터는 그대로다)
 
 # ⚠️ 프로젝트명 고정 — 절대 바꾸지 말 것.
 #    MariaDB 데이터는 볼륨 `dopacheck_mariadbdata` 에 있고, 이 이름은 프로젝트명에서 파생된다.
@@ -220,6 +257,20 @@ services:
       #    **세션을 쓰는 요청(OAuth 로그인 등)만 전부 500** 이 된다. 터널은 정상으로 보고 트래픽을 흘린다.
       #    복원 절차가 정확히 이 실패 모드를 통과시키므로 배포 단계에서 막는다.
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:?required}
+      #
+      # ⚠️ ANTHROPIC_API_KEY 도 같은 성질이다 — 클라이언트가 지연 생성이라(ai/utils.py:22)
+      #    부팅 경로를 타지 않는다. 비면 컨테이너·healthcheck 는 전부 정상인 채 영수증 OCR 등
+      #    AI 기능(FR-1~8)만 런타임 401 로 죽는다.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?required}
+
+      # DB 접속 호스트를 여기서 고정한다 — 사람이 손으로 적을 이유가 없는 값이다
+      # (컨테이너명은 바로 이 파일이 container_name 으로 정한다).
+      # ⚠️ 서비스 키 `mariadb` 로 적으면 dopacheck_default 안에서는 대개 정상 동작해서
+      #    오설정이 드러나지 않다가, 공유망에 동명 별칭이 뜬 순간부터 간헐적으로 남의 DB 로
+      #    커넥션(=앱 DB 크레덴셜 전송)이 나간다. 구조적으로 그 여지를 없앤다.
+      # ⚠️ DB_HOST 는 db/client.py 의 _env() 로 **최초 DB 접근 시점**에야 읽히고 /health 는
+      #    DB 를 건드리지 않으므로, 누락돼도 컨테이너는 초록으로 뜨고 실사용 요청만 500 이 된다.
+      DB_HOST: dopacheck-mariadb
 
     depends_on:
       mariadb:

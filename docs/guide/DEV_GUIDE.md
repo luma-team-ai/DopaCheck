@@ -162,16 +162,26 @@ PR #22(`51be2ed`)로 main이 **Supabase → MariaDB**로 전환됨 (PRD §11 ERD
   docker inspect dopacheck-mariadb -f '{{range .Mounts}}{{.Name}}{{end}}'
   # ② 기존 서비스 키 — app 이면 구 스택
   docker inspect dopacheck-app -f '{{index .Config.Labels "com.docker.compose.service"}}'
-  # ③ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨 삭제)
+  # ③ 이미지를 먼저 만든다 — 다운타임 밖에서 (앱 의존성이 아직 하한 범위라 빌드 실패가 실재한다, #221)
+  cd /opt/deploy/dopacheck/deploy/home && docker compose build
+  # ④ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨 삭제)
   cd /home/jb/srv/dopacheck && docker compose down
-  # ④ 새 위치에서 올리기
-  cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --build --remove-orphans
-  # ⑤ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨 재지정(쓰기가 더 쌓이기 전에)
+  # ⑤ 새 위치에서 올리기
+  cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --remove-orphans
+  # ⑥ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨 재지정(쓰기가 더 쌓이기 전에)
   docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users" "$MARIADB_DATABASE"'
-  # ⑥ 비루트 구동 · 공유망 별칭 확인
-  docker exec dopacheck-app id
+  # ⑦ 비루트 구동 · DB_HOST · 공유망 별칭 확인
+  docker exec dopacheck-app id                      # uid=10001(app)
+  docker exec dopacheck-app env | grep '^DB_HOST='   # dopacheck-mariadb
   docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'
   ```
+
+  롤백: ⑤/⑥ 이 실패하면 `cd /opt/deploy/dopacheck/deploy/home && docker compose down`(⚠️ `-v` 금지) 후
+  `cd /home/jb/srv/dopacheck && docker compose up -d` 로 즉시 복귀한다. 볼륨은 두 정의가 공유하므로 데이터는 그대로다.
+
+- **복원은 앱을 멈춘 상태에서만.** 그리고 **복원 시작 전에 `FLASK_SECRET_KEY` 를 회전**한다 —
+  세션이 `users.id` 하나만 담고 그 id 의 실재 여부를 검증하지 않아, 복원으로 id 가 재할당되면
+  기존 쿠키가 다른 사용자로 인증된다(관리자 포함, #223). 절차는 `deploy/home/compose.yml` 헤더 참고.
 
 - **시크릿**: 서버의 `deploy/home/.env`(앱용)·`.env.db`(DB root) — 둘 다 미커밋, 권한 600.
   스키마는 `.env.example`·`.env.db.example` 참고. DB root 비밀번호를 앱 컨테이너에 넣지 않으려고 파일을 나눴다.
