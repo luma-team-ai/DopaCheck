@@ -158,7 +158,15 @@ PR #22(`51be2ed`)로 main이 **Supabase → MariaDB**로 전환됨 (PRD §11 ERD
   공유망 shared-net 의 동명 별칭으로 해석될 수 있다.
 - 런타임: `gunicorn app:app --workers 2 --timeout 120`(Dockerfile CMD, 구 Procfile과 동일). **멀티워커이므로** 주간 챌린지 정산 배치는 advisory lock으로 중복 실행을 차단한다(#206).
 - 운영 마이그레이션(`db/migrations/001~004`)은 신규 DB 스키마(`db/schema.sql`)에 이미 반영됨. 새 마이그레이션 발생 시 **수동 적용** 필요. 점수 의미 반전(#182) 배포 시 순서: 코드 배포 → `python -m scripts.backfill_scores` → `004_add_challenge_bonus_check.sql`.
-- 빈 서버에서 복원하면 `db/schema.sql` 이 initdb 로 자동 적용된다(빈 볼륨일 때만). **데이터 자체는 볼륨 백업이 유일한 근거다** — 절차는 `deploy/home/compose.yml` 헤더 주석 참고.
+- **재해복원**: 빈 서버에서 올리면 `db/schema.sql`(테이블) + `db/seed.sql`(기본 챌린지 7종)이 initdb 로 자동 적용된다(빈 볼륨일 때만).
+  schema 만 심으면 `challenges` 가 0건이라 앱은 뜨는데 챌린지 목록이 비어 서비스가 성립하지 않는다.
+  복원 후 `SELECT COUNT(*) FROM challenges` 가 7 이상인지 확인할 것. **사용자 데이터는 볼륨 백업이 유일한 근거다** — 백업·복원 명령은 `deploy/home/compose.yml` 헤더 주석 참고(값 보간을 컨테이너 안에서 시켜야 한다).
+- **로컬 개발 DB**: 운영 DB 는 홈서버 내부망(`dopacheck_default`)에만 있어 **외부 접속이 불가하다.**
+  로컬은 `db/schema.sql` + `db/seed.sql` 로 띄운 로컬 MariaDB 를 쓴다(루트 `.env.example` 참고).
+  구 안내였던 `ssh -L 3307:localhost:3307 oci-arm1` 은 폐기됐다.
+- **compose 서비스 키는 `dopacheck-app`** (`app` 이 아니다). compose 가 서비스 키를 공유망 `shared-net` 에
+  별칭으로 게시하는데, `aliases:` 로는 대체할 수 없어서(추가만 된다) 키 이름 자체가 고유해야 한다.
+  재배포 후 확인: `docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'` 에 `app` 이 없어야 한다(luma200ok/home-infra#15).
 
 > ⚠️ **폐기됨 — OCI(oci-arm1) 배포 절차.** `rsync → docker build → docker rm -f dopacheck-app → docker run --network dopacheck-net` 는 더 이상 쓰지 않는다.
 > 그 절차를 따르면 compose 관리 밖 컨테이너가 뜨면서 `shared-net` 조인이 사라져 **dopacheck.luma200ok.com 이 502** 가 되고,
