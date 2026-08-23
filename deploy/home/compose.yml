@@ -24,21 +24,53 @@
 #      ⚠️ db/seed_demo.sql(데모 데이터)은 마운트하지 않는다.
 #
 #   2) 사용자 데이터 — initdb 로는 복원되지 않는다. 볼륨 백업이 유일한 근거다.
+#
 #      ⚠️ 값 보간을 **컨테이너 안에서** 시킨다 — 호스트 셸에는 이 변수들이 없어서
 #         `-p"$MARIADB_ROOT_PASSWORD"` 로 쓰면 빈 값으로 치환돼 Access denied 로 실패하는데,
-#         리다이렉트는 명령 실행 전에 파일을 만들므로 **0바이트 백업이 성공한 이름으로 남는다.**
+#         리다이렉트는 명령 실행 전에 파일을 만들므로 0바이트 백업이 성공한 이름으로 남는다.
+#      ⚠️ 덤프는 **레포 밖**에 만든다. 실행 위치(/opt/deploy/dopacheck/deploy/home)가 git 체크아웃
+#         안이라, 여기에 쓰면 전 사용자 PII(이메일·닉네임·provider_id)가 담긴 파일이 untracked 로 뜨고
+#         `git add -A` 한 번에 원격으로 푸시된다. 반대로 `git clean -fdx` 는 그 덤프를 지운다.
+#      ⚠️ "비어 있지 않음"은 무결성 검증이 아니다 — mariadb-dump 는 디스크 소진·커넥션 kill 로
+#         중간에 죽어도 이미 쓴 수십 MB 를 남긴다. **종료코드 + 종결 마커** 두 축으로 본다.
+#
+#        준비(1회):  sudo install -d -m 700 /var/backups/dopacheck
 #
 #        백업:
-#          docker exec dopacheck-mariadb sh -c \
-#            'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction --routines "$MARIADB_DATABASE"' \
-#            > dopacheck-$(date +%Y%m%d).sql
-#          [ -s dopacheck-$(date +%Y%m%d).sql ] || { rm -f dopacheck-$(date +%Y%m%d).sql; echo "백업 실패"; }
+#          f=/var/backups/dopacheck/dopacheck-$(date +%Y%m%d).sql
+#          if docker exec dopacheck-mariadb sh -c \
+#               'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction --routines "$MARIADB_DATABASE"' > "$f" \
+#             && tail -1 "$f" | grep -q '^-- Dump completed'; then
+#            echo "백업 OK: $(wc -c < "$f") bytes"
+#          else
+#            rm -f "$f"; echo "백업 실패"; exit 1
+#          fi
 #
 #        복원:
 #          docker exec -i dopacheck-mariadb sh -c \
-#            'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' < <덤프파일>
+#            'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' < "$f"
 #
 #      (홈서버 정기 백업은 luma200ok/home-infra 의 backup 스택 소관)
+#
+# ── 최초 1회 전환 (서버 디스크 → 레포 정의) ─────────────────────────────────
+# 기존 스택은 /home/jb/srv/dopacheck 에서 **서비스 키 `app`** 으로 돌고 있었다. 이 정의는 키가
+# `dopacheck-app` 이라 compose 가 옛 컨테이너를 orphan 으로 보는데, `container_name` 이 같아서
+# 이름 충돌로 `up` 이 멈춘다. 그리고 볼륨명이 어긋나면 **에러 없이 빈 볼륨**이 생기고 initdb 가
+# 스키마·시드를 심어 "전부 초록인데 사용자 데이터만 없는" 상태가 된다 — 배포가 실패가 아니라
+# 성공해 보이므로 더 위험하다. 그래서 올리기 **전에** 확인한다.
+#
+#   # ① 기존 볼륨명이 이 정의와 같은가 (dopacheck_mariadbdata 여야 한다)
+#   docker inspect dopacheck-mariadb -f '{{range .Mounts}}{{.Name}}{{end}}'
+#   # ② 기존 서비스 키 확인 (app 이면 구 스택)
+#   docker inspect dopacheck-app -f '{{index .Config.Labels "com.docker.compose.service"}}'
+#   # ③ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨이 지워진다)
+#   cd /home/jb/srv/dopacheck && docker compose down
+#   # ④ 새 위치에서 올리기
+#   cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --build --remove-orphans
+#   # ⑤ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨을 재지정한다(쓰기가 더 쌓이기 전에)
+#   docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users" "$MARIADB_DATABASE"'
+#   # ⑥ 공유망 별칭에 일반명 app 이 없는지
+#   docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'
 
 # ⚠️ 프로젝트명 고정 — 절대 바꾸지 말 것.
 #    MariaDB 데이터는 볼륨 `dopacheck_mariadbdata` 에 있고, 이 이름은 프로젝트명에서 파생된다.
@@ -152,6 +184,12 @@ services:
       dockerfile: Dockerfile
     container_name: dopacheck-app
     restart: unless-stopped
+
+    # 이 컨테이너는 터널로 인터넷에 직접 노출되는 유일한 프로세스이면서, 무관한 세 스택
+    # (community·mes·pension)과 shared-net 을 공유한다. 침해 시 공유망 전체로 번지는 발판이
+    # 되지 않도록 권한 상승을 막는다(비루트 구동은 Dockerfile 의 USER app).
+    security_opt:
+      - no-new-privileges:true
 
     # ⚠️ 여기서 읽는 `.env` 에는 MARIADB_* 를 넣지 않는다.
     #    env_file 은 파일의 **모든** 키를 컨테이너 환경에 넣으므로, DB 초기화 전용인

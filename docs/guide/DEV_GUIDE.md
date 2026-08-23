@@ -152,6 +152,27 @@ PR #22(`51be2ed`)로 main이 **Supabase → MariaDB**로 전환됨 (PRD §11 ERD
   cd deploy/home && docker compose up -d --build
   ```
 
+- **최초 1회 전환** (서버 디스크 정의 → 레포 정의). ⚠️ 무점검 `up` 금지 — 두 가지가 조용히 깨진다:
+  구 스택은 서비스 키가 `app` 이라 새 정의(`dopacheck-app`)에서 orphan 이 되는데 `container_name` 이
+  같아 **이름 충돌로 멈추고**, 볼륨명이 어긋나면 **에러 없이 빈 볼륨**이 생겨 initdb 가 스키마·시드를
+  심는다 → 전부 초록인데 사용자 데이터만 없는 상태가 된다(배포가 성공해 보여서 더 위험).
+
+  ```bash
+  # ① 기존 볼륨명 — dopacheck_mariadbdata 여야 한다
+  docker inspect dopacheck-mariadb -f '{{range .Mounts}}{{.Name}}{{end}}'
+  # ② 기존 서비스 키 — app 이면 구 스택
+  docker inspect dopacheck-app -f '{{index .Config.Labels "com.docker.compose.service"}}'
+  # ③ 구 스택 내리기 — ⚠️ `-v` 절대 금지(볼륨 삭제)
+  cd /home/jb/srv/dopacheck && docker compose down
+  # ④ 새 위치에서 올리기
+  cd /opt/deploy/dopacheck/deploy/home && docker compose up -d --build --remove-orphans
+  # ⑤ 데이터 승계 확인 — 0 이면 즉시 내리고 볼륨 재지정(쓰기가 더 쌓이기 전에)
+  docker exec dopacheck-mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT COUNT(*) FROM users" "$MARIADB_DATABASE"'
+  # ⑥ 비루트 구동 · 공유망 별칭 확인
+  docker exec dopacheck-app id
+  docker inspect dopacheck-app -f '{{range $k,$v := .NetworkSettings.Networks}}{{if eq $k "shared-net"}}{{$v.Aliases}}{{end}}{{end}}'
+  ```
+
 - **시크릿**: 서버의 `deploy/home/.env`(앱용)·`.env.db`(DB root) — 둘 다 미커밋, 권한 600.
   스키마는 `.env.example`·`.env.db.example` 참고. DB root 비밀번호를 앱 컨테이너에 넣지 않으려고 파일을 나눴다.
 - **DB 접속 호스트는 `dopacheck-mariadb`**(고유 컨테이너명). 서비스명 `mariadb` 를 쓰면 앱이 조인한

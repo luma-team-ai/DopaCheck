@@ -7,6 +7,12 @@
 !.env.example
 !.env.db.example
 
+# DB 덤프 — 배포 디렉터리가 git 체크아웃 안이라, 백업을 여기에 만들면 전 사용자 PII 가
+# untracked 로 뜨고 `git add -A` 한 번에 원격으로 푸시된다.
+# (권장 출력 경로는 레포 밖 /var/backups/dopacheck — deploy/home/compose.yml 헤더 참고.
+#  이건 실수했을 때를 위한 안전망이다. 추적 중인 db/*.sql 에는 영향이 없다.)
+deploy/home/*.sql
+
 # CloudType 수동배포 매니페스트 — 시크릿 평문 포함, 커밋 금지 (배포는 .github/workflows/deploy-main.yml 사용)
 dopacheck.yaml
 *.deploy.local.yaml
